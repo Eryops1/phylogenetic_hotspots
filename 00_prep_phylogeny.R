@@ -40,40 +40,52 @@ phylo <- read_tree(file="../DATA/phylos/GBMB.tre") # genbank tree
 
 
 
-
-
-# identify tip label name source in GBMB.tre
-ott <- readRDS("../DATA/opentreeoflife.rds")
+# all label names come from Genbank (NCBI), skip the identification step
 phylo$tip.label <- gsub("_", " ", phylo$tip.label)
-ott_sub <- ott[ott$name %in% phylo$tip.label,]
-ott_sub <- ott_sub[-which(!ott_sub$uniqname==""),] # remove non-plant taxa
-rm(ott)
-
-# mark tip labels according to source
-ott_ncbi <- ott_sub[grepl("ncbi", ott_sub$sourceinfo),]
-dat <- data.frame(tips = phylo$tip.label)
-dat$tips_mod <- gsub("_", " ", dat$tips) # replace underscore with space
-dat$source <- NA
-dat$source[which(dat$tips_mod %in% ott_ncbi$name)] <- "ncbi"
-dat$source[which(is.na(dat$source))] <- "gbif"
-table(dat$source, useNA = "ifany")
-
-
-# NCBI part ---------------------------------------------------------------
-
-one <- gsub("ncbi:", "", ott_ncbi$sourceinfo)
-ott_ncbi$ncbi_id <- gsub(",gbif:[0-9].*", "", one)
-ott_ncbi$ncbi_id <- gsub(",.*", "", ott_ncbi$ncbi_id)
-saveRDS(ott_ncbi$ncbi_id, "../DATA/ncbi_id.rds")
-fwrite(ott_ncbi$ncbi_id, "../DATA/ncbi_id.csv")
 
 # download ncbi taxonomy taxdump files here: https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/
-rm(list=ls())
-# extract, then read the file as-is
+
+
+
+# get ID + authority from the names taxonomy.dmp --------------------------
+
+text <- readChar("../DATA/new_taxdump/names.dmp", 
+                 nchars = file.info( "../DATA/new_taxdump/names.dmp" )$size, 
+                 useBytes = TRUE)
+#replace column and row separator
+text <- gsub( "\t\\|\t", "|", text)
+text <- gsub( "\t\\|\n", "\n", text)
+authority <- data.table::fread( text, 
+                                header = FALSE, 
+                                sep = "|",
+                                nThread = 2, 
+                                quote="",
+                                strip.white = TRUE,
+                                fill = TRUE,
+                                col.names = c("tax_id", "name_txt", "unique_name", "name_class"))
+rm(text)
+dat <- data.frame(tips=phylo$tip.label,
+                  tax_id=authority$tax_id[match(phylo$tip.label, authority$name_txt)])
+long_name <- authority[authority$name_class=="authority",]
+dat$name_full <- long_name$name_txt[match(dat$tax_id, long_name$tax_id)]
+# if name_full is missing, then there is no author information
+
+dat$tips[!(dat$tips %in% authority$name_txt)] # 98 missing, no match in NCBI
+
+dat$name_clean <- gsub(" \\(.*", "", dat$name_full)
+dat$name_clean <- gsub(" [A-Z].*?$", "", dat$name_clean)
+dat$author <- NA
+for(i in 1:nrow(dat)){
+  dat$author[i] <- gsub(dat$name_clean[i], "", dat$name_full[i])
+  if(!i%%10)cat(i,"\r")
+}
+
+
+# get higher tax ranks from taxonomy.dmp ----------------------------------
+
 text <- readChar("../DATA/new_taxdump/rankedlineage.dmp", 
                  nchars = file.info( "../DATA/new_taxdump/rankedlineage.dmp" )$size, 
                  useBytes = TRUE)
-#replace column and row separator
 text <- gsub( "\t\\|\t", "|", text)
 text <- gsub( "\t\\|\n", "\n", text)
 ncbi <- data.table::fread( text, 
@@ -88,119 +100,92 @@ ncbi <- data.table::fread( text,
 rm(text)
 ncbi
 
-ott_ncbi_id <- readRDS("../DATA/ncbi_id.rds")
-table(ott_ncbi_id %in% ncbi$tax_id)
-ott_ncbi_id[which(!ott_ncbi_id %in% ncbi$tax_id)]
-# some IDs got merged since the tree was built. 
-# save check in NCBI taxonomy browser and replace old with new ID
-#fwrite(list(ott_ncbi_id[which(!ott_ncbi_id %in% ncbi$tax_id)]), "old_ncbi_ids.txt")
-text <- readChar("../DATA/new_taxdump/merged.dmp", 
-                 nchars = file.info( "../DATA/new_taxdump/merged.dmp" )$size, 
-                 useBytes = TRUE)
-#replace column and row separator
-text <- gsub( "\t\\|\t", "|", text)
-text <- gsub( "\t\\|\n", "\n", text)
-merged <- data.table::fread( text, 
-                           header = FALSE, 
-                           sep = "|",
-                           nThread = 2, 
-                           quote="",
-                           strip.white = TRUE,
-                           fill = TRUE,
-                           col.names = c("old_tax_id", "new_tax_id"))
-rm(text)
+# # some IDs got merged since the tree was built. 
+# # save check in NCBI taxonomy browser and replace old with new ID
+# #fwrite(list(ott_ncbi_id[which(!ott_ncbi_id %in% ncbi$tax_id)]), "old_ncbi_ids.txt")
+# text <- readChar("../DATA/new_taxdump/merged.dmp", 
+#                  nchars = file.info( "../DATA/new_taxdump/merged.dmp" )$size, 
+#                  useBytes = TRUE)
+# #replace column and row separator
+# text <- gsub( "\t\\|\t", "|", text)
+# text <- gsub( "\t\\|\n", "\n", text)
+# merged <- data.table::fread( text, 
+#                            header = FALSE, 
+#                            sep = "|",
+#                            nThread = 2, 
+#                            quote="",
+#                            strip.white = TRUE,
+#                            fill = TRUE,
+#                            col.names = c("old_tax_id", "new_tax_id"))
+# rm(text)
 #tax_report <- fread("tax_report.txt", fill=TRUE, sep="\t") # created 2022-03-30
 #names(tax_report) <- gsub("primary taxid", "primary_taxid", names(tax_report))
 # replace with new IDs
-df <- data.frame(ott_ncbi_id)
-df <- merge(df, merged, by.x="ott_ncbi_id", by.y="old_tax_id", all.x=TRUE)
-df$ott_ncbi_id[!is.na(df$new_tax_id)] <- df$new_tax_id[!is.na(df$new_tax_id)]
-
-table(df$ott_ncbi_id %in% ncbi$tax_id)
-
-#ott_ncbi$ncbi_id[which(!ott_ncbi$ncbi_id %in% ncbi$tax_id)] # not found in NCBI
-#ott_ncbi[which(!ott_ncbi$ncbi_id %in% ncbi$tax_id),] 
-
+# 
+# df <- merge(df, merged, by.x="ott_ncbi_id", by.y="old_tax_id", all.x=TRUE)
+# df$ott_ncbi_id[!is.na(df$new_tax_id)] <- df$new_tax_id[!is.na(df$new_tax_id)]
+# 
+# table(df$ott_ncbi_id %in% ncbi$tax_id)
+# 
+# #ott_ncbi$ncbi_id[which(!ott_ncbi$ncbi_id %in% ncbi$tax_id)] # not found in NCBI
+# #ott_ncbi[which(!ott_ncbi$ncbi_id %in% ncbi$tax_id),] 
+# 
 #ncbi <- ncbi[ncbi$name_class %in% c("authority"),]
 
 # subset ncbi IDs from phylogeny
-table(ncbi$tax_id %in% df$ott_ncbi_id)
-ncbi <- ncbi[which(ncbi$tax_id %in% df$ott_ncbi_id),]
+# table(ncbi$tax_id %in% df$ott_ncbi_id)
+# ncbi <- ncbi[which(ncbi$tax_id %in% df$ott_ncbi_id),]
 
-# get authority from the names taxonomy.dmp
-text <- readChar("../DATA/new_taxdump/names.dmp", 
-                 nchars = file.info( "../DATA/new_taxdump/names.dmp" )$size, 
-                 useBytes = TRUE)
-#replace column and row separator
-text <- gsub( "\t\\|\t", "|", text)
-text <- gsub( "\t\\|\n", "\n", text)
-authority <- data.table::fread( text, 
-                             header = FALSE, 
-                             sep = "|",
-                             nThread = 2, 
-                             quote="",
-                             strip.white = TRUE,
-                             fill = TRUE,
-                             col.names = c("tax_id", "name_txt", "unique_name", "name_class"))
-rm(text)
-id <- unique(authority$tax_id)
-authority$name_clean <- NA
-authority$name_clean <- gsub(" \\(.*", "", authority$name_txt)
-authority$name_clean <- gsub(" [A-Z].*?$", "", authority$name_clean)
-authority$author <- NA
-authority <- authority[authority$tax_id %in% df$ott_ncbi_id,]
-authority <- authority[authority$name_class %in% "authority",]
-for(i in 1:nrow(authority)){
-  authority$author[i] <- gsub(authority$name_clean[i], "", authority$name_txt[i])
-  if(!i%%10)cat(i,"\r")
-}
 
-# merge into ncbi
-ncbi <- merge(ncbi, authority, by="tax_id", all=TRUE)
-# this adds more lines because the authority file has sometimes more names for the same tax_id
-# use name_clean, not tax_name. name_clean includes synonyms 
-fwrite(ncbi, "../DATA/ncbi.csv")
+# merge higher ranks into dat
+dat <- merge(dat, ncbi, by="tax_id", all.x=TRUE)
+dat <- dat[-which(is.na(dat$tax_id)),]
+fwrite(dat, "../DATA/ncbi.csv")
 
 # create common format
 ## get authors from authority data frame, rest from lineage data frame
 ncbi <- fread("../DATA/ncbi.csv")
 
 # create unique ID (some tax ids are >1 due to synonyms)
-table(ncbi$tax_id %in% authority$tax_id) # some entries are also lacking authority names
-ncbi$name_clean[ncbi$name_clean==""] <- ncbi$tax_name[ncbi$name_clean==""]
-ncbi_sub <- ncbi[!duplicated(ncbi[,"tax_id"]),]
-ncbi_sub$species <- gsub("^.*? ", "", ncbi_sub$tax_name)
-ncbi_sub$species <- gsub(" .*", "", ncbi_sub$species)
+(dups <- which(duplicated(dat$tax_id)))
+tmp <- dat[dat$tax_id %in% dat$tax_id[dups],]
+tmp <- tmp[!tmp$tips != tmp$tax_name,]
 
-# merge authors in later from the original ncbi file
+# hack into the main frame ^^
+dat <- dat[!dat$tax_id %in% dat$tax_id[dups],]
+dat <- rbind(dat, tmp)
+
+which(duplicated(dat$tax_id)) # zero?
+
+
+# extract species name ----------------------------------------------------
+
+dat$species <- gsub("^.*? ", "", dat$tax_name)
+dat$species <- gsub(" .*", "", dat$species)
 
 
 # common format for NCBI --------------------------------------------------
 
-split_length <- unlist(lapply(strsplit(as.character(ncbi_sub$tax_name), split = " "), length))
+split_length <- unlist(lapply(strsplit(as.character(dat$tax_name), split = " "), length))
 table(split_length)
 
-ncbi_input <- data.frame(taxonID = ncbi_sub$tax_id, 
-                      scientificName= ncbi_sub$tax_name,
-                      family = ncbi_sub$family,
-                      genus = ncbi_sub$genus,
-                      species = ncbi_sub$species,
+ncbi_input <- data.frame(taxonID = dat$tax_id, 
+                      scientificName= dat$tax_name,
+                      family = dat$family,
+                      genus = dat$genus,
+                      species = dat$species,
                       split_length=split_length,
-                      author = ncbi_sub$author, 
-                      genus_hybrid = rep(NA, nrow(ncbi_sub)),
-                      species_hybrid = rep(NA, nrow(ncbi_sub)),
-                      taxon_rank = rep(NA, nrow(ncbi_sub)),
-                      infra_name = rep(NA, nrow(ncbi_sub)),
-                      comment = rep(NA, nrow(ncbi_sub)),
-                      usable = rep(NA, nrow(ncbi_sub)))
-
-
-
+                      author = dat$author, 
+                      genus_hybrid = rep(NA, nrow(dat)),
+                      species_hybrid = rep(NA, nrow(dat)),
+                      taxon_rank = rep(NA, nrow(dat)),
+                      infra_name = rep(NA, nrow(dat)),
+                      comment = rep(NA, nrow(dat)),
+                      usable = rep(NA, nrow(dat)))
 
 # order the dataframe by split length
 ncbi_input <- ncbi_input[order(ncbi_input$split_length),]
 ncbi_input$id <- c(1:nrow(ncbi_input))
-
 
 split_list <- strsplit(as.character(ncbi_input$scientificName), split = " ")
 names(split_list) <- ncbi_input$id
@@ -314,6 +299,8 @@ ncbi_input$usable[grep("cf\\.|aff\\.", ncbi_input$scientificName)] <- "no"
 ncbi_input$usable[ncbi_input$species=="sp."] <- "no"
 
 ncbi_input <- ncbi_input[-which(ncbi_input$usable=="no"),]
+
+# rename column to fit taxonomy matcher
 saveRDS(ncbi_input, "ncbi_common_format.rds")
 
 
@@ -328,6 +315,8 @@ ncbi_input$family[!ncbi_input$family %in% apg$Syn_Fam]
 # Crambidae should be Cactaceae
 ncbi_input$family[ncbi_input$family=="Crambidae"] <- "Cactaceae"
 ncbi_input$family <- apg$Acc_Fam[match(ncbi_input$family, apg$Syn_Fam)]
+ncbi_input$family.apg <- ncbi_input$family
+saveRDS(ncbi_input, "../DATA/ncbi_input.rds")
 
 ## WCVP
 wcp <- fread("../DATA/wcvp_names_and_distribution_special_edition_2022/wcvp_names.txt", quote="")
@@ -341,45 +330,42 @@ unique(wcp$family[!wcp$family %in% apg$Syn_Fam])
 wcp <- wcp[!wcp$family=="Pseudotubulare",]
 
 wcp$family <- apg$Acc_Fam[match(wcp$family, apg$Syn_Fam)]
+wcp$family.apg <- wcp$family
+saveRDS(wcp, "../DATA/wcp_apg.rds")
 
 # run taxonomy matcher to match with WCVP IDs -----------------------------
 
+source("../BIEN/taxonomic_matcher_for_PDiv.R", print.eval = TRUE, chdir = TRUE)
 
 
 
 
-# match NCBI tip labels
-# combine elevated to species column with the rest - what happens if species is not defined?
-matches$elevated_to_species_id[which(is.na(matches$elevated_to_species_id))] <- matches$accepted_plant_name_id[which(is.na(matches$elevated_to_species_id))]
+# Replace tip labels with WCVP IDs ----------------------------------------
 
-# do all duplicated IDs have the same genus?? (crit 2) --> NO
-lunique <- function(x){length(unique(x))}
-test <- tapply(matches$genus, matches$elevated_to_species_id, lunique)
-table(test)
+ncbi <- readRDS("../DATA/fin_species_match_NCBI_wcvp2022.rds")
+names(ncbi)
+phylo <- read_tree(file="../DATA/phylos/GBMB.tre") # genbank tree
+phylo$tip.label <- gsub("_", " ", phylo$tip.label)
+phylo_org <- phylo
 
-matches <- matches[,c("elevated_to_species_id", "id")]
-ott_ncbi <- merge(ott_ncbi, matches,
-                  by.x="ncbi_id", by.y="id", all.x=TRUE)
-table(is.na(ott_ncbi$elevated_to_species_id)) / nrow(ott_ncbi) # 92% matches
-
-## merge into dat
-dat <- merge(dat, ott_ncbi[,c("name", "ncbi_id", "elevated_to_species_id")],
-             by.x="tips_mod", by.y="name", all.x=TRUE)
-names(dat)[grep("elevated_to_species_id", names(dat))] <- "accepted_id"
-
+# use species level
+ncbi$accepted_plant_name_id[!is.na(ncbi$elevated_to_species_id)] <- ncbi$elevated_to_species_id[!is.na(ncbi$elevated_to_species_id)]
 
 # actual replacement
-phylo_org <- phylo
-phylo$tip.label <- dat$accepted_id[match(phylo$tip.label, dat$tips)]
+phylo$tip.label <- ncbi$accepted_plant_name_id[match(phylo$tip.label, ncbi$scientificName)]
 
 ## duplicates (we have duplicates because we are working on species level,
 ## therefore subspecies etc have been assigned all the same ID)
-length(which(table(phylo$tip.label)>1)) # duplicated tip labels: 3,518
+length(which(table(phylo$tip.label)>1)) # duplicated tip labels: 3652
 
 
 
-# in contrast to the ALLMB tree, we know that all tips have genetic info behind
-# them, so we modify our multi resolver function for this
+# Remove tip duplicates ---------------------------------------------------
+
+# we know that all tips have genetic info behind them, so we modify our multi
+# resolver function for this
+wcp <- readRDS("../DATA/wcp_apg.rds")
+
 resolve_multiple_gbmb <- function(MATCHES, wcp, phylo, phylo_org){
   # matches = accepted WCSP ID tip labels, phylo=phylogeny with labels replaced,
   # phylo_org=original tip labels remove multiple linkages, i.e. when multiple
@@ -426,19 +412,21 @@ resolve_multiple_gbmb <- function(MATCHES, wcp, phylo, phylo_org){
 
 # 2 MINUTES ###
 Sys.time()
-(res_multi <- resolve_multiple_gbmb(phylo$tip.label, wcvp, phylo, phylo_org))
-table(is.na(res_multi)) # NAs introduced, 7285 multis
+(res_multi <- resolve_multiple_gbmb(phylo$tip.label, wcp, phylo, phylo_org))
+table(is.na(res_multi)) # NAs introduced, 11k multis... thats a lot
 Sys.time()
 
 # drop unused tips
 res_multi_noNA <- na.omit(res_multi)
 clean_tree <- keep.tip(phylo, as.character(res_multi_noNA))
-write.tree(clean_tree, "../processed_data/gbmb_matched.tre")
+write.tree(clean_tree, "../DATA/gbmb_matched_wcvp2022.tre")
 
 
-# *** Fix some non monophyletic clades ----------------------------------------
+# Fix some non monophyletic clades ----------------------------------------
 
-tree <- read.tree("../processed_data/gbmb_matched.tre")
+tree <- read.tree("../DATA/gbmb_matched_wcvp2022.tre")
+wcp <- 
+
 goodsp <- fread("../processed_data/goodsp.csv")
 goodsp.sub <- goodsp[goodsp$accepted_plant_name_id%in%tree$tip.label,]
 any(tree$edge.length==0)
@@ -448,6 +436,7 @@ out$max_extension
 t <- out$tree
 is.ultrametric(t, tol=1e-20) # T
 is.binary(t)
+
 
 # check monophylies
 t0 <-t
