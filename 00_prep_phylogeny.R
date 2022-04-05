@@ -448,12 +448,14 @@ table(unique(wcp$family) %in% apg$Acc_Fam) # dat one family
 wcp <- merge(wcp, apg, by.x="family", by.y="Acc_Fam", all.x=TRUE)
 
 # get "good species" list
-goodsp <- wcp[wcp$genus_hybrid=="" &
+goodspp <- wcp[wcp$genus_hybrid=="" &
               ""==wcp$species_hybrid &
               ""==wcp$infraspecific_rank &
               ""!=wcp$species &
                  wcp$taxon_status == "Accepted",]
+fwrite(goodspp, "goodsp.csv")
 
+goodsp <- fread("goodsp.csv")
 str(goodsp)
 goodsp.sub <- goodsp[which(goodsp$accepted_plant_name_id %in% tree$tip.label),]
 any(tree$edge.length==0)
