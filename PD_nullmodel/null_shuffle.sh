@@ -7,7 +7,7 @@
 #SBATCH --partition normal
 #SBATCH --mem-per-cpu=8gb
 #SBATCH --cpus-per-task 1
-#SBATCH --time 00:15:00
+#SBATCH --time 00:30:00
 #SBATCH --output=/dev/null
 
 source ~/miniconda3/bin/activate R-env-4
