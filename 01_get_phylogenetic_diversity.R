@@ -18,16 +18,6 @@ library(beepr)
 
 
 
-# dat <- fread("../DATA/wcvp_names_and_distribution_special_edition_2022/wcvp_names.txt", quote = "")
-# dist <- fread("../DATA/wcvp_names_and_distribution_special_edition_2022/wcvp_distribution.txt")
-# write_parquet(dat, "../DATA/wcvp_names_and_distribution_special_edition_2022/wcvp_names.parquet")
-# write_parquet(dist, "../DATA/wcvp_names_and_distribution_special_edition_2022/wcvp_distribution.parquet")
-
-# dat <- read_parquet("../DATA/wcvp_names_and_distribution_special_edition_2022/wcvp_names.parquet")
-# dist <- read_parquet("../DATA/wcvp_names_and_distribution_special_edition_2022/wcvp_distribution.parquet")
-
-
-
 # Get phylogeny and distribution  ------------------------------------------
 
 dist <- fread("../DATA/wcvp_names_and_distribution_special_edition_2022/wcvp_distribution.txt")
@@ -65,7 +55,7 @@ length(unique(dist$area_code_l3))
 dist.mat <- long2sparse(dist, grids = "area_code_l3", species = "plant_name_id")
 rm(dist)
 
-# Get PD etc ---------------------------------------------------------------
+# Get phylogenies --------------------------------------------------------
 
 # read in TACTed trees one at a time
 phylonames <- dir("../DATA/phylos/TACT/", full.names = T)
@@ -75,9 +65,6 @@ phylist <- lapply(phylonames, myfun)
 # match phylso and comm matrix
 phylist2 <- lapply(phylist, match_phylo_comm, comm=dist.mat)
 rm(phylist)
-
-#subphy <- match_phylo_comm(t, dist.mat)$phy
-#submat <- match_phylo_comm(t, dist.mat)$com
 
 # check number of columns (should be identical)
 unique(unlist(lapply(sapply(phylist2, "[[", "comm"), ncol)))
