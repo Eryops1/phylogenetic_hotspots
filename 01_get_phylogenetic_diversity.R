@@ -121,28 +121,36 @@ s@data <- merge(s@data, sr, all.x=TRUE)
 ## write bash job array script and save data
 
 ### save data
-save(list = c("submat", "subphy"), file="comm_and_phy.RData")
+save(list = c("submat", "subphy"), file="PD_nullmodel/comm_and_phy.RData")
 
-### build R script
+### build R scripts
 Rscript <- "
   # get rep number (=tree number)
   args <- commandArgs()
   print(args)
   rep <- as.numeric(args[6])
+  model <- args[7]
   
   library(phyloregion) # PD calculations etc
   load('comm_and_phy.RData')
-  PD_ses_tipshuffle <- PD_ses(submat[[rep]], subphy[[rep]], model='tipshuffle', reps=100) 
-  saveRDS(PD_ses_tipshuffle, file=paste0('tipshuffle_', rep, '.rds'))
+  PD_ses_tipshuffle <- PD_ses(submat[[rep]], subphy[[rep]], model=model, reps=100) 
+  saveRDS(PD_ses_tipshuffle, file=paste0(model,'_', rep, '.rds'))
 "
-cat(Rscript, file="tipshuffle.R")
+cat(Rscript, file="PD_nullmodel/null_shuffle.R")
+# The null model for separating patterns from processes and for
+# contrasting against alternative hypotheses. Available null models include:
+# “tipshuffle”: shuffles tip labels multiple times.
+# “rowwise”: shuffles sites (i.e., varying richness) and keeping species
+# occurrence frequency constant.
+# “colwise”: shuffles species occurrence frequency and keeping site richness
+# constant.
 
 ### build bash array script
 bashscript <- "#!/bin/bash
 # submit_array.sh
 
 #SBATCH --account PDiv
-#SBATCH --job-name=tipshuffle_master
+#SBATCH --job-name=nullshuffle_boss
 #SBATCH --mail-type=FAIL,END
 #SBATCH --mail-user=melanie.tietje@bio.au.dk
 #SBATCH --partition normal
@@ -151,22 +159,23 @@ bashscript <- "#!/bin/bash
 #SBATCH --time 00:05:00
 
 rep=seq 1 67
+model='rowwise'
 
-export rep
+export model
 # write bash scripts
 for ((i=0; i<=66; i++)) do
   this_rep=${rep[${i}]}
   export this_rep
-  sbatch tipshuffle.sh
+  sbatch null_shuffle.sh
 done
 "
-cat(bashscript, file="tipshuffle_job_array.sh")
+cat(bashscript, file="PD_nullmodel/null_shuffle_job_array.sh")
 
 ### build subordination bash script
 bashscript2 <- '#!/bin/bash
 
 #SBATCH --account PDiv
-#SBATCH --job-name=tipshuffle
+#SBATCH --job-name=nullshuffle
 #SBATCH --mail-type=FAIL,END
 #SBATCH --mail-user=melanie.tietje@bio.au.dk
 #SBATCH --partition normal
@@ -176,27 +185,63 @@ bashscript2 <- '#!/bin/bash
 #SBATCH --output=/dev/null
 
 source ~/miniconda3/bin/activate R-env-4
-Rscript tipshuffle.R $this_rep > log_"$SLURM_JOB_ID"_"$this_rep".txt
+Rscript null_shuffle.R $this_rep $model
 '
-cat(bashscript2, file="tipshuffle.sh")
+cat(bashscript2, file="null_shuffle.sh")
 
 
 
 
 
 ### read cluster results and get means
-pdnames <- dir("../DATA/PDiv/PD_nullmodel", full.names = T)
+pdnames <- dir("PD_nullmodel", pattern="\\.rds", full.names = T)
 PD.list <- lapply(pdnames, readRDS)
-PD.df <- data.frame(PD_obs_mean <- apply(sapply(PD.list, "[[", "PD_obs"), 1, mean),
+PD.df <- data.frame(LEVEL3_COD = PD.list[[1]]$grids,
+                    richness = apply(sapply(PD.list, "[[", "richness"), 1, mean),
+                    PD_obs_mean = apply(sapply(PD.list, "[[", "PD_obs"), 1, mean),
+                    pd_rand_m_mean = apply(sapply(PD.list, "[[", "pd_rand_mean"), 1, mean),
+                    pd_rand_sd_mean = apply(sapply(PD.list, "[[", "pd_rand_sd"), 1, mean),
+                    pd_obs_rank_mean = apply(sapply(PD.list, "[[", "pd_obs_rank"), 1, mean),
+                    zscore_mean = apply(sapply(PD.list, "[[", "zscore"), 1, mean),
+                    pd_obs_p_mean = apply(sapply(PD.list, "[[", "pd_obs_p"), 1, mean),
+                    reps = apply(sapply(PD.list, "[[", "reps"), 1, mean)
 )
 
+s@data <- merge(s@data, PD.df, by="LEVEL3_COD", all.x=TRUE)
 
-s@data <- merge(s@data, PD_ses_tipshuffle, by="LEVEL3_COD")
+plot(s@data[,-grep("LEVEL|reps", names(s@data))])
+hist(s@data$zscore_mean)
 
-PD_ses_rowwise <- PD_ses(submat[[1]], subphy[[1]], model="rowwise", reps=100)
-PD_ses_colwise <- PD_ses(submat[[1]], subphy[[1]], model="colwise", reps=100)
+ggplot(data=s@data, aes(x=richness, y=PD_obs_mean))+
+  geom_point()
 
-plot(PD_ses_tipshuffle)
+ggplot(data=s@data, aes(x=pd_rand_m_mean, y=PD_obs_mean, col=log(richness)))+
+  geom_point()+
+  geom_abline(x=1)+
+  scale_x_continuous(trans="sqrt")+
+  scale_y_continuous(trans="sqrt")
+# observed PD is usually lower than expected
+
+ggplot(data=s@data, aes(x=richness, y=zscore_mean))+
+  geom_point()+
+  geom_hline(yintercept=-1)+
+  scale_x_continuous(trans = "sqrt")
+# zscore becomes more negative with increasing richness: less species than expected
+
+ggplot(data=s@data, aes(x=richness, y=PD_obs_mean))+
+  geom_point()+
+  geom_point(aes(y=pd_rand_m_mean), col="salmon")+
+  scale_x_continuous(trans="sqrt")+
+  scale_y_continuous(trans="sqrt")
+
+hist(s@data$PD_obs_mean/s@data$richness)
+
+
+# PD_obs: observed PD in community
+# pd_rand_mean: mean PD in null communities
+# pd_obs_rank: Rank of observed PD vs. null communities
+# pd_obs_z: Standardized effect size of PD vs. null communities = (PD_obs - pd_rand_mean) / pd_rand_sd
+# pd_obs_p: P-value (quantile) of observed PD vs. null communities = mpd_obs_rank / iter + 1
 
 # *** Save shapefile ------------------------------------------------------
 
