@@ -145,8 +145,8 @@ Rscript <- "
   
   library(phyloregion) # PD calculations etc
   load('comm_and_phy.RData')
-  PD_ses_tipshuffle <- PD_ses(submat[[1]], subphy[[1]], model='tipshuffle', reps=100) 
-  saveRDS(PD_ses_tipshuffle, file=paste('tipshuffle_', rep, '.rds'))
+  PD_ses_tipshuffle <- PD_ses(submat[[rep]], subphy[[rep]], model='tipshuffle', reps=100) 
+  saveRDS(PD_ses_tipshuffle, file=paste0('tipshuffle_', rep, '.rds'))
 "
 cat(Rscript, file="tipshuffle.R")
 
@@ -185,24 +185,23 @@ bashscript2 <- '#!/bin/bash
 #SBATCH --partition normal
 #SBATCH --mem-per-cpu=8gb
 #SBATCH --cpus-per-task 1
-#SBATCH --time 00:08:00
+#SBATCH --time 00:15:00
+#SBATCH --output=/dev/null
 
 source ~/miniconda3/bin/activate R-env-4
 Rscript tipshuffle.R $this_rep > log_"$SLURM_JOB_ID"_"$this_rep".txt
-''
+'
 cat(bashscript2, file="tipshuffle.sh")
 
-# 
-# system.time({
-#   PD_ses_tipshuffle <- PD_ses(submat[[1]], subphy[[1]], model="tipshuffle", reps=100) 
-#   beep(2)
-# })
-# # the grids col is buggy, replace with proper country labels
-# PD_ses_tipshuffle$LEVEL3_COD <- s@data$LEVEL3_COD
+
+
+
 
 ### read cluster results and get means
-pdnames <- dir("../DATA/PDiv/", full.names = T)
-
+pdnames <- dir("../DATA/PDiv/PD_nullmodel", full.names = T)
+PD.list <- lapply(pdnames, readRDS)
+PD.df <- data.frame(PD_obs_mean <- apply(sapply(PD.list, "[[", "PD_obs"), 1, mean),
+)
 
 
 s@data <- merge(s@data, PD_ses_tipshuffle, by="LEVEL3_COD")
