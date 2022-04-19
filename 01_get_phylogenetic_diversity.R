@@ -158,7 +158,7 @@ bashscript <- "#!/bin/bash
 #SBATCH --cpus-per-task 1
 #SBATCH --time 00:05:00
 
-rep=seq 1 67
+rep=(1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67)
 model='rowwise'
 
 export model
@@ -187,7 +187,7 @@ bashscript2 <- '#!/bin/bash
 source ~/miniconda3/bin/activate R-env-4
 Rscript null_shuffle.R $this_rep $model
 '
-cat(bashscript2, file="null_shuffle.sh")
+cat(bashscript2, file="PD_nullmodel/null_shuffle.sh")
 
 
 
