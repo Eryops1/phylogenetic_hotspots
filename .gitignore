@@ -5,3 +5,6 @@
 .Rproj.user
 *.sif
 *nexus.tre
+*tacted.rates.csv
+*tacted.log.txt
+/output
