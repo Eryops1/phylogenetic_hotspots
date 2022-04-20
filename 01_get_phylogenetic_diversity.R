@@ -181,7 +181,7 @@ bashscript2 <- '#!/bin/bash
 #SBATCH --partition normal
 #SBATCH --mem-per-cpu=8gb
 #SBATCH --cpus-per-task 1
-#SBATCH --time 00:30:00
+#SBATCH --time 00:60:00
 #SBATCH --output=/dev/null
 
 source ~/miniconda3/bin/activate R-env-4
@@ -192,6 +192,7 @@ cat(bashscript2, file="PD_nullmodel/null_shuffle.sh")
 
 
 
+# Tipshuffle nullmodel ----------------------------------------------------
 
 ### read cluster results and get means
 pdnames <- dir("PD_nullmodel", pattern="\\.rds", full.names = T)
@@ -242,6 +243,49 @@ hist(s@data$PD_obs_mean/s@data$richness)
 # pd_obs_rank: Rank of observed PD vs. null communities
 # pd_obs_z: Standardized effect size of PD vs. null communities = (PD_obs - pd_rand_mean) / pd_rand_sd
 # pd_obs_p: P-value (quantile) of observed PD vs. null communities = mpd_obs_rank / iter + 1
+
+
+# Rowwise nullmodel -------------------------------------------------------
+### read cluster results and get means
+pdnames <- dir("PD_nullmodel", pattern="rowwise.*?.rds", full.names = T)
+PD.list <- lapply(pdnames, readRDS)
+PD.df <- data.frame(LEVEL3_COD = PD.list[[1]]$grids,
+                    richness = apply(sapply(PD.list, "[[", "richness"), 1, mean),
+                    PD_obs_mean = apply(sapply(PD.list, "[[", "PD_obs"), 1, mean),
+                    pd_rand_m_mean = apply(sapply(PD.list, "[[", "pd_rand_mean"), 1, mean),
+                    pd_rand_sd_mean = apply(sapply(PD.list, "[[", "pd_rand_sd"), 1, mean),
+                    pd_obs_rank_mean = apply(sapply(PD.list, "[[", "pd_obs_rank"), 1, mean),
+                    zscore_mean = apply(sapply(PD.list, "[[", "zscore"), 1, mean),
+                    pd_obs_p_mean = apply(sapply(PD.list, "[[", "pd_obs_p"), 1, mean),
+                    reps = apply(sapply(PD.list, "[[", "reps"), 1, mean)
+)
+
+ggplot(data=PD.df, aes(x=richness, y=pd_rand_m_mean))+
+  geom_point()
+ggplot(data=s@data, aes(x=richness, y=pd_rand_m_mean))+
+  geom_point()
+
+
+
+
+
+# Colwise nullmodel -------------------------------------------------------
+### read cluster results and get means
+pdnames <- dir("PD_nullmodel", pattern="\\.rds", full.names = T)
+PD.list <- lapply(pdnames, readRDS)
+PD.df <- data.frame(LEVEL3_COD = PD.list[[1]]$grids,
+                    richness = apply(sapply(PD.list, "[[", "richness"), 1, mean),
+                    PD_obs_mean = apply(sapply(PD.list, "[[", "PD_obs"), 1, mean),
+                    pd_rand_m_mean = apply(sapply(PD.list, "[[", "pd_rand_mean"), 1, mean),
+                    pd_rand_sd_mean = apply(sapply(PD.list, "[[", "pd_rand_sd"), 1, mean),
+                    pd_obs_rank_mean = apply(sapply(PD.list, "[[", "pd_obs_rank"), 1, mean),
+                    zscore_mean = apply(sapply(PD.list, "[[", "zscore"), 1, mean),
+                    pd_obs_p_mean = apply(sapply(PD.list, "[[", "pd_obs_p"), 1, mean),
+                    reps = apply(sapply(PD.list, "[[", "reps"), 1, mean)
+)
+
+s@data <- merge(s@data, PD.df, by="LEVEL3_COD", all.x=TRUE)
+
 
 # *** Save shapefile ------------------------------------------------------
 
