@@ -1,0 +1,7 @@
+[1] "/home/mtietje/miniconda3/envs/R-env-4/lib/R/bin/exec/R"
+[2] "--no-echo"                                             
+[3] "--no-restore"                                          
+[4] "--file=null_shuffle.R"                                 
+[5] "--args"                                                
+[6] "30"                                                    
+[7] "colwise"                                               
