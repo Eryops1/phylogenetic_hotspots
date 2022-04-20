@@ -116,7 +116,7 @@ bashscript2 <- '#!/bin/bash
 #SBATCH --mem-per-cpu=8gb
 #SBATCH --cpus-per-task 1
 #SBATCH --time 00:30:00
-#SBATCH --output=/dev/null
+##SBATCH --output=/dev/null
 
 source ~/miniconda3/bin/activate R-env-4
 Rscript null_shuffle.R $this_rep $this_model >logfile.txt
