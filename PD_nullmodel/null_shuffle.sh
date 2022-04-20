@@ -11,4 +11,4 @@
 #SBATCH --output=/dev/null
 
 source ~/miniconda3/bin/activate R-env-4
-Rscript null_shuffle.R $this_rep $model >logfile.txt
+Rscript null_shuffle.R $this_rep $this_model >logfile.txt

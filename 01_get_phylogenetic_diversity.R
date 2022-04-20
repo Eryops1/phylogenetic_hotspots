@@ -161,9 +161,9 @@ done
 cat(bashscript, file="PD_nullmodel/null_shuffle_job_array.sh")
 
 system({
-  cat("git add .
-  git commit -m 'nullmodel script changes'
-  git push")
+"git add .
+git commit -m 'nullmodel script changes'
+git push"
 })
 
 # git add commit push --> GenomeDK
