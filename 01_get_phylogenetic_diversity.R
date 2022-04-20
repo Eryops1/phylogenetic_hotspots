@@ -185,7 +185,7 @@ bashscript2 <- '#!/bin/bash
 #SBATCH --output=/dev/null
 
 source ~/miniconda3/bin/activate R-env-4
-Rscript null_shuffle.R $this_rep $model
+Rscript null_shuffle.R $this_rep $model >logfile.txt
 '
 cat(bashscript2, file="PD_nullmodel/null_shuffle.sh")
 
