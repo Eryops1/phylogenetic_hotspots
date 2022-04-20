@@ -61,6 +61,7 @@ rm(dist)
 phylonames <- dir("../DATA/phylos/TACT/", full.names = T)
 myfun <- function(x){return(read_tree(file=x, interpret_quotes = T))}
 phylist <- lapply(phylonames, myfun)
+rm(phylonames)
 
 # match phylso and comm matrix
 phylist2 <- lapply(phylist, match_phylo_comm, comm=dist.mat)
@@ -72,56 +73,22 @@ length(sapply(phylist2, "[[", "phy")[,1]$tip.label)
 
 rm(dist.mat)
 
-
-# Assemble shapefile ------------------------------------------------------
-
-s <- raster::shapefile("../DATA/wgsrpd-master/level3/level3.shp")
-
-
-
-# *** PD ------------------------------------------------------------------
-
 submat <- lapply(phylist2, "[[", "comm")
 subphy <- lapply(phylist2, "[[", "phy")
 rm(phylist2)
 
-# # takes some time (couple minutes) - can also delete this one and use null model setting for observed PD
-# tmp <- mapply(PD, submat, subphy)
-# tmp <- as.matrix(tmp)
-# 
-# s@data$PD <- apply(tmp, 1, mean)
-# s@data$PD_sd <- apply(tmp, 1, sd)
-# #s@data$PD_sd <- apply(tmp, 1, se)
 
 
 
-# *** PE ------------------------------------------------------------------
-
-# takes some time (couple minutes)
-tmp <- mapply(phylo_endemism, submat, subphy)
-tmp <- as.matrix(tmp)
-
-pe <- data.frame(PE = apply(tmp, 1, mean), PE_sd = apply(tmp, 1, sd))
-pe$LEVEL3_COD <- row.names(pe)
-s@data <- merge(s@data, pe, all.x=TRUE)
-
-
-# *** SR ------------------------------------------------------------------
-sr <- data.frame(SR=rowSums(submat[[1]]))
-sr$LEVEL3_COD <- row.names(sr)
-s@data <- merge(s@data, sr, all.x=TRUE)
-
-
-
-# *** Null model PD -------------------------------------------------------
-
-# PD_ses --> Phylogenetic diversity standardized for species richness
+# Null model scripts setup ---------------------------------------------
 
 ## outsource to run in parallel on the cluster for time efficiency ###
 ## write bash job array script and save data
 
 ### save data
+# transfer to cluster manually, file too big for github
 save(list = c("submat", "subphy"), file="PD_nullmodel/comm_and_phy.RData")
+
 
 ### build R scripts
 Rscript <- "
@@ -137,39 +104,6 @@ Rscript <- "
   saveRDS(PD_ses_tipshuffle, file=paste0(model,'_', rep, '.rds'))
 "
 cat(Rscript, file="PD_nullmodel/null_shuffle.R")
-# The null model for separating patterns from processes and for
-# contrasting against alternative hypotheses. Available null models include:
-# “tipshuffle”: shuffles tip labels multiple times.
-# “rowwise”: shuffles sites (i.e., varying richness) and keeping species
-# occurrence frequency constant.
-# “colwise”: shuffles species occurrence frequency and keeping site richness
-# constant.
-
-### build bash array script
-bashscript <- "#!/bin/bash
-# submit_array.sh
-
-#SBATCH --account PDiv
-#SBATCH --job-name=nullshuffle_boss
-#SBATCH --mail-type=FAIL,END
-#SBATCH --mail-user=melanie.tietje@bio.au.dk
-#SBATCH --partition normal
-#SBATCH --mem-per-cpu=1gb
-#SBATCH --cpus-per-task 1
-#SBATCH --time 00:05:00
-
-rep=(1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67)
-model='colwise'
-
-export model
-# write bash scripts
-for ((i=0; i<=66; i++)) do
-  this_rep=${rep[${i}]}
-  export this_rep
-  sbatch null_shuffle.sh
-done
-"
-cat(bashscript, file="PD_nullmodel/null_shuffle_job_array.sh")
 
 ### build subordination bash script
 bashscript2 <- '#!/bin/bash
@@ -185,17 +119,60 @@ bashscript2 <- '#!/bin/bash
 #SBATCH --output=/dev/null
 
 source ~/miniconda3/bin/activate R-env-4
-Rscript null_shuffle.R $this_rep $model >logfile.txt
+Rscript null_shuffle.R $this_rep $this_model >logfile.txt
 '
 cat(bashscript2, file="PD_nullmodel/null_shuffle.sh")
 
+### build bash array script
+# The null model for separating patterns from processes and for
+# contrasting against alternative hypotheses. Available null models include:
+# “tipshuffle”: shuffles tip labels multiple times.
+# “rowwise”: shuffles sites (i.e., varying richness) and keeping species
+# occurrence frequency constant.
+# “colwise”: shuffles species occurrence frequency and keeping site richness
+# constant.
+bashscript <- "#!/bin/bash
+# submit_array.sh
 
+#SBATCH --account PDiv
+#SBATCH --job-name=nullshuffle_boss
+#SBATCH --mail-type=FAIL,END
+#SBATCH --mail-user=melanie.tietje@bio.au.dk
+#SBATCH --partition normal
+#SBATCH --mem-per-cpu=1gb
+#SBATCH --cpus-per-task 1
+#SBATCH --time 00:05:00
+
+rep=(1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72  73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100)
+model=('tipshuffle' 'rowwise' 'colwise')
+
+
+# pass on variables to child script
+for ((m=0; m<=2; i++)) do
+  this_model=${model[${m}]}
+  export this_model
+  for ((i=0; i<=99; i++)) do
+    this_rep=${rep[${i}]}
+    export this_rep
+    sbatch null_shuffle.sh
+  done
+done
+"
+cat(bashscript, file="PD_nullmodel/null_shuffle_job_array.sh")
+
+system({
+  cat("git add .
+  git commit -m 'nullmodel script changes'
+  git push")
+})
+
+# git add commit push --> GenomeDK
 
 
 # Tipshuffle nullmodel ----------------------------------------------------
 
 ### read cluster results and get means
-pdnames <- dir("PD_nullmodel", pattern="\\.rds", full.names = T)
+pdnames <- dir("PD_nullmodel", pattern="tipshuffle.*?.rds", full.names = T)
 PD.list <- lapply(pdnames, readRDS)
 PD.df <- data.frame(LEVEL3_COD = PD.list[[1]]$grids,
                     richness = apply(sapply(PD.list, "[[", "richness"), 1, mean),
@@ -207,6 +184,7 @@ PD.df <- data.frame(LEVEL3_COD = PD.list[[1]]$grids,
                     pd_obs_p_mean = apply(sapply(PD.list, "[[", "pd_obs_p"), 1, mean),
                     reps = apply(sapply(PD.list, "[[", "reps"), 1, mean)
 )
+names()
 
 s@data <- merge(s@data, PD.df, by="LEVEL3_COD", all.x=TRUE)
 
@@ -271,7 +249,7 @@ ggplot(data=s@data, aes(x=richness, y=pd_rand_m_mean))+
 
 # Colwise nullmodel -------------------------------------------------------
 ### read cluster results and get means
-pdnames <- dir("PD_nullmodel", pattern="\\.rds", full.names = T)
+pdnames <- dir("PD_nullmodel", pattern="colwise.*?.rds", full.names = T)
 PD.list <- lapply(pdnames, readRDS)
 PD.df <- data.frame(LEVEL3_COD = PD.list[[1]]$grids,
                     richness = apply(sapply(PD.list, "[[", "richness"), 1, mean),
@@ -284,10 +262,41 @@ PD.df <- data.frame(LEVEL3_COD = PD.list[[1]]$grids,
                     reps = apply(sapply(PD.list, "[[", "reps"), 1, mean)
 )
 
+ggplot(data=PD.df, aes(x=richness, y=pd_rand_m_mean))+
+  geom_point()
+ggplot(data=s@data, aes(x=richness, y=pd_rand_m_mean))+
+  geom_point()
+
+
+
+
+
+# Assemble shapefile ------------------------------------------------------
+
+# PD_ses --> Phylogenetic diversity standardized for species richness
+
+s <- raster::shapefile("../DATA/wgsrpd-master/level3/level3.shp")
+
+# *** PE ------------------------------------------------------------------
+
+# takes some time (couple minutes)
+tmp <- mapply(phylo_endemism, submat, subphy)
+tmp <- as.matrix(tmp)
+
+pe <- data.frame(PE = apply(tmp, 1, mean), PE_sd = apply(tmp, 1, sd))
+pe$LEVEL3_COD <- row.names(pe)
+s@data <- merge(s@data, pe, all.x=TRUE)
+
+
+# *** SR ------------------------------------------------------------------
+sr <- data.frame(SR=rowSums(submat[[1]]))
+sr$LEVEL3_COD <- row.names(sr)
+s@data <- merge(s@data, sr, all.x=TRUE)
+
+
+# *** Save  --------------------------------------------------------------
+
 s@data <- merge(s@data, PD.df, by="LEVEL3_COD", all.x=TRUE)
-
-
-# *** Save shapefile ------------------------------------------------------
 
 saveRDS(s, "fin_shape.rds")
 
