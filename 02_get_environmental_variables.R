@@ -32,8 +32,6 @@ global_drivers <- readRDS("../Global_Drivers_2022/processed_data/shp_object_fin_
 global_drivers <- global_drivers[,-grep("ID|_NAM|CONTINENT|sr|pet_|_n|_abs|mangroves", names(global_drivers))]
 global_drivers <- sf::st_drop_geometry(global_drivers)
 
-# merge into
-shp <- merge(shp, global_drivers, by.x="LEVEL3_COD", by.y="LEVEL_3_CO", all.x=TRUE)
 
 
 # Human footprint ------------------------------------------------------
@@ -85,11 +83,82 @@ destfiles <- paste0("../DATA/PDiv/climate_change/", sub("^.*?ssp370/bio/", "", u
 # }
 
 future <- lapply(destfiles, raster)
-future <- stack(future)
 names(future) <- regmatches(destfiles, regexpr("CHELSA_bio[1-9]{1,2}", destfiles))
-
+list2env(future, envir=.GlobalEnv)
 
 # past and projected future land use change
 
+# STILL MISSING #
+#
+#
+#
+#
+
+
+# Average per LEVEL3 unit -------------------------------------------------
+
+shp <- readRDS("fin_shape.rds")
+
+# hfp, deforest, future 1,5,6,7,12
+
+vars <- c("hfp", "deforest", "CHELSA_bio1", "CHELSA_bio5", "CHELSA_bio6", "CHELSA_bio7", "CHELSA_bio12")
+vars_stat <- c("mean", "sd", "n")
+combs <- nrow(expand.grid(vars, vars_stat))
+m <- matrix(seq(1:combs), ncol=3, byrow = TRUE)
+num_list <- split(m, rep(1:nrow(m)))
+
+res <- matrix(nrow=nrow(shp@data), ncol=combs)
+rownames(res) <- shp@data$LEVEL3_COD
+disag_id <- c()
+upsale_count <- c()
+
+library(doParallel)
+detectCores()
+registerDoParallel(4)
+
+Sys.time()
+#foreach(icount(nrow(shp@data))) %dopar% {
+for(i in 1:nrow(shp@data)){
+  # loop over botanical countries
+  shape_sub <- subset(shp, shp$LEVEL3_COD==shp$LEVEL3_COD[[i]])
+  for(j in 1:length(vars)){
+    # loop over each climate layer
+    lay <- get(vars[j])
+    rest <- raster::extract(lay, shape_sub)
+    rest <- na.omit(rest[[1]])
+    # increase resolution necessary?
+    if(all(is.na(rest))==TRUE){
+      print("disaggregate to increase resolution")
+      upsale_count <- c(upsale_count, 1)
+      disag_id <- c(disag_id, paste(i,j))
+      # to avoid huge raster files crop to extent of shapefile sub * 20
+      newExtent <- extent(bbox(shape_sub))
+      lay2 <- crop(lay, newExtent*20)
+      lay2 <- disaggregate(lay2, 10)
+      rest <- raster::extract(lay2, shape_sub)
+      rest <- na.omit(rest[[1]])
+      
+    }else{}
+    
+    # get mean, sd and sample size
+    res[i,num_list[[j]][1]] <- mean(rest)
+    res[i,num_list[[j]][2]] <- sd(rest)
+    res[i,num_list[[j]][3]] <- length(rest)
+  }
+  if(!i%%1)cat(i,"\r")
+}
+Sys.time()
+
+
+# Merge + save ------------------------------------------------------------
+
+shp <- readRDS("fin_shape.rds")
+shp <- st_as_sf(s)
+# transform to Behrmann projection
+shp <- st_transform(shp, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs") # Behrmann
+
+
+# merge into PD file
+shp <- merge(shp, global_drivers, by.x="LEVEL3_COD", by.y="LEVEL_3_CO", all.x=TRUE)
 
 
