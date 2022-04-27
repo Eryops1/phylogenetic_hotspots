@@ -48,6 +48,6 @@ for(i in 1:nrow(shp@data)){
     res[i,num_list[[j]][2]] <- sd(rest)
     res[i,num_list[[j]][3]] <- length(rest)
   }
-  if(!i%%1)cat(i,''')
+  if(!i%%1)cat(i,'\r')
 }
-saveRDS(res, file=paste0(var,'_.rds'))
+saveRDS(res, file=paste0(var,'.rds'))
