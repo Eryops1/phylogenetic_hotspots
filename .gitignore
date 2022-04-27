@@ -11,6 +11,10 @@
 *.gri
 *.tif
 /output
+.gwf/
+.gwfconf.json
+/__pycache__/
+
 =======
 # History files
 .Rhistory
