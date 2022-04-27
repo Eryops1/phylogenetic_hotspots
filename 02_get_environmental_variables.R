@@ -44,6 +44,7 @@ hfp <- projectRaster(hfp, crs=behr)
 
 # Deforestation -----------------------------------------------------------
 
+# https://data.globalforestwatch.org/documents/tree-cover-loss/explore
 tx <- readLines("../DATA/PDiv/lossyear.txt")
 for(i in 1:length(tx)){
   url <- tx[i]
@@ -51,8 +52,10 @@ for(i in 1:length(tx)){
   download.file(url, destfile)
 }
 
+deforest <- raster("../DATA/PDiv/deforestation/Hansen_GFC-2020-v1.8_lossyear_00N_050W.tif")
 deforest <- raster("../DATA/PDiv/deforestation/deforest_combined.tif")
 deforest[deforest == 255] <- NA
+deforest <- projectRaster(deforest, crs=behr)
 
 
 # Climate change ----------------------------------------------------------
@@ -99,7 +102,10 @@ list2env(future, envir=.GlobalEnv)
 
 shp <- readRDS("fin_shape.rds")
 
-# hfp, deforest, future 1,5,6,7,12
+# save data for cluster
+save(list = c("shp", "hfp", "deforest", "CHELSA_bio1", "CHELSA_bio5",
+              "CHELSA_bio6", "CHELSA_bio7", "CHELSA_bio12"),
+     file="environment_vars.RData")
 
 vars <- c("hfp", "deforest", "CHELSA_bio1", "CHELSA_bio5", "CHELSA_bio6", "CHELSA_bio7", "CHELSA_bio12")
 vars_stat <- c("mean", "sd", "n")
@@ -112,18 +118,20 @@ rownames(res) <- shp@data$LEVEL3_COD
 disag_id <- c()
 upsale_count <- c()
 
-library(doParallel)
-detectCores()
-registerDoParallel(4)
+# # kinda slow, lets parallelize
+# library(doParallel)
+# detectCores()
+# registerDoParallel(4)
 
 Sys.time()
-#foreach(icount(nrow(shp@data))) %dopar% {
+#foreach(i=1:(nrow(shp@data))) %dopar% {
 for(i in 1:nrow(shp@data)){
   # loop over botanical countries
   shape_sub <- subset(shp, shp$LEVEL3_COD==shp$LEVEL3_COD[[i]])
   for(j in 1:length(vars)){
     # loop over each climate layer
     lay <- get(vars[j])
+    print(j)
     rest <- raster::extract(lay, shape_sub)
     rest <- na.omit(rest[[1]])
     # increase resolution necessary?
