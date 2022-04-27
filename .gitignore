@@ -9,6 +9,7 @@
 *tacted.rates.csv
 *tacted.log.txt
 *.gri
+*.tif
 /output
 =======
 # History files
