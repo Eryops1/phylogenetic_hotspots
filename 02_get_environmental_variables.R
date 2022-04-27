@@ -103,13 +103,25 @@ list2env(future, envir=.GlobalEnv)
 shp <- readRDS("fin_shape.rds")
 
 # save data for cluster
-save(list = c("shp", "hfp", "deforest", "CHELSA_bio1", "CHELSA_bio5",
-              "CHELSA_bio6", "CHELSA_bio7", "CHELSA_bio12"),
+save("shp", "hfp", "deforest", "CHELSA_bio1", "CHELSA_bio5",
+              "CHELSA_bio6", "CHELSA_bio7", "CHELSA_bio12",
      file="environment_vars.RData")
 
-vars <- c("hfp", "deforest", "CHELSA_bio1", "CHELSA_bio5", "CHELSA_bio6", "CHELSA_bio7", "CHELSA_bio12")
-vars_stat <- c("mean", "sd", "n")
-combs <- nrow(expand.grid(vars, vars_stat))
+### build R scripts
+Rscript <- "
+# get environmental variable layer
+args <- commandArgs()
+print(args)
+var <- args[6]
+
+library(raster)
+library(sf)
+library(rgdal)
+
+load('environment_vars.RData')
+  
+vars_stat <- c('mean', 'sd', 'n')
+combs <- nrow(expand.grid(var, vars_stat))
 m <- matrix(seq(1:combs), ncol=3, byrow = TRUE)
 num_list <- split(m, rep(1:nrow(m)))
 
@@ -118,27 +130,17 @@ rownames(res) <- shp@data$LEVEL3_COD
 disag_id <- c()
 upsale_count <- c()
 
-# # kinda slow, lets parallelize
-# library(doParallel)
-# detectCores()
-# registerDoParallel(4)
-
-Sys.time()
-#foreach(i=1:(nrow(shp@data))) %dopar% {
 for(i in 1:nrow(shp@data)){
   # loop over botanical countries
   shape_sub <- subset(shp, shp$LEVEL3_COD==shp$LEVEL3_COD[[i]])
-  for(j in 1:length(vars)){
-    # loop over each climate layer
-    lay <- get(vars[j])
-    print(j)
+    lay <- get(var)
     rest <- raster::extract(lay, shape_sub)
     rest <- na.omit(rest[[1]])
     # increase resolution necessary?
     if(all(is.na(rest))==TRUE){
-      print("disaggregate to increase resolution")
+      print('disaggregate to increase resolution')
       upsale_count <- c(upsale_count, 1)
-      disag_id <- c(disag_id, paste(i,j))
+      disag_id <- c(disag_id, paste(i))
       # to avoid huge raster files crop to extent of shapefile sub * 20
       newExtent <- extent(bbox(shape_sub))
       lay2 <- crop(lay, newExtent*20)
@@ -149,13 +151,68 @@ for(i in 1:nrow(shp@data)){
     }else{}
     
     # get mean, sd and sample size
-    res[i,num_list[[j]][1]] <- mean(rest)
-    res[i,num_list[[j]][2]] <- sd(rest)
-    res[i,num_list[[j]][3]] <- length(rest)
-  }
-  if(!i%%1)cat(i,"\r")
-}
-Sys.time()
+    res[i,1] <- mean(rest)
+    res[i,2] <- sd(rest)
+    res[i,3] <- length(rest)
+  print(i)}
+  
+saveRDS(res, file=paste0(var,'.rds'))
+"
+#cat(Rscript, file="env_var.R")
+
+### build subordination bash script
+bashscript2 <- '#!/bin/bash
+
+#SBATCH --account PDiv
+#SBATCH --job-name=env_var_child
+#SBATCH --mail-type=FAIL,END
+##SBATCH --mail-user=melanie.tietje@bio.au.dk
+#SBATCH --partition normal
+#SBATCH --mem-per-cpu=8gb
+#SBATCH --cpus-per-task 1
+#SBATCH --time 02:00:00
+##SBATCH --output=NULL
+
+source ~/miniconda3/bin/activate pdiv
+Rscript env_var.R $this_var > logfile.txt
+'
+cat(bashscript2, file="env.sh")
+
+### build bash array script
+bashscript <- "#!/bin/bash
+# submit_array.sh
+
+#SBATCH --account PDiv
+#SBATCH --job-name=env_var_boss
+#SBATCH --mail-type=FAIL,END
+##SBATCH --mail-user=melanie.tietje@bio.au.dk
+#SBATCH --partition normal
+#SBATCH --mem-per-cpu=1gb
+#SBATCH --cpus-per-task 1
+#SBATCH --time 00:05:00
+
+vars=('hfp' 'deforest' 'CHELSA_bio1' 'CHELSA_bio5' 'CHELSA_bio6' 'CHELSA_bio7' 'CHELSA_bio12')
+
+# pass on variables to child scripts
+for ((i=0; i<=6; i++)) do
+  this_var=${vars[${i}]}
+  export this_var
+  sbatch env.sh
+done
+"
+cat(bashscript, file="environment_vars_job_array.sh")
+
+system({
+  "git add .
+git commit -m 'env model script changes'
+git push"
+})
+
+# stuff on GenomeDK: git pull etc (doesnot work yet....)
+# system2({
+#   "ssh -T 'mtietje@login.genome.au.dk'"
+# })
+# #system("ssh -T 'mtietje@login.genome.au.dk'")
 
 
 # Merge + save ------------------------------------------------------------

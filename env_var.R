@@ -30,7 +30,7 @@ for(i in 1:nrow(shp@data)){
     if(all(is.na(rest))==TRUE){
       print('disaggregate to increase resolution')
       upsale_count <- c(upsale_count, 1)
-      disag_id <- c(disag_id, paste(i,j))
+      disag_id <- c(disag_id, paste(i))
       # to avoid huge raster files crop to extent of shapefile sub * 20
       newExtent <- extent(bbox(shape_sub))
       lay2 <- crop(lay, newExtent*20)
