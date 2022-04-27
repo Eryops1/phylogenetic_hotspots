@@ -40,6 +40,7 @@ global_drivers <- sf::st_drop_geometry(global_drivers)
 hfp <- raster("../DATA/PDiv/hfp2018.tif")
 behr <- "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs"
 hfp <- projectRaster(hfp, crs=behr)
+writeRaster(hfp, "hfp.grd")
 
 
 # Deforestation -----------------------------------------------------------
@@ -103,9 +104,9 @@ list2env(future, envir=.GlobalEnv)
 shp <- readRDS("fin_shape.rds")
 
 # save data for cluster
-save("shp", "hfp", "deforest", "CHELSA_bio1", "CHELSA_bio5",
-              "CHELSA_bio6", "CHELSA_bio7", "CHELSA_bio12",
-     file="environment_vars.RData")
+# save("shp", "hfp", "deforest", "CHELSA_bio1", "CHELSA_bio5",
+#               "CHELSA_bio6", "CHELSA_bio7", "CHELSA_bio12",
+#      file="environment_vars.RData")
 
 ### build R scripts
 Rscript <- "
@@ -118,6 +119,8 @@ library(raster)
 library(sf)
 library(rgdal)
 
+shp <- 
+hfp <- raster('hfp.grd')
 load('environment_vars.RData')
   
 vars_stat <- c('mean', 'sd', 'n')

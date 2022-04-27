@@ -8,6 +8,7 @@
 *nexus.tre
 *tacted.rates.csv
 *tacted.log.txt
+*.gri
 /output
 =======
 # History files
