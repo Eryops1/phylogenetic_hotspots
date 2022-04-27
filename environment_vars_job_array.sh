@@ -10,7 +10,7 @@
 #SBATCH --cpus-per-task 1
 #SBATCH --time 00:05:00
 
-vars=('hfp' 'deforest' 'CHELSA_bio1' 'CHELSA_bio5' 'CHELSA_bio6' 'CHELSA_bio7' 'CHELSA_bio12')
+vars=('hfp' 'deforest' 'bio1' 'bio5' 'bio6' 'bio7' 'bio12')
 
 # pass on variables to child scripts
 for ((i=0; i<=6; i++)) do

@@ -40,24 +40,24 @@ global_drivers <- sf::st_drop_geometry(global_drivers)
 hfp <- raster("../DATA/PDiv/hfp2018.tif")
 behr <- "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs"
 hfp <- projectRaster(hfp, crs=behr)
-writeRaster(hfp, "hfp.grd")
+writeRaster(hfp, "../DATA/PDiv/hfp.tif")
 
 
 # Deforestation -----------------------------------------------------------
 
 # https://data.globalforestwatch.org/documents/tree-cover-loss/explore
-tx <- readLines("../DATA/PDiv/lossyear.txt")
-for(i in 1:length(tx)){
-  url <- tx[i]
-  destfile <- paste0("../DATA/PDiv/deforestation/", sub("^.*?GFC-2020-v1\\.8/", "", tx[i]))
-  download.file(url, destfile)
-}
+# tx <- readLines("../DATA/PDiv/lossyear.txt")
+# for(i in 1:length(tx)){
+#   url <- tx[i]
+#   destfile <- paste0("../DATA/PDiv/deforestation/", sub("^.*?GFC-2020-v1\\.8/", "", tx[i]))
+#   download.file(url, destfile)
+# }
 
-deforest <- raster("../DATA/PDiv/deforestation/Hansen_GFC-2020-v1.8_lossyear_00N_050W.tif")
+#deforest <- raster("../DATA/PDiv/deforestation/Hansen_GFC-2020-v1.8_lossyear_00N_050W.tif")
 deforest <- raster("../DATA/PDiv/deforestation/deforest_combined.tif")
 deforest[deforest == 255] <- NA
 deforest <- projectRaster(deforest, crs=behr)
-
+writeRaster(deforest, "../DATA/PDiv/deforest.tif")
 
 # Climate change ----------------------------------------------------------
 
@@ -86,9 +86,15 @@ destfiles <- paste0("../DATA/PDiv/climate_change/", sub("^.*?ssp370/bio/", "", u
 #   print(i)
 # }
 
-future <- lapply(destfiles, raster)
-names(future) <- regmatches(destfiles, regexpr("CHELSA_bio[1-9]{1,2}", destfiles))
-list2env(future, envir=.GlobalEnv)
+# future <- lapply(destfiles, raster)
+# names(future) <- regmatches(destfiles, regexpr("CHELSA_bio[1-9]{1,2}", destfiles))
+# #list2env(future, envir=.GlobalEnv)
+# for(i in 1:length(future)){
+#   #future[[i]] <- projectRaster(future[[i]], crs=behr)
+#   writeRaster(future[[i]], paste0("../DATA/PDiv/", names(future[i]), ".grd"))
+#   print(i)
+# }
+# dont do this, too big. just use the original tifs on the cluster
 
 # past and projected future land use change
 
@@ -119,10 +125,11 @@ library(raster)
 library(sf)
 library(rgdal)
 
-shp <- 
-hfp <- raster('hfp.grd')
-load('environment_vars.RData')
+# load data
+shp <- readRDS('fin_shape.rds'')
+lay <- raster(paste0(var, '.tif')
   
+# set up variables
 vars_stat <- c('mean', 'sd', 'n')
 combs <- nrow(expand.grid(var, vars_stat))
 m <- matrix(seq(1:combs), ncol=3, byrow = TRUE)
@@ -136,7 +143,6 @@ upsale_count <- c()
 for(i in 1:nrow(shp@data)){
   # loop over botanical countries
   shape_sub <- subset(shp, shp$LEVEL3_COD==shp$LEVEL3_COD[[i]])
-    lay <- get(var)
     rest <- raster::extract(lay, shape_sub)
     rest <- na.omit(rest[[1]])
     # increase resolution necessary?
@@ -161,7 +167,7 @@ for(i in 1:nrow(shp@data)){
   
 saveRDS(res, file=paste0(var,'.rds'))
 "
-#cat(Rscript, file="env_var.R")
+cat(Rscript, file="env_var.R")
 
 ### build subordination bash script
 bashscript2 <- '#!/bin/bash
@@ -194,7 +200,7 @@ bashscript <- "#!/bin/bash
 #SBATCH --cpus-per-task 1
 #SBATCH --time 00:05:00
 
-vars=('hfp' 'deforest' 'CHELSA_bio1' 'CHELSA_bio5' 'CHELSA_bio6' 'CHELSA_bio7' 'CHELSA_bio12')
+vars=('hfp' 'deforest' 'bio1' 'bio5' 'bio6' 'bio7' 'bio12')
 
 # pass on variables to child scripts
 for ((i=0; i<=6; i++)) do

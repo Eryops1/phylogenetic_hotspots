@@ -8,8 +8,11 @@ library(raster)
 library(sf)
 library(rgdal)
 
-load('environment_vars.RData')
+# load data
+shp <- readRDS('fin_shape.rds'')
+lay <- raster(paste0(var, '.tif')
   
+# set up variables
 vars_stat <- c('mean', 'sd', 'n')
 combs <- nrow(expand.grid(var, vars_stat))
 m <- matrix(seq(1:combs), ncol=3, byrow = TRUE)
@@ -23,7 +26,6 @@ upsale_count <- c()
 for(i in 1:nrow(shp@data)){
   # loop over botanical countries
   shape_sub <- subset(shp, shp$LEVEL3_COD==shp$LEVEL3_COD[[i]])
-    lay <- get(var)
     rest <- raster::extract(lay, shape_sub)
     rest <- na.omit(rest[[1]])
     # increase resolution necessary?
@@ -44,7 +46,6 @@ for(i in 1:nrow(shp@data)){
     res[i,1] <- mean(rest)
     res[i,2] <- sd(rest)
     res[i,3] <- length(rest)
-    print(i)
-  }
-
+  print(i)}
+  
 saveRDS(res, file=paste0(var,'.rds'))
