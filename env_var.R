@@ -23,9 +23,7 @@ upsale_count <- c()
 for(i in 1:nrow(shp@data)){
   # loop over botanical countries
   shape_sub <- subset(shp, shp$LEVEL3_COD==shp$LEVEL3_COD[[i]])
-  for(j in 1:length(vars)){
-    # loop over each climate layer
-    lay <- get(vars[j])
+    lay <- get(var)
     print(j)
     rest <- raster::extract(lay, shape_sub)
     rest <- na.omit(rest[[1]])
@@ -44,10 +42,10 @@ for(i in 1:nrow(shp@data)){
     }else{}
     
     # get mean, sd and sample size
-    res[i,num_list[[j]][1]] <- mean(rest)
-    res[i,num_list[[j]][2]] <- sd(rest)
-    res[i,num_list[[j]][3]] <- length(rest)
+    res[i,1] <- mean(rest)
+    res[i,2] <- sd(rest)
+    res[i,3] <- length(rest)
+    print(i)
   }
-  if(!i%%1)cat(i,'\r')
-}
+
 saveRDS(res, file=paste0(var,'.rds'))
