@@ -11,4 +11,4 @@
 ##SBATCH --output=NULL
 
 source ~/miniconda3/bin/activate pdiv
-Rscript env_var.R $this_var > logfile_"$thisvar".txt
+Rscript env_var.R $this_var > logfile_"$this_var".txt

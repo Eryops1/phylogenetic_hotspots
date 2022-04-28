@@ -7,6 +7,7 @@ var <- args[6]
 library(raster)
 library(sf)
 library(rgdal)
+library(exactextractr)
 
 # load data
 shp <- readRDS('fin_shape.rds')
@@ -26,7 +27,9 @@ upsale_count <- c()
 for(i in 1:nrow(shp@data)){
   # loop over botanical countries
   shape_sub <- subset(shp, shp$LEVEL3_COD==shp$LEVEL3_COD[[i]])
-    rest <- raster::extract(lay, shape_sub)
+
+    rest <- exact_extract(lay, shape_sub)
+#    rest <- raster::extract(lay, shape_sub)
     rest <- na.omit(rest[[1]])
     # increase resolution necessary?
     if(all(is.na(rest))==TRUE){
@@ -37,15 +40,15 @@ for(i in 1:nrow(shp@data)){
       newExtent <- extent(bbox(shape_sub))
       lay2 <- crop(lay, newExtent*20)
       lay2 <- disaggregate(lay2, 10)
-      rest <- raster::extract(lay2, shape_sub)
+      rest <- exact_extract(lay2, shape_sub)
       rest <- na.omit(rest[[1]])
       
     }else{}
     
     # get mean, sd and sample size
-    res[i,1] <- mean(rest)
-    res[i,2] <- sd(rest)
-    res[i,3] <- length(rest)
+    res[i,1] <- mean(rest$value)
+    res[i,2] <- sd(rest$value)
+    res[i,3] <- length(rest$value)
   print(i)}
   
 saveRDS(res, file=paste0(var,'.rds'))

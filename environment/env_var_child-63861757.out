@@ -15,3 +15,4 @@ PROJ CDN enabled: TRUE
 Linking to sp version:1.4-6
 To mute warnings of possible GDAL/OSR exportToProj4() degradation,
 use options("rgdal_show_exportToProj4_warnings"="none") before loading sp or rgdal.
+There were 50 or more warnings (use warnings() to see the first 50)
