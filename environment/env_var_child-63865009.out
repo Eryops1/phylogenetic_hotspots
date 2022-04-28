@@ -15,4 +15,3 @@ PROJ CDN enabled: TRUE
 Linking to sp version:1.4-6
 To mute warnings of possible GDAL/OSR exportToProj4() degradation,
 use options("rgdal_show_exportToProj4_warnings"="none") before loading sp or rgdal.
-slurmstepd: error: *** JOB 63861760 ON s05n25 CANCELLED AT 2022-04-28T11:05:54 DUE TO TIME LIMIT ***
