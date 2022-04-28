@@ -9,8 +9,8 @@ library(sf)
 library(rgdal)
 
 # load data
-shp <- readRDS('fin_shape.rds'')
-lay <- raster(paste0(var, '.tif')
+shp <- readRDS('fin_shape.rds')
+lay <- raster(paste0(var, '.tif'))
   
 # set up variables
 vars_stat <- c('mean', 'sd', 'n')
