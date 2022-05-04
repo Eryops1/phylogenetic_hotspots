@@ -100,7 +100,8 @@ Rscript <- "
   
   library(phyloregion) # PD calculations etc
   load('comm_and_phy.RData')
-  PD_ses_tipshuffle <- PD_ses(submat[[rep]], subphy[[rep]], model=model, reps=100) 
+  PD_ses_tipshuffle <- PD_ses(submat[[rep]], subphy[[rep]], model=model, reps=100)
+  #PE_tipshuffle <- phylo_endemism((submat[[rep]], subphy[[rep]])
   saveRDS(PD_ses_tipshuffle, file=paste0(model,'_', rep, '.rds'))
 "
 cat(Rscript, file="PD_nullmodel/null_shuffle.R")
@@ -174,20 +175,22 @@ git push"
 
 
 # Run my own nullmodel ----------------------------------------------------
+# 
+# load("PD_nullmodel/comm_and_phy.RData")
+# 
+# # shuffle phylogeny tiplabels (10 min or so for each iteration)
+# set.seed(939)
+# res <- matrix(ncol=100, nrow=nrow(submat[[1]]))
+# for(i in 1:100){
+#   subphy[[i]]$tip.label <- sample(subphy[[i]]$tip.label)
+#   res[,i] <- PD(submat[[i]], subphy[[i]])
+#   if(!i%%1)cat(i,"\r")
+# }
+# beep(2)
+# PD_manual_ts <- rowMeans(res)
+# PD_sd_manual_ts <- apply(res, 1, sd)
 
-load("PD_nullmodel/comm_and_phy.RData")
 
-# shuffle phylogeny tiplabels (10 min or so for each iteration)
-set.seed(939)
-res <- matrix(ncol=100, nrow=nrow(submat[[1]]))
-for(i in 1:100){
-  subphy[[i]]$tip.label <- sample(subphy[[i]]$tip.label)
-  res[,i] <- PD(submat[[i]], subphy[[i]])
-  if(!i%%1)cat(i,"\r")
-}
-beep(2)
-PD_manual_ts <- rowMeans(res)
-PD_sd_manual_ts <- apply(res, 1, sd)
 
 
 
@@ -202,7 +205,7 @@ tipshuffle.df <- data.frame(LEVEL3_COD = PD.list[[1]]$grids,
                     pd_rand_mean = apply(sapply(PD.list, "[[", "pd_rand_mean"), 1, mean),
                     pd_rand_sd = apply(sapply(PD.list, "[[", "pd_rand_sd"), 1, mean),
                     pd_obs_rank = apply(sapply(PD.list, "[[", "pd_obs_rank"), 1, mean),
-                    zscore = apply(sapply(PD.list, "[[", "zscore"), 1, mean),
+                    SES.PD = apply(sapply(PD.list, "[[", "zscore"), 1, mean),
                     pd_obs_p = apply(sapply(PD.list, "[[", "pd_obs_p"), 1, mean),
                     reps = apply(sapply(PD.list, "[[", "reps"), 1, mean)
 )
@@ -219,7 +222,7 @@ rowwise.df <- data.frame(LEVEL3_COD = PD.list[[1]]$grids,
                             pd_rand_mean = apply(sapply(PD.list, "[[", "pd_rand_mean"), 1, mean),
                             pd_rand_sd = apply(sapply(PD.list, "[[", "pd_rand_sd"), 1, mean),
                             pd_obs_rank = apply(sapply(PD.list, "[[", "pd_obs_rank"), 1, mean),
-                            zscore = apply(sapply(PD.list, "[[", "zscore"), 1, mean),
+                            SES.PD = apply(sapply(PD.list, "[[", "zscore"), 1, mean),
                             pd_obs_p = apply(sapply(PD.list, "[[", "pd_obs_p"), 1, mean),
                             reps = apply(sapply(PD.list, "[[", "reps"), 1, mean)
 )
@@ -239,7 +242,7 @@ colwise.df <- data.frame(LEVEL3_COD = PD.list[[1]]$grids,
                          pd_rand_mean = apply(sapply(PD.list, "[[", "pd_rand_mean"), 1, mean),
                          pd_rand_sd = apply(sapply(PD.list, "[[", "pd_rand_sd"), 1, mean),
                          pd_obs_rank = apply(sapply(PD.list, "[[", "pd_obs_rank"), 1, mean),
-                         zscore = apply(sapply(PD.list, "[[", "zscore"), 1, mean),
+                         SES.PD = apply(sapply(PD.list, "[[", "zscore"), 1, mean),
                          pd_obs_p = apply(sapply(PD.list, "[[", "pd_obs_p"), 1, mean),
                          reps = apply(sapply(PD.list, "[[", "reps"), 1, mean)
 )
@@ -255,12 +258,12 @@ names(colwise.df)[-grep("LEVEL3|richness|reps", names(colwise.df))] <-
 
 dat <- merge.data.table(tipshuffle.df, rowwise.df, by=c("LEVEL3_COD", "richness", "reps"))
 dat <- merge.data.table(dat, colwise.df, by=c("LEVEL3_COD", "richness", "reps"))
-dat$PD_manual_ts <- PD_manual_ts
-dat$PD_sd_manual_ts <- PD_sd_manual_ts
+#dat$PD_manual_ts <- PD_manual_ts
+#dat$PD_sd_manual_ts <- PD_sd_manual_ts
 
-plot(dat$pd_rand_mean_ts, dat$PD_manual_ts)
-cor(dat$pd_rand_mean_ts, dat$PD_manual_ts)
-hist(dat$pd_rand_mean_ts- dat$PD_manual_ts)
+#plot(dat$pd_rand_mean_ts, dat$PD_manual_ts)
+#cor(dat$pd_rand_mean_ts, dat$PD_manual_ts)
+#hist(dat$pd_rand_mean_ts- dat$PD_manual_ts)
 # the phyloregion tipshuffle model is legit
 
 s <- raster::shapefile("../DATA/wgsrpd-master/level3/level3.shp")
@@ -270,13 +273,24 @@ s@data <- merge(s@data, dat, by="LEVEL3_COD", all.x=TRUE)
 # *** PE ------------------------------------------------------------------
 
 # takes some time (couple minutes)
+load("PD_nullmodel/comm_and_phy.RData")
 tmp <- mapply(phylo_endemism, submat, subphy)
-rm(submat, subphy)
 tmp <- as.matrix(tmp)
 
 pe <- data.frame(PE = apply(tmp, 1, mean), PE_sd = apply(tmp, 1, sd))
 pe$LEVEL3_COD <- row.names(pe)
 s@data <- merge(s@data, pe, all.x=TRUE)
+
+
+# *** Weighted endemism -------------------------------------------------------
+# species richness inversely weighted by species ranges
+
+tmp <- mapply(weighted_endemism, submat[1]) # one is enough: distribution never changes
+rm(submat, subphy)
+tmp <- as.matrix(tmp)
+
+we <- data.frame(WE = tmp[,1], LEVEL3_COD = row.names(tmp))
+s@data <- merge(s@data, we, all.x=TRUE)
 
 
 
@@ -288,186 +302,3 @@ saveRDS(s, "fin_shape.rds")
 
 
 
-# Analyse -----------------------------------------------------------------
-
-
-library(sf)
-rm(list = ls())
-s <- readRDS("fin_shape.rds")
-shp <- st_as_sf(s)
-
-plot(shp[,-grep("LEVEL|reps|zscore_cw", names(shp))], max.plot=18)
-hist(shp$zscore_ts)
-hist(shp$zscore_rw)
-
-cor.test(shp$richness, shp$zscore_ts)
-cor.test(shp$richness, shp$PD_obs_ts)
-
-plot_grid(ncol=2,
-ggplot(data=shp, aes(fill=PD_obs_ts))+
-  geom_sf(lwd=0)
-,
-ggplot(data=shp, aes(fill=zscore_ts))+
-  geom_sf(lwd=0)
-,
-ggplot(data=shp, aes(x=richness, y=zscore_ts))+
-  geom_text(aes(label=LEVEL3_COD))
-,
-ggplot(data=s@data, aes(x=pd_rand_mean_ts, y=PD_obs_ts, col=log(richness)))+
-  geom_point()+
-  geom_abline(x=1)+
-  scale_x_continuous(trans="sqrt")+
-  scale_y_continuous(trans="sqrt")
-# observed PD is usually lower than for a random species sample for the phylogey that matches the SR
-)
-
-
-ggplot(data=s@data, aes(x=richness, y=PD_obs_ts))+
-  geom_point()+
-  geom_point(aes(y=pd_rand_mean_ts), col="salmon")+
-  scale_x_continuous(trans="sqrt")+
-  scale_y_continuous(trans="sqrt")
-
-hist(shp$pd_rand_mean_ts)
-
-
-
-# PD_obs: observed PD in community
-# pd_rand_mean: mean PD in null communities
-# pd_obs_rank: Rank of observed PD vs. null communities
-# pd_obs_z: Standardized effect size of PD vs. null communities = (PD_obs - pd_rand_mean) / pd_rand_sd
-# pd_obs_p: P-value (quantile) of observed PD vs. null communities = mpd_obs_rank / iter + 1
-
-
-
-
-
-
-
-
-# Maps --------------------------------------------------------------------
-
-# format to sf object for plotting
-shp <- st_as_sf(s)
-
-# transform to Behrmann projection
-shp <- st_transform(shp, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs") # Behrmann
-
-(pd_map <- ggplot(shp) + 
-   geom_sf(aes(fill=PD_obs_ts),lwd=0, col=NA) + 
-   #geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
-   #scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
-  #                        begin = lcol, end = sqrt(ucol))+
-   scale_fill_viridis_c("PD", option = "plasma")+ #, 
-   theme(legend.position = c(0.18, 0.3),
-         legend.key.height = unit(6,"mm"),
-         legend.background = element_blank(),
-         legend.key = element_blank(),
-         panel.background = element_blank(),
-         #panel.border = element_blank(),
-         text = element_text(size = 10),
-         # axis.ticks.x = element_line(color="white"),
-         # axis.text.x = element_text(color="white"),
-         # plot.margin = margin(0, 0, 0, 0.5, "cm")
-   )+
-   #coord_sf(expand = F, label_axes = "-N--", ylim=c(-6200000, 8200000))+
-   xlab(" ")
-)
-(pd_zscore_map <- ggplot(shp) + 
-    geom_sf(aes(fill=zscore_ts),lwd=0, col=NA) + 
-    #geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
-    #scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
-    #                        begin = lcol, end = sqrt(ucol))+
-    scale_fill_viridis_c("PD zscore", option = "plasma")+ #, 
-    theme(legend.position = c(0.18, 0.3),
-          legend.key.height = unit(6,"mm"),
-          legend.background = element_blank(),
-          legend.key = element_blank(),
-          panel.background = element_blank(),
-          text = element_text(size = 10),
-    )+
-    xlab(" ")
-)
-(pd_rand_map <- ggplot(shp) + 
-    geom_sf(aes(fill=pd_rand_mean_ts),lwd=0, col=NA) + 
-    #geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
-    #scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
-    #                        begin = lcol, end = sqrt(ucol))+
-    scale_fill_viridis_c("PD tipshuffle", option = "plasma")+ #, 
-    theme(legend.position = c(0.18, 0.3),
-          legend.key.height = unit(6,"mm"),
-          legend.background = element_blank(),
-          legend.key = element_blank(),
-          panel.background = element_blank(),
-          text = element_text(size = 10),
-    )+
-    xlab(" ")
-)
-
-# (pd_ses_map <- ggplot(shp) + 
-#     geom_sf(aes(fill=PD_ses),lwd=0, col=NA) + 
-#     #geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
-#     #scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
-#     #                        begin = lcol, end = sqrt(ucol))+
-#     scale_fill_viridis_c("PD_ses", option = "plasma")+ #, 
-#     theme(legend.position = c(0.18, 0.3),
-#           legend.key.height = unit(6,"mm"),
-#           legend.background = element_blank(),
-#           legend.key = element_blank(),
-#           panel.background = element_blank(),
-#           #panel.border = element_blank(),
-#           text = element_text(size = 10),
-#           # axis.ticks.x = element_line(color="white"),
-#           # axis.text.x = element_text(color="white"),
-#           # plot.margin = margin(0, 0, 0, 0.5, "cm")
-#     )+
-#     #coord_sf(expand = F, label_axes = "-N--", ylim=c(-6200000, 8200000))+
-#     xlab(" ")
-# )
-
-(pe_map <- ggplot(shp) + 
-    geom_sf(aes(fill=PE),lwd=0, col=NA) + 
-    #geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
-    #scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
-    #                        begin = lcol, end = sqrt(ucol))+
-    scale_fill_viridis_c("PE", option = "plasma")+ #, 
-    theme(legend.position = c(0.18, 0.3),
-          legend.key.height = unit(6,"mm"),
-          legend.background = element_blank(),
-          legend.key = element_blank(),
-          panel.background = element_blank(),
-          #panel.border = element_blank(),
-          text = element_text(size = 10),
-          # axis.ticks.x = element_line(color="white"),
-          # axis.text.x = element_text(color="white"),
-          # plot.margin = margin(0, 0, 0, 0.5, "cm")
-    )+
-    #coord_sf(expand = F, label_axes = "-N--", ylim=c(-6200000, 8200000))+
-    xlab(" ")
-)
-
-(sr_map <- ggplot(shp) + 
-    geom_sf(aes(fill=richness),lwd=0, col=NA) + 
-    #geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
-    #scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
-    #                        begin = lcol, end = sqrt(ucol))+
-    scale_fill_viridis_c("SR", option = "plasma")+ #, 
-    theme(legend.position = c(0.18, 0.3),
-          legend.key.height = unit(6,"mm"),
-          legend.background = element_blank(),
-          legend.key = element_blank(),
-          panel.background = element_blank(),
-          #panel.border = element_blank(),
-          text = element_text(size = 10),
-          # axis.ticks.x = element_line(color="white"),
-          # axis.text.x = element_text(color="white"),
-          # plot.margin = margin(0, 0, 0, 0.5, "cm")
-    )+
-    #coord_sf(expand = F, label_axes = "-N--", ylim=c(-6200000, 8200000))+
-    xlab(" ")
-)
-
-plot_grid(pd_map, pd_rand_map, pd_zscore_map, sr_map, nrow = 2)
-
-
-plot(shp$PD_obs_ts, shp$pd_rand_mean_ts)

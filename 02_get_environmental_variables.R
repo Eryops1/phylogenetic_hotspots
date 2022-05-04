@@ -26,15 +26,11 @@ library(beepr)
 # diversity hotspots.
 
 
-# Load data from Global Plant Diversity Drivers ---------------------------
-
-global_drivers <- readRDS("../Global_Drivers_2022/processed_data/shp_object_fin_analysis.RDS")
-global_drivers <- global_drivers[,-grep("ID|_NAM|CONTINENT|sr|pet_|_n|_abs|mangroves", names(global_drivers))]
-global_drivers <- sf::st_drop_geometry(global_drivers)
+# Prep for cluster runs  ---------------------------------------------------
 
 
 
-# Human footprint ------------------------------------------------------
+# *** Human footprint ------------------------------------------------------
 
 # https://www.nature.com/articles/s41597-022-01284-8#Sec12
 hfp <- raster("../DATA/PDiv/hfp2018.tif")
@@ -43,15 +39,15 @@ hfp <- projectRaster(hfp, crs=behr)
 writeRaster(hfp, "../DATA/PDiv/hfp.tif")
 
 
-# Deforestation -----------------------------------------------------------
+# *** Deforestation -----------------------------------------------------------
 
 # https://data.globalforestwatch.org/documents/tree-cover-loss/explore
-# tx <- readLines("../DATA/PDiv/lossyear.txt")
-# for(i in 1:length(tx)){
-#   url <- tx[i]
-#   destfile <- paste0("../DATA/PDiv/deforestation/", sub("^.*?GFC-2020-v1\\.8/", "", tx[i]))
-#   download.file(url, destfile)
-# }
+tx <- readLines("../DATA/PDiv/lossyear.txt")
+for(i in 1:length(tx)){
+  url <- tx[i]
+  destfile <- paste0("../DATA/PDiv/deforestation/", sub("^.*?GFC-2020-v1\\.8/", "", tx[i]))
+  download.file(url, destfile)
+}
 
 #deforest <- raster("../DATA/PDiv/deforestation/Hansen_GFC-2020-v1.8_lossyear_00N_050W.tif")
 deforest <- raster("../DATA/PDiv/deforestation/deforest_combined.tif")
@@ -59,7 +55,7 @@ deforest[deforest == 255] <- NA
 deforest <- projectRaster(deforest, crs=behr)
 writeRaster(deforest, "../DATA/PDiv/deforest.tif")
 
-# Climate change ----------------------------------------------------------
+# *** Climate change ----------------------------------------------------------
 
 # https://www.worldclim.org/data/cmip6/cmip6_clim30s.html, CMIP6
 # https://www.carbonbrief.org/cmip6-the-next-generation-of-climate-models-explained
@@ -80,24 +76,15 @@ writeRaster(deforest, "../DATA/PDiv/deforest.tif")
 
 urls <- paste0("https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/2071-2100/IPSL-CM6A-LR/ssp370/bio/CHELSA_bio", c(1,4,5,6,7,12), "_2071-2100_ipsl-cm6a-lr_ssp370_V.2.1.tif")
 destfiles <- paste0("../DATA/PDiv/climate_change/", sub("^.*?ssp370/bio/", "", urls))
-# for(i in 1:6){
-#   download.file(urls[i], destfiles[i], method="wget", quiet=TRUE, options(timeout = max(600, getOption("timeout"))))
-#   # use method="wget" + quiet=TRUE to use increased timeout option (bio12 is >500mb)
-#   print(i)
-# }
+for(i in 1:6){
+  download.file(urls[i], destfiles[i], method="wget", quiet=TRUE, options(timeout = max(600, getOption("timeout"))))
+  # use method="wget" + quiet=TRUE to use increased timeout option (bio12 is >500mb)
+  print(i)
+}
 
-# future <- lapply(destfiles, raster)
-# names(future) <- regmatches(destfiles, regexpr("CHELSA_bio[1-9]{1,2}", destfiles))
-# #list2env(future, envir=.GlobalEnv)
-# for(i in 1:length(future)){
-#   #future[[i]] <- projectRaster(future[[i]], crs=behr)
-#   writeRaster(future[[i]], paste0("../DATA/PDiv/", names(future[i]), ".grd"))
-#   print(i)
-# }
-# dont do this, too big. just use the original tifs on the cluster
 
-# past and projected future land use change
 
+# *** land use change past + future -------------------------------------------
 # STILL MISSING #
 #
 #
@@ -105,16 +92,16 @@ destfiles <- paste0("../DATA/PDiv/climate_change/", sub("^.*?ssp370/bio/", "", u
 #
 
 
-# Average per LEVEL3 unit -------------------------------------------------
-
-shp <- readRDS("fin_shape.rds")
-
 # save data for cluster
-# save("shp", "hfp", "deforest", "CHELSA_bio1", "CHELSA_bio5",
-#               "CHELSA_bio6", "CHELSA_bio7", "CHELSA_bio12",
-#      file="environment_vars.RData")
+save("shp", "hfp", "deforest", "CHELSA_bio1", "CHELSA_bio5",
+              "CHELSA_bio6", "CHELSA_bio7", "CHELSA_bio12",
+     file="environment_vars.RData")
 
-### build R scripts
+
+# *** Build scripts -----------------------------------------------------------
+
+
+# build R scripts
 Rscript <- "
 # get environmental variable layer
 args <- commandArgs()
@@ -124,9 +111,10 @@ var <- args[6]
 library(raster)
 library(sf)
 library(rgdal)
+library(exactextractr)
 
 # load data
-shp <- readRDS('fin_shape.rds'')
+shp <- readRDS('fin_shape.rds')
 lay <- raster(paste0(var, '.tif')
   
 # set up variables
@@ -143,7 +131,8 @@ upsale_count <- c()
 for(i in 1:nrow(shp@data)){
   # loop over botanical countries
   shape_sub <- subset(shp, shp$LEVEL3_COD==shp$LEVEL3_COD[[i]])
-    rest <- raster::extract(lay, shape_sub)
+    rest <- exact_extract(lay, shape_sub)
+    #rest <- raster::extract(lay, shape_sub)
     rest <- na.omit(rest[[1]])
     # increase resolution necessary?
     if(all(is.na(rest))==TRUE){
@@ -154,15 +143,15 @@ for(i in 1:nrow(shp@data)){
       newExtent <- extent(bbox(shape_sub))
       lay2 <- crop(lay, newExtent*20)
       lay2 <- disaggregate(lay2, 10)
-      rest <- raster::extract(lay2, shape_sub)
+      rest <- exact_extract(lay2, shape_sub)
       rest <- na.omit(rest[[1]])
       
     }else{}
     
     # get mean, sd and sample size
-    res[i,1] <- mean(rest)
-    res[i,2] <- sd(rest)
-    res[i,3] <- length(rest)
+    res[i,1] <- mean(rest$value)
+    res[i,2] <- sd(rest$value)
+    res[i,3] <- length(rest$value)
   print(i)}
   
 saveRDS(res, file=paste0(var,'.rds'))
@@ -224,15 +213,72 @@ git push"
 # #system("ssh -T 'mtietje@login.genome.au.dk'")
 
 
+
+
+
+
+
+
 # Merge + save ------------------------------------------------------------
 
+
+
 shp <- readRDS("fin_shape.rds")
-shp <- st_as_sf(s)
+shp <- st_as_sf(shp)
 # transform to Behrmann projection
-shp <- st_transform(shp, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs") # Behrmann
+# shp <- st_transform(shp, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs") # Behrmann
 
 
-# merge into PD file
+## Load data from Global Plant Diversity Drivers --------------------------
+global_drivers <- readRDS("../Global_Drivers_2022/processed_data/shp_object_fin_analysis.RDS")
+global_drivers <- global_drivers[,-grep("ID|_NAM|CONTINENT|sr|pet_|_n|_abs|mangroves", names(global_drivers))]
+global_drivers <- sf::st_drop_geometry(global_drivers)
+
+# merge into shape object
 shp <- merge(shp, global_drivers, by.x="LEVEL3_COD", by.y="LEVEL_3_CO", all.x=TRUE)
 
 
+## Load Environment data ---------------------------------------------------
+
+vars <- c('hfp', 'deforest', 'bio1', 'bio5', 'bio6', 'bio7', 'bio12')
+var.list <- lapply(paste0("environment/", vars, ".rds"), readRDS)
+names(var.list) <- vars
+env.df <- do.call(cbind.data.frame, var.list)
+env.df$LEVEL3_COD <- row.names(env.df)
+
+# merge into shape object
+shp <- merge(shp, env.df, all.x=TRUE)
+names(shp)
+
+# BIO1 = Annual Mean Temperature
+# BIO5 = Max Temperature of Warmest Month
+# BIO6 = Min Temperature of Coldest Month
+# BIO7 = Temperature Annual Range (BIO5-BIO6)
+# BIO12 = Annual Precipitation
+
+
+## Get future MAT + PRE change -------------------------------------------
+
+shp$mat_change <- shp$bio1.1 - shp$mat_mean
+shp$pre_change <- shp$bio12.1 - shp$pre_mean # future - current = increase if positive
+
+
+
+# SAVE --------------------------------------------------------------------
+saveRDS(shp, "shp.rds")
+# some shapefile wrangling ##
+rm(list = ls())
+so <- readOGR("../DATA/wgsrpd-master/level3/level3.shp")
+s <- readRDS("shp.rds")
+so <- merge(so, s)
+shp <- st_as_sf(so)
+
+#m = st_buffer(shp, 0)  ## fixes some issues
+shp <- st_make_valid(shp)
+st_is_valid(shp)
+
+shp <- st_crop(shp, st_bbox(c(xmin = -180, xmax = 180, ymin = -90, ymax = 90)))
+# transform to Behrmann projection
+shp <- st_transform(shp, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs") # Behrmann
+
+saveRDS(shp, "fin_shp.rds")
