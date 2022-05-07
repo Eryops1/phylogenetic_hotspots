@@ -10,7 +10,7 @@ theme_set(theme_bw())
 library(cowplot)
 library(rgdal)
 library(beepr)
-ifelse(!dir.exists("figures"), yes = dir.create("figures"))
+if(!dir.exists("figures"))dir.create("figures")
 
 
 
@@ -21,7 +21,7 @@ shp <- readRDS("fin_shp.rds")
 # remove not needed data
 shp <- cbind(PD_obs=shp$PD_obs_ts, shp)
 
-shp <- shp[,-grep("obs_ts|obs_rw|obs_cw|obs_p|obs_rank|reps|_cw$|LEVEL2|LEVEL1|\\.3|_rw", names(shp))]
+shp <- shp[,-grep("obs_ts|obs_rw|obs_cw|obs_p|obs_rank|reps|_cw$|LEVEL2|LEVEL1|LEVEL_3_CO|LEVEL_NAME|ID|\\.3|_rw|CONTI|REGION", names(shp))]
 names(shp)<- gsub("\\.1", "_mean", names(shp))
 names(shp)<- gsub("\\.2", "_sd", names(shp))
 
@@ -33,14 +33,14 @@ shp <- shp[!shp$LEVEL3_COD=="BOU",]
 
 plot(st_drop_geometry(shp)[,c(1,4:12,13:23)])
 plot(st_drop_geometry(shp)[,c(1,4:12,24:35)])
-plot(st_drop_geometry(shp)[,c(1,4:12,36:51)])
+plot(st_drop_geometry(shp)[,c(1,4:12,36:57)])
 
 
 
 
 #### COMPLETENESS and CORRELATION ########################################
 
-cor.test(shp$richness, shp$zscore_ts)
+cor.test(shp$richness, shp$SES.PD_ts)
 cor.test(shp$richness, shp$PD_obs)
 
 dat <- st_drop_geometry(shp)
@@ -58,14 +58,23 @@ dat.sub <- dat[,-grep("_sd$", names(dat))]
 n_var_miss(dat.sub)
 gg_miss_upset(dat.sub, nsets=9)
 
-ggplot(dat.sub, aes(y=area, group=is.na(hfp_mean)))+
+plot_grid(ggplot(dat.sub, aes(y=area, group=is.na(hfp_mean)))+
   geom_boxplot(varwidth = T)+
   scale_y_log10()+
-  xlab("HFP == NA (positive=T: n=27)")
+  xlab("HFP == NA (positive=T: n=27)"),
 ggplot(dat.sub, aes(y=PD_obs, group=is.na(hfp_mean)))+
   geom_boxplot(varwidth = T)+
-  #scale_y_sqrt()+
-  xlab("HFP == NA (positive=T: n=27)")
+  xlab("HFP == NA (positive=T: n=27)"),
+ggplot(dat.sub, aes(y=SES.PD_ts, group=is.na(hfp_mean)))+
+  geom_boxplot(varwidth = T)+
+  xlab("HFP == NA (positive=T: n=27)"),
+ggplot(dat.sub, aes(y=PE, group=is.na(hfp_mean)))+
+  geom_boxplot(varwidth = T)+
+  scale_y_log10()+
+  xlab("HFP == NA (positive=T: n=27)"))
+ggsave("figures/missing_hfp_influence.png", width=5, height=4, 
+       units = "in", dpi = 300, bg = "white")
+
 
 dat_no.na <- na.omit(dat.sub)
 dim(dat_no.na)
@@ -101,7 +110,7 @@ my.corrplot(cmat, lab=T, p.mat = cpmat, insig = "blank",
         plot.margin = margin(0, 0, 0, 0, "cm"),
         panel.grid = element_blank(),
         legend.position = c(.15, .8), legend.text.align = 1)
-ggsave("figures/correlation_2022.png", width=7, height=6, units = "in", dpi = 600, bg = "white")
+ggsave("figures/correlation.png", width=7, height=6, units = "in", dpi = 600, bg = "white")
 
 
 
@@ -126,13 +135,13 @@ sort(car::vif(lm_sr3))
 
 
 plot_grid(ncol=2,
-          ggplot(data=shp, aes(fill=PD_obs_ts))+
+          ggplot(data=shp, aes(fill=PD_obs))+
             geom_sf(lwd=0)
           ,
-          ggplot(data=shp, aes(fill=zscore_ts))+
+          ggplot(data=shp, aes(fill=SES.PD_ts))+
             geom_sf(lwd=0)
           ,
-          ggplot(data=shp, aes(x=richness, y=zscore_ts))+
+          ggplot(data=shp, aes(x=richness, y=SES.PD_ts))+
             geom_text(aes(label=LEVEL3_COD))
           ,
           ggplot(data=s@data, aes(x=pd_rand_mean_ts, y=PD_obs_ts, col=log(richness)))+
@@ -363,7 +372,7 @@ ggplot(shp)+
   scale_fill_discrete(na.value="grey80")+
   theme(panel.border = element_blank())+
   ggtitle("Phylogenetic Endemism Hotspots and Coldspots")
-
+ggsave("figures/PE_hot_cold.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
 
 # Diversity hotspots ##
 C <- coldspots(shp$PD_obs_ts) # coldspots
@@ -384,6 +393,7 @@ ggplot(shp)+
   scale_fill_discrete(na.value="grey80")+
   theme(panel.border = element_blank())+
   ggtitle("Observed PD Hotspots and Coldspots")
+ggsave("figures/PD_hot_cold.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
 
 # Standardized PD hotspots
 C <- coldspots(shp$zscore_ts) # coldspots
@@ -404,7 +414,7 @@ ggplot(shp)+
   scale_fill_discrete(na.value="grey80")+
   theme(panel.border = element_blank())+
   ggtitle("Standardized effect size of PD vs. null communities", subtitle = "Hotspots and Coldspots")
-
+ggsave("figures/SES.PD_hot_cold.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
 
 
 co <- 0.025 # top 9 countries

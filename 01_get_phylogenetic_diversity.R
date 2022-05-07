@@ -266,7 +266,8 @@ dat <- merge.data.table(dat, colwise.df, by=c("LEVEL3_COD", "richness", "reps"))
 #hist(dat$pd_rand_mean_ts- dat$PD_manual_ts)
 # the phyloregion tipshuffle model is legit
 
-s <- raster::shapefile("../DATA/wgsrpd-master/level3/level3.shp")
+s <- raster::shapefile("../DATA/shapefile_bot_countries/level3.shp")
+s$LEVEL3_COD <- s$LEVEL_3_CO
 s@data <- merge(s@data, dat, by="LEVEL3_COD", all.x=TRUE)
 
 

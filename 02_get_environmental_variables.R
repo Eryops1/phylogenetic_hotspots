@@ -265,20 +265,29 @@ shp$pre_change <- shp$bio12.1 - shp$pre_mean # future - current = increase if po
 
 
 # SAVE --------------------------------------------------------------------
-saveRDS(shp, "shp.rds")
-# some shapefile wrangling ##
-rm(list = ls())
-so <- readOGR("../DATA/wgsrpd-master/level3/level3.shp")
-s <- readRDS("shp.rds")
-so <- merge(so, s)
-shp <- st_as_sf(so)
-
-#m = st_buffer(shp, 0)  ## fixes some issues
-shp <- st_make_valid(shp)
-st_is_valid(shp)
-
-shp <- st_crop(shp, st_bbox(c(xmin = -180, xmax = 180, ymin = -90, ymax = 90)))
+# saveRDS(shp, "shp.rds")
+# 
+# 
+# some shapefile wrangling since new TDWG shapefile is corrupt....-> GIT##
+# rm(list = ls())
+# so <- readOGR("../DATA/shapefile_bot_countries/level3.shp")
+# s <- readRDS("shp.rds")
+# so <- merge(so@data, s, all.x=TRUE, by.x="LEVEL_3_CO", by.y="LEVEL3_COD")
+# 
+# # transform to Behrmann projection
+# behr <- "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs"
+# strans <- spTransform(so, CRS(behr))
+# 
+# shp <- st_as_sf(so)
+# 
+# #m = st_buffer(shp, 0)  ## fixes some issues
+# shp <- st_make_valid(shp)
+# st_is_valid(shp)
+# 
+# 
+# shp <- st_crop(shp, st_bbox(c(xmin = -180, xmax = 180, ymin = -90, ymax = 90)))
 # transform to Behrmann projection
-shp <- st_transform(shp, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs") # Behrmann
+behr <- "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs"
+tmp <- st_transform(shp, behr) # Behrmann
 
-saveRDS(shp, "fin_shp.rds")
+saveRDS(tmp, "fin_shp.rds")
