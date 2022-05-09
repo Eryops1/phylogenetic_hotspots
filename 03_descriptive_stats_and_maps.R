@@ -114,22 +114,140 @@ ggsave("figures/correlation.png", width=7, height=6, units = "in", dpi = 600, bg
 
 
 
+# Spatial autocorrelation -------------------------------------------------
+
+
+# get coordinates 
+shp$centroids <- st_centroid(shp) %>% 
+  st_coordinates()
+shp$y <- shp$centroids[,1] # x=lng
+shp$x <- shp$centroids[,2]
+
+# subset sf object to complete cases??? maybe, check how the sarlm works later.
+# use all for now
+# shp <- shp[shp$LEVEL3_COD %in% dat_no.na$level3,]
+# shp <- merge(shp, dat_no.na[,c("sr_trans", "level3")], by.x="LEVEL_3_CO", by.y="level3")
+
+# check variable distributions
+hist(shp)
+
+
+# Get model residuals
+pd <- 
+  
+
+zinc.lm <- lm(log(zinc) ~ elev + sqrt(dist), data = meuse)
+summary(zinc.lm)
+  
+fm.p <- sem(fm.npn, data = dat_no.na, estimator="MLM", meanstructure=TRUE)
+resids <- as.data.frame(my.residuals_lavaan(fm.p)) 
+rawdata <- data.frame(inspect(fm.p, "data")) # get raw data from the model
+names(resids) <- paste0(names(resids),"_residuals")
+plot(rawdata$sr_trans, dat_no.na$sr_trans) # check order for attaching level3 ID
+resids$level3 <- dat_no.na$level3
+
+# add residuals to spatial object
+shp <- merge(shp, resids, by.x="LEVEL_3_CO", by.y="level3", all.x=TRUE) 
+
+# add fitted SR values to spatial object
+fitted_vals <- my.fitted_lavaan(fm.p)
+names(fitted_vals) <- paste0(names(fitted_vals),"_fitted")
+fitted_vals$level3 <- dat_no.na$level3 
+shp <- merge(shp, fitted_vals[,c("sr_trans_fitted", "level3")], by.x="LEVEL_3_CO", by.y="level3", all.x=TRUE)
+
+# plot original vs fitted and residuals
+plot_grid(labels = c("A", "B", "C"), label_fontface = "plain", ncol = 2,
+          ggplot(shp, aes(x=sr_trans, y=sr_trans_fitted))+
+            geom_point()+
+            xlab("species richness")+
+            ylab("species richness fitted")+
+            geom_abline(slope=1, intercept=0)
+          ,
+          ggplot(shp, aes(x=sr_trans, y=sr_trans_residuals))+
+            geom_point()+
+            xlab("species richness")+
+            ylab("species richness SEM residuals")+
+            geom_abline(slope=0, intercept=0)
+          ,
+          ggplot(shp, aes(x=abs(y), y=sr_trans_residuals, col=sr_trans))+
+            geom_point()+
+            ylab("species richness SEM residuals")+
+            xlab("absolute latitude")+
+            scale_color_continuous("SR")+
+            geom_smooth(method="lm")
+)
+#ggsave(file="../figures/SEM_residuals_SR.png",
+#       width=7, height=7, units = "in", dpi = 600)
+
+
+
+## Residuals spatial autocorrelation ###################################################
+
+# Weighted distance matrix
+distMat <- as.matrix(dist(cbind(shp$x, shp$y)))
+distsInv <- 1/distMat # invert matrix for weights
+diag(distsInv) <- 0
+
+## GLOBAL autocorrelation
+MI.sr <- moran.mc(shp$sr_trans_residuals[,1], mat2listw(distsInv, style = "B"), nsim=599, zero.policy=T)
+MI.mrd  <-  moran.mc(shp$mrd_residuals[,1], mat2listw(distsInv, style = "B"), nsim=599, zero.policy=T)
+MI.sr$statistic
+MI.mrd$statistic
+
+## DISTANCE bands
+# distances are in kilometers
+moran <- data.frame(dist.class = seq(100, 10000, 100),
+                    sr.moransI = NA,
+                    sr.moransp = NA,
+                    mrd.moransI = NA,
+                    mrd.moransp = NA)
+coo <- cbind(shp$y, shp$x)
+for(i in 1:length(moran$dist.class)){
+  S.dist  <-  dnearneigh(coo, 0, moran$dist.class[i], longlat = TRUE)
+  lw <- nb2listw(S.dist, style="W",zero.policy=T) 
+  
+  MI <- moran.mc(shp$sr_trans_residuals[,1], lw, nsim=599,zero.policy=T) 
+  moran$sr.moransI[i] <- MI$statistic
+  moran$sr.moransp[i] <- MI$p.value
+  
+  MI.mrd <- moran.mc(shp$mrd_residuals[,1], lw, nsim=599,zero.policy=T) 
+  moran$mrd.moransI[i] <- MI.mrd$statistic
+  moran$mrd.moransp[i] <- MI.mrd$p.value
+  #moran$avg.n[i] <- median(card(lw$neighbours))
+  if(!i%%1)cat(i,"\r")
+}
+
+temp <- pivot_longer(moran, cols = c("sr.moransI", "mrd.moransI"))
+ggplot(temp, aes(x=dist.class, y=value, col=name)) +
+  geom_line()+
+  scale_x_continuous("Distance class (km)")+
+  scale_color_discrete("SEM residuals", labels=c("MRD", "SR"))+
+  ylab("Moran's I")
+#ggsave("../figures/SAC_sem_residuals.png", width=5, height=4, units = "in", dpi = 600)
+
+
 
 # Multicollinearity ########################################################
 # check potential full regressions for multicollinearity
 names(dat_no.na) <- sub("_mean$", "_m", names(dat_no.na)) # shorten mean to _m
-temp <- dat_no.na[,!grepl("deserts_x_shrub|medit_fws|temp_cf|
-                          sub_trop_cf|sub_trop_gss|temp_gss|boreal|tundra|level3", names(dat_no.na))]
-lm_sr <- lm(sr ~ . , data=temp)
-sort(car::vif(lm_sr))
 
-# check out mat and pet
-lm_sr1 <- lm(sr ~ . -mat_m, data=temp)
-sort(car::vif(lm_sr1))
-lm_sr2 <- lm(sr ~ . -pet_m, data=temp)
-sort(car::vif(lm_sr2))
-lm_sr3 <- lm(sr ~ . -mat_m -pre_lgm_ano_m, data=temp)
-sort(car::vif(lm_sr3))
+temp <- dat_no.na[,-grep("LEVEL3|hfp|deforest|bio|change|pd_rand|PD_obs|WE|PE",
+                         names(dat_no.na))]
+lm_pd <- lm(SES.PD_ts ~ . , data=temp)
+summary(lm_pd)
+sort(car::vif(lm_pd))
+# mat, subtropmbf are problematic
+
+# test changes
+lm_pd1 <- lm(SES.PD_ts ~ . -sub_trop_mbf, data=temp)
+sort(car::vif(lm_pd1))
+lm_pd2 <- lm(SES.PD_ts ~ . -mat_m, data=temp)
+sort(car::vif(lm_pd2))
+lm_pd3 <- lm(SES.PD_ts ~ . -mat_m -sub_trop_mbf, data=temp)
+sort(car::vif(lm_pd3))
+lm_pd4 <- lm(SES.PD_ts ~ . -mat_m -sub_trop_mbf -pre_lgm_ano_m, data=temp)
+sort(car::vif(lm_pd4))
+
 
 
 
