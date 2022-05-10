@@ -1,0 +1,6 @@
+[1] "/home/mtietje/miniconda3/envs/pdiv/lib/R/bin/exec/R"
+[2] "--no-echo"                                          
+[3] "--no-restore"                                       
+[4] "--file=env_var.R"                                   
+[5] "--args"                                             
+[6] "bio15"                                              
