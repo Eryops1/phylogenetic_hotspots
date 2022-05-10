@@ -38,7 +38,7 @@ plot(st_drop_geometry(shp)[,c(1,4:12,36:57)])
 
 
 
-#### COMPLETENESS and CORRELATION ########################################
+# COMPLETENESS  ########################################
 
 cor.test(shp$richness, shp$SES.PD_ts)
 cor.test(shp$richness, shp$PD_obs)
@@ -79,6 +79,7 @@ ggsave("figures/missing_hfp_influence.png", width=5, height=4,
 dat_no.na <- na.omit(dat.sub)
 dim(dat_no.na)
 
+# Correlation ##########################
 source("99_functions.R")
 library(rstatix)
 cmat <- cor_mat(dat_no.na[,-grep("LEVEL3|hfp|deforest|bio|change",names(dat_no.na))], method = "s")
@@ -117,113 +118,73 @@ ggsave("figures/correlation.png", width=7, height=6, units = "in", dpi = 600, bg
 # Spatial autocorrelation -------------------------------------------------
 
 
-# get coordinates 
-shp$centroids <- st_centroid(shp) %>% 
-  st_coordinates()
-shp$y <- shp$centroids[,1] # x=lng
-shp$x <- shp$centroids[,2]
+library(spdep)
+# create neighbor list
+tmp <- na.omit(tmp)
+nb <- spdep::poly2nb(tmp, row.names = tmp$LEVEL3_COD)
+names(nb) <- tmp$LEVEL3_COD
 
-# subset sf object to complete cases??? maybe, check how the sarlm works later.
-# use all for now
-# shp <- shp[shp$LEVEL3_COD %in% dat_no.na$level3,]
-# shp <- merge(shp, dat_no.na[,c("sr_trans", "level3")], by.x="LEVEL_3_CO", by.y="level3")
-
-# check variable distributions
-hist(shp)
+# distance object
+col.W <- nb2listw(nb, style="W", zero.policy = TRUE)
 
 
-# Get model residuals
-pd <- 
-  
+# *** Moran's I -----------------------------------------------------------
 
-zinc.lm <- lm(log(zinc) ~ elev + sqrt(dist), data = meuse)
-summary(zinc.lm)
-  
-fm.p <- sem(fm.npn, data = dat_no.na, estimator="MLM", meanstructure=TRUE)
-resids <- as.data.frame(my.residuals_lavaan(fm.p)) 
-rawdata <- data.frame(inspect(fm.p, "data")) # get raw data from the model
-names(resids) <- paste0(names(resids),"_residuals")
-plot(rawdata$sr_trans, dat_no.na$sr_trans) # check order for attaching level3 ID
-resids$level3 <- dat_no.na$level3
-
-# add residuals to spatial object
-shp <- merge(shp, resids, by.x="LEVEL_3_CO", by.y="level3", all.x=TRUE) 
-
-# add fitted SR values to spatial object
-fitted_vals <- my.fitted_lavaan(fm.p)
-names(fitted_vals) <- paste0(names(fitted_vals),"_fitted")
-fitted_vals$level3 <- dat_no.na$level3 
-shp <- merge(shp, fitted_vals[,c("sr_trans_fitted", "level3")], by.x="LEVEL_3_CO", by.y="level3", all.x=TRUE)
-
-# plot original vs fitted and residuals
-plot_grid(labels = c("A", "B", "C"), label_fontface = "plain", ncol = 2,
-          ggplot(shp, aes(x=sr_trans, y=sr_trans_fitted))+
-            geom_point()+
-            xlab("species richness")+
-            ylab("species richness fitted")+
-            geom_abline(slope=1, intercept=0)
-          ,
-          ggplot(shp, aes(x=sr_trans, y=sr_trans_residuals))+
-            geom_point()+
-            xlab("species richness")+
-            ylab("species richness SEM residuals")+
-            geom_abline(slope=0, intercept=0)
-          ,
-          ggplot(shp, aes(x=abs(y), y=sr_trans_residuals, col=sr_trans))+
-            geom_point()+
-            ylab("species richness SEM residuals")+
-            xlab("absolute latitude")+
-            scale_color_continuous("SR")+
-            geom_smooth(method="lm")
-)
-#ggsave(file="../figures/SEM_residuals_SR.png",
-#       width=7, height=7, units = "in", dpi = 600)
+#moran.test(tmp$richness, col.W, zero.policy = TRUE)
+tmpm <- st_drop_geometry(tmp)
+tmpm <- tmpm[,-1]
+res <- apply(tmpm, 2, moran.test, listw=col.W, zero.policy = TRUE)
+res.df <- sapply(res, "[[", "estimate")
+res.df <- rbind(res.df, sapply(res, "[[", "p.value"))
+row.names(res.df) <- c("moran", "expect", "var", "pvalue")
+res.df <- as.data.frame(t(res.df))
+res.df$twoSD <- 2*sqrt(res.df$var)
+ggplot(res.df, aes(y=expect, x=row.names(res.df), shape=factor(pvalue<0.05)))+
+  geom_pointrange(aes(ymin=expect-twoSD, ymax=expect+twoSD))+
+  geom_point(aes(y=moran), x=row.names(res.df))+
+  xlab("Moran's I")+
+  coord_flip()
 
 
 
-## Residuals spatial autocorrelation ###################################################
 
-# Weighted distance matrix
-distMat <- as.matrix(dist(cbind(shp$x, shp$y)))
-distsInv <- 1/distMat # invert matrix for weights
-diag(distsInv) <- 0
 
-## GLOBAL autocorrelation
-MI.sr <- moran.mc(shp$sr_trans_residuals[,1], mat2listw(distsInv, style = "B"), nsim=599, zero.policy=T)
-MI.mrd  <-  moran.mc(shp$mrd_residuals[,1], mat2listw(distsInv, style = "B"), nsim=599, zero.policy=T)
-MI.sr$statistic
-MI.mrd$statistic
+# *** Lee's spatial correlation -------------------------------------------
 
-## DISTANCE bands
-# distances are in kilometers
-moran <- data.frame(dist.class = seq(100, 10000, 100),
-                    sr.moransI = NA,
-                    sr.moransp = NA,
-                    mrd.moransI = NA,
-                    mrd.moransp = NA)
-coo <- cbind(shp$y, shp$x)
-for(i in 1:length(moran$dist.class)){
-  S.dist  <-  dnearneigh(coo, 0, moran$dist.class[i], longlat = TRUE)
-  lw <- nb2listw(S.dist, style="W",zero.policy=T) 
-  
-  MI <- moran.mc(shp$sr_trans_residuals[,1], lw, nsim=599,zero.policy=T) 
-  moran$sr.moransI[i] <- MI$statistic
-  moran$sr.moransp[i] <- MI$p.value
-  
-  MI.mrd <- moran.mc(shp$mrd_residuals[,1], lw, nsim=599,zero.policy=T) 
-  moran$mrd.moransI[i] <- MI.mrd$statistic
-  moran$mrd.moransp[i] <- MI.mrd$p.value
-  #moran$avg.n[i] <- median(card(lw$neighbours))
-  if(!i%%1)cat(i,"\r")
-}
+#A positive Lee’s L indicates that clusters match for the two variables. A
+#negative value indicates that the clusters have an opposite spatial
+#distribution . A value around zero indicates that the spatialstructures of the
+#two variables do not match. The significance of the values of Lee’s L was
+#evaluated using a Monte Carlo test with 999 randomizations.
 
-temp <- pivot_longer(moran, cols = c("sr.moransI", "mrd.moransI"))
-ggplot(temp, aes(x=dist.class, y=value, col=name)) +
-  geom_line()+
-  scale_x_continuous("Distance class (km)")+
-  scale_color_discrete("SEM residuals", labels=c("MRD", "SR"))+
-  ylab("Moran's I")
-#ggsave("../figures/SAC_sem_residuals.png", width=5, height=4, units = "in", dpi = 600)
+# use this to check where PD hotspots and threats overlap!
+
+nb <- spdep::poly2nb(tmp, row.names = tmp$LEVEL3_COD)
+col.W <- nb2listw(nb, style="W", zero.policy = TRUE)
+
+les <- apply(tmpm[,-2], 2, lee.test, y=tmpm$SES.PD_ts, 
+             listw=col.W, zero.policy = TRUE, alternative="two.sided")
+les.df <- sapply(les, "[[", "estimate")
+les.df <- rbind(les.df, sapply(les, "[[", "p.value"))
+row.names(les.df) <- c("Lee", "expect", "var", "pvalue")
+les.df <- as.data.frame(t(les.df))
+les.df$twoSD <- 2*sqrt(les.df$var)
+
+ggplot(les.df, aes(y=expect, x=row.names(les.df)))+
+  geom_pointrange(aes(ymin=expect-twoSD, ymax=expect+twoSD))+
+  geom_point(aes(y=Lee, x=row.names(les.df), shape=factor(pvalue<0.05)), col="red", size=3)+
+  ylab("Lee's L with SES.PD")+
+  scale_shape("p<0.05")+
+  xlab("")+
+  coord_flip()
+ggsave("figures/LeesL.png", width=5, height=4, units = "in", dpi = 300)
+#A positive Lee’s L indicates that clusters match for the two variables. A
+#negative value indicates that the clusters have an opposite spatial
+#distribution . A value around zero indicates that the spatialstructures of the
+#two variables do not match. The significance of the values of Lee’s L was
+#evaluated using a Monte Carlo test with 999 randomizations.
+
+
 
 
 
@@ -428,35 +389,7 @@ plot(shp$PD_obs_ts, shp$PE)
 
 
 
-# High threat regions -----------------------------------------------------
-
-# Definition?# regions where deforestation is high, anticipated future climate change is strong, and hfp is strong. 
-# Top x percent of each factor?
-
-
-# Get top countries for each variable -------------------------------------
-
-co <- 0.025 # top 9 countries
-
-# top X % PD_obs
-
-orders <- apply(shp[,c(5:(ncol(shp)-1))], 2, order, decreasing=T)
-res <- matrix(nrow=nrow(orders), ncol=ncol(orders))
-for(i in 1:ncol(orders)){
-  res[,i] <- shp$LEVEL3_COD[orders[,i]]
-}
-
-colnames(res) <- colnames(shp[,c(5:(ncol(shp)-1))])
-
-# Top 2.5% in richness, PD observed, PD zscore + PE:
-res[1:9, c("richness", "PD_obs_ts", "zscore_ts", "PE")]
-
-
-
 # Hotspot definition ------------------------------------------------------
-
-
-
 
 
 # Endemism hotspots ##
@@ -465,13 +398,11 @@ H <- hotspots(shp$PE) # hotspots
 
 ## Merge endemism values to shapefile of grid cells.
 DF <- data.frame(LEVEL3_COD=shp$LEVEL3_COD, cold=C, hot=H)
-DF$PE_spot <- NA
+DF$PE_spot <- 0
 DF$PE_spot[DF$hot==1] <- 1
-DF$PE_spot[DF$cold==1] <- 2
-shp <- merge(shp, DF, by = "LEVEL3_COD", all = TRUE)
-shp$PE_spot <- as.factor(shp$PE_spot)
-
-sdf <- sf::st_drop_geometry(shp) # for quick object access
+DF$PE_spot[DF$cold==1] <- -1
+shp <- merge(shp, DF[,c("LEVEL3_COD", "PE_spot")], by = "LEVEL3_COD", all = TRUE)
+shp$PE_spot
 
 
 # add area to define thick lines for small countries
@@ -482,129 +413,172 @@ class(min.area)
 library(units)
 units(min.area) <- as_units("m^2")
 thicc_lines <- shp[which(shp$area<min.area),]
-thicc_lines <- thicc_lines[!is.na(thicc_lines$PE_spot),]
+thicc_lines <- thicc_lines[thicc_lines$PE_spot!=0,]
+
+# 
+# (sr_map2 <- ggplot(test) + 
+#     geom_sf(aes(fill=sr),lwd=0, col=NA) + 
+#     geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
+#     scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
+#                            begin = lcol, end = sqrt(ucol))+
+#     scale_fill_viridis_c("SR", option = "plasma", trans = "sqrt")+ #, 
 
 ggplot(shp)+
-  geom_sf(aes(fill=PE_spot),lwd=0) + 
-  geom_sf(data=thicc_lines, col="#00BFC4", show.legend=F, lwd=2)+
-  scale_fill_discrete(na.value="grey80")+
+  geom_sf(aes(fill=factor(PE_spot)),lwd=0, col=NA) + 
+  geom_sf(data=thicc_lines, aes(col=factor(PE_spot)), show.legend=F, lwd=2)+
+  scale_fill_manual(values = c("blue", "grey80", "red"))+
+  scale_color_manual(values = c("blue", "red"))+
   theme(panel.border = element_blank())+
   ggtitle("Phylogenetic Endemism Hotspots and Coldspots")
 ggsave("figures/PE_hot_cold.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
+
+
 
 # Diversity hotspots ##
 C <- coldspots(shp$PD_obs_ts) # coldspots
 H <- hotspots(shp$PD_obs_ts) # hotspots
 DF <- data.frame(LEVEL3_COD=shp$LEVEL3_COD, cold=C, hot=H)
-DF$PD_spot <- NA
+DF$PD_spot <- 0
 DF$PD_spot[DF$hot==1] <- 1
-DF$PD_spot[DF$cold==1] <- 2
-shp <- merge(shp, DF, by = "LEVEL3_COD", all = TRUE)
-shp$PD_spot <- as.factor(shp$PD_spot)
+DF$PD_spot[DF$cold==1] <- -1
+shp <- merge(shp, DF[,c("LEVEL3_COD", "PD_spot")], by = "LEVEL3_COD", all = TRUE)
+
 
 thicc_lines <- shp[which(shp$area<min.area),]
-thicc_lines <- thicc_lines[!is.na(thicc_lines$PD_spot),]
+thicc_lines <- thicc_lines[thicc_lines$PD_spot!=0,]
 
 ggplot(shp)+
-  geom_sf(aes(fill=PD_spot),lwd=0) + 
-  geom_sf(data=thicc_lines, col="#00BFC4", show.legend=F, lwd=2)+
-  scale_fill_discrete(na.value="grey80")+
+  geom_sf(aes(fill=factor(PD_spot)),lwd=0, col=NA) + 
+  geom_sf(data=thicc_lines, aes(col=factor(PD_spot)), show.legend=F, lwd=2)+
+  scale_fill_manual(values = c("blue", "grey80", "red"))+
+  scale_color_manual(values = c("blue", "grey80", "red"))+
   theme(panel.border = element_blank())+
   ggtitle("Observed PD Hotspots and Coldspots")
 ggsave("figures/PD_hot_cold.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
 
+
+
 # Standardized PD hotspots
-C <- coldspots(shp$zscore_ts) # coldspots
-H <- hotspots(shp$zscore_ts) # hotspots
+C <- coldspots(shp$SES.PD_ts) # coldspots
+H <- hotspots(shp$SES.PD_ts) # hotspots
 DF <- data.frame(LEVEL3_COD=shp$LEVEL3_COD, cold=C, hot=H)
-DF$PD_zspot <- NA
+DF$PD_zspot <- 0
 DF$PD_zspot[DF$hot==1] <- 1
-DF$PD_zspot[DF$cold==1] <- 2
-shp <- merge(shp, DF, by = "LEVEL3_COD", all = TRUE)
-shp$PD_zspot <- as.factor(shp$PD_zspot)
+DF$PD_zspot[DF$cold==1] <- -1
+shp <- merge(shp, DF[,c("LEVEL3_COD", "PD_zspot")], by = "LEVEL3_COD", all = TRUE)
+
 
 thicc_lines <- shp[which(shp$area<min.area),]
-thicc_lines <- thicc_lines[!is.na(thicc_lines$PD_zspot),]
+thicc_lines <- thicc_lines[thicc_lines$PD_zspot!=0,]
 
 ggplot(shp)+
-  geom_sf(aes(fill=PD_zspot),lwd=0) + 
-  geom_sf(data=thicc_lines, aes(col=PD_zspot), show.legend=F, lwd=2)+
-  scale_fill_discrete(na.value="grey80")+
+  geom_sf(aes(fill=factor(PD_zspot)),lwd=0, col=NA) + 
+  geom_sf(data=thicc_lines, aes(col=factor(PD_zspot)), show.legend=F, lwd=2)+
+  scale_fill_manual("spot", values = c("blue", "grey80", "red"))+
+  scale_color_manual(values = c("red"))+ # MANUALLY CHECK if all are positive
   theme(panel.border = element_blank())+
-  ggtitle("Standardized effect size of PD vs. null communities", subtitle = "Hotspots and Coldspots")
+  ggtitle("SES.PD Hotspots and Coldspots")
 ggsave("figures/SES.PD_hot_cold.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
 
+# 
+# co <- 0.025 # top 9 countries
+# orders <- apply(shp[,c("mat_change", "pre_change", "deforest.1", "hfp.1")], 2, order, decreasing=T)
+# res2 <- matrix(nrow=nrow(orders), ncol=ncol(orders))
+# for(i in 1:ncol(orders)){
+#   res2[,i] <- shp$LEVEL3_COD[orders[,i]]
+# }
+# colnames(res2) <- colnames(shp[,c("mat_change", "pre_change", "deforest.1", "hfp.1")])
+# 
+# # Top 2.5% in richness, PD observed, PD zscore + PE:
+# res[1:9, c("richness", "PD_obs_ts", "zscore_ts", "PE")]
+# 
+# # top s.5% in temp change, pre change, deforestation and hfp:
+# res2[1:9,c("mat_change", "pre_change", "deforest.1", "hfp.1")]
+# 
+# # get a cumulative threat index:
+# #reshape::rescaler(abs(shp$mat_change))
+# shp$threat <- abs(reshape::rescaler(shp$mat_change))+
+#   abs(reshape::rescaler(shp$pre_change))+
+#   abs(reshape::rescaler(shp$deforest.1))+
+#   reshape::rescaler(shp$hfp.1)
+# 
+# 
+# ggplot(shp) + 
+#   geom_sf(aes(fill=threat),lwd=0, col=NA) + 
+#   #geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
+#   #scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
+#   #                        begin = lcol, end = sqrt(ucol))+
+#   scale_fill_viridis_c("threat", option = "plasma")+ #, 
+#   theme(legend.position = c(0.18, 0.3),
+#         legend.key.height = unit(6,"mm"),
+#         legend.background = element_blank(),
+#         legend.key = element_blank(),
+#         panel.background = element_blank(),
+#         #panel.border = element_blank(),
+#         text = element_text(size = 10),
+#         # axis.ticks.x = element_line(color="white"),
+#         # axis.text.x = element_text(color="white"),
+#         # plot.margin = margin(0, 0, 0, 0.5, "cm")
+#   )+
+#   #coord_sf(expand = F, label_axes = "-N--", ylim=c(-6200000, 8200000))+
+#   xlab(" ")
 
-co <- 0.025 # top 9 countries
-orders <- apply(shp[,c("mat_change", "pre_change", "deforest.1", "hfp.1")], 2, order, decreasing=T)
-res2 <- matrix(nrow=nrow(orders), ncol=ncol(orders))
-for(i in 1:ncol(orders)){
-  res2[,i] <- shp$LEVEL3_COD[orders[,i]]
-}
-colnames(res2) <- colnames(shp[,c("mat_change", "pre_change", "deforest.1", "hfp.1")])
 
-# Top 2.5% in richness, PD observed, PD zscore + PE:
-res[1:9, c("richness", "PD_obs_ts", "zscore_ts", "PE")]
-
-# top s.5% in temp change, pre change, deforestation and hfp:
-res2[1:9,c("mat_change", "pre_change", "deforest.1", "hfp.1")]
-
-# get a cumulative threat index:
-#reshape::rescaler(abs(shp$mat_change))
-shp$threat <- abs(reshape::rescaler(shp$mat_change))+
-  abs(reshape::rescaler(shp$pre_change))+
-  abs(reshape::rescaler(shp$deforest.1))+
-  reshape::rescaler(shp$hfp.1)
+# High threat regions -----------------------------------------------------
 
 
-ggplot(shp) + 
-  geom_sf(aes(fill=threat),lwd=0, col=NA) + 
-  #geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
-  #scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
-  #                        begin = lcol, end = sqrt(ucol))+
-  scale_fill_viridis_c("threat", option = "plasma")+ #, 
-  theme(legend.position = c(0.18, 0.3),
-        legend.key.height = unit(6,"mm"),
-        legend.background = element_blank(),
-        legend.key = element_blank(),
-        panel.background = element_blank(),
-        #panel.border = element_blank(),
-        text = element_text(size = 10),
-        # axis.ticks.x = element_line(color="white"),
-        # axis.text.x = element_text(color="white"),
-        # plot.margin = margin(0, 0, 0, 0.5, "cm")
-  )+
-  #coord_sf(expand = F, label_axes = "-N--", ylim=c(-6200000, 8200000))+
-  xlab(" ")
+# plot(shp$mat_change~shp$SES.PD_ts)
+# plot(shp$pre_change~shp$SES.PD_ts)
+# plot(shp$deforest.1~shp$SES.PD_ts)
+# plot(shp$hfp.1~shp$SES.PD_ts)
+# cor.test(shp$hfp.1,shp$SES.PD_ts)
+# 
+# plot(shp$pre_change~shp$SES.PD_ts)
+# plot(shp$deforest_mean~shp$SES.PD_ts)
+# 
+# 
+nb <- spdep::poly2nb(shp, row.names = shp$LEVEL3_COD)
+col.W <- nb2listw(nb, style="W", zero.policy = TRUE)
+thr <- shp[,grep("LEVEL|SES|_spot|zspot|PE|hfp|deforest|_change", names(shp))]
+thr <- st_drop_geometry(thr)
+
+tes <- apply(thr[,c("hfp_mean", "deforest_mean", "mat_change", "pre_change")], 2, lee.test, y=thr$SES.PD_ts, 
+             listw=col.W, zero.policy = TRUE, alternative="two.sided", na.action=na.omit)
+tes.df <- sapply(tes, "[[", "estimate")
+tes.df <- rbind(tes.df, sapply(tes, "[[", "p.value"))
+row.names(tes.df) <- c("Lee", "expect", "var", "pvalue")
+tes.df <- as.data.frame(t(tes.df))
+tes.df$twoSD <- 2*sqrt(tes.df$var)
+
+ggplot(tes.df, aes(y=expect, x=row.names(tes.df)))+
+  geom_pointrange(aes(ymin=expect-twoSD, ymax=expect+twoSD))+
+  geom_point(aes(y=Lee, x=row.names(tes.df), shape=factor(pvalue<0.05)), col="red", size=3)+
+  ylab("Lee's L with SES.PD")+
+  scale_shape("p<0.05")+
+  xlab("")+
+  coord_flip()
+ggsave("figures/LeesL_PD_threat.png", width=5, height=4, units = "in", dpi = 300)
+#A positive Lee’s L indicates that clusters match for the two variables. A
+#negative value indicates that the clusters have an opposite spatial
+#distribution . A value around zero indicates that the spatialstructures of the
+#two variables do not match. The significance of the values of Lee’s L was
+#evaluated using a Monte Carlo test with 999 randomizations.
+
+tes <- apply(thr[,c("hfp_mean", "deforest_mean", "mat_change", "pre_change")], 2, lee.test, y=thr$PD_zspot, 
+             listw=col.W, zero.policy = TRUE, alternative="two.sided", na.action=na.omit)
+tes.df <- sapply(tes, "[[", "estimate")
+tes.df <- rbind(tes.df, sapply(tes, "[[", "p.value"))
+row.names(tes.df) <- c("Lee", "expect", "var", "pvalue")
+tes.df <- as.data.frame(t(tes.df))
+tes.df$twoSD <- 2*sqrt(tes.df$var)
+
+ggplot(tes.df, aes(y=expect, x=row.names(tes.df)))+
+  geom_pointrange(aes(ymin=expect-twoSD, ymax=expect+twoSD))+
+  geom_point(aes(y=Lee, x=row.names(tes.df), shape=factor(pvalue<0.05)), col="red", size=3)+
+  ylab("Lee's L with SES.PD hotspots")+
+  scale_shape("p<0.05")+
+  xlab("")+
+  coord_flip()
+ggsave("figures/LeesL_hotspots_threat.png", width=5, height=4, units = "in", dpi = 300)
 
 
-
-plot(shp$mat_change~shp$zscore_ts)
-plot(shp$pre_change~shp$zscore_ts)
-plot(shp$deforest.1~shp$zscore_ts)
-plot(shp$hfp.1~shp$zscore_ts)
-cor.test(shp$hfp.1,shp$zscore_ts)
-
-plot(shp$pre_change~shp$PD_obs_ts)
-plot(shp$deforest.1~shp$PD_obs_ts)
-plot(shp$hfp.1~shp$PD_obs_ts, pch=shp$LEVEL3_COD)
-
-ggplot(shp) + 
-  geom_sf(aes(fill=bio12.1),lwd=0, col=NA) + 
-  #geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
-  #scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
-  #                        begin = lcol, end = sqrt(ucol))+
-  scale_fill_viridis_c("MAT", option = "plasma")+ #, 
-  theme(legend.position = c(0.18, 0.3),
-        legend.key.height = unit(6,"mm"),
-        legend.background = element_blank(),
-        legend.key = element_blank(),
-        panel.background = element_blank(),
-        #panel.border = element_blank(),
-        text = element_text(size = 10),
-        # axis.ticks.x = element_line(color="white"),
-        # axis.text.x = element_text(color="white"),
-        # plot.margin = margin(0, 0, 0, 0.5, "cm")
-  )+
-  #coord_sf(expand = F, label_axes = "-N--", ylim=c(-6200000, 8200000))+
-  xlab(" ")
