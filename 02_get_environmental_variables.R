@@ -16,6 +16,7 @@ theme_set(theme_bw())
 library(cowplot)
 library(rgdal)
 library(beepr)
+library(ncdf4)
 
 
 # Measures of long-term climate stability (e.g. Miocene climate anomalies),
@@ -46,10 +47,10 @@ tx <- readLines("../DATA/PDiv/lossyear.txt")
 for(i in 1:length(tx)){
   url <- tx[i]
   destfile <- paste0("../DATA/PDiv/deforestation/", sub("^.*?GFC-2020-v1\\.8/", "", tx[i]))
-  download.file(url, destfile)
+  if(!file.exists(destfile)){
+  download.file(url, destfile)}
 }
 
-#deforest <- raster("../DATA/PDiv/deforestation/Hansen_GFC-2020-v1.8_lossyear_00N_050W.tif")
 deforest <- raster("../DATA/PDiv/deforestation/deforest_combined.tif")
 deforest[deforest == 255] <- NA
 deforest <- projectRaster(deforest, crs=behr)
@@ -65,7 +66,7 @@ writeRaster(deforest, "../DATA/PDiv/deforest.tif")
 # SSP5-8.5. 
 # --> worst case (SSP5-8.5), middle of the road (SSP3-7.0) and more
 # optimistic (SSP4-6.0) Using IPSL-CM6A-LR ssp370 as relatively conservative in
-# regards of ECS, + avaialaible via Chelsa (years 2071-2100)
+# regards of ECS, + available via Chelsa (years 2071-2100)
 
 # BIO1 = Annual Mean Temperature
 # BIO4 = Temperature Seasonality (standard deviation ×100)
@@ -73,33 +74,85 @@ writeRaster(deforest, "../DATA/PDiv/deforest.tif")
 # BIO6 = Min Temperature of Coldest Month
 # BIO7 = Temperature Annual Range (BIO5-BIO6)
 # BIO12 = Annual Precipitation
+# BIO 15 = precipitation seasonality (!)
 
-urls <- paste0("https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/2071-2100/IPSL-CM6A-LR/ssp370/bio/CHELSA_bio", c(1,4,5,6,7,12), "_2071-2100_ipsl-cm6a-lr_ssp370_V.2.1.tif")
+urls <- paste0("https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/2071-2100/IPSL-CM6A-LR/ssp370/bio/CHELSA_bio", c(1,4,5,6,7,12,15), "_2071-2100_ipsl-cm6a-lr_ssp370_V.2.1.tif")
 destfiles <- paste0("../DATA/PDiv/climate_change/", sub("^.*?ssp370/bio/", "", urls))
-for(i in 1:6){
+for(i in 1:length(urls)){
+  if(!file.exists(destfiles[i])){
   download.file(urls[i], destfiles[i], method="wget", quiet=TRUE, options(timeout = max(600, getOption("timeout"))))
   # use method="wget" + quiet=TRUE to use increased timeout option (bio12 is >500mb)
+  }
   print(i)
 }
 
 
 
-# *** land use change past + future -------------------------------------------
-# STILL MISSING #
-#
-#
-#
-#
+# *** Land use change past + future -------------------------------------------
+## land use change 1960 - 2019: urban, cropland, rangeland/pastures
+## https://doi.org/10.1594/PANGAEA.921846
+
+# use now: 
+# https://luh.umd.edu/data.shtml
+# primf: forested primary land
+# primn: non-forested primary land
+# secdf: potentially forested secondary land
+# secdn: potentially non-forested secondary land
+# pastr: managed pasture
+# range: rangeland
+# urban: urban land
+# c3ann: C3 annual crops
+# c3per: C3 perennial crops
+# c4ann: C4 annual crops
+# c4per: C4 perennial crops
+# c3nfx: C3 nitrogen-fixing crops
+# secma: secondary mean age (units: years)
+# secmb: secondary mean biomass density (units: kg C/m^2)
+
+# pasT: 
+tmp <- nc_open("../DATA/PDiv/land_use/states_hist.nc")
+ncatt_get(tmp,"time","units")
+vars <- names(tmp$var)[1:14]
+
+pes <- list()
+for(i in 1:length(vars)){pes[[i]] <- brick("../DATA/PDiv/land_use/states_hist.nc", varname=vars[i])}
+names(pes) <- vars
+
+funclist <- function(x, years){x[[1166]]-x[[1166-years]]}
+pes2 <- lapply(pes, funclist, years=100)
+rm(pes)
+for(i in 1:length(vars)){writeRaster(pes2[[i]], paste0("../DATA/PDiv/land_use/PC_", vars[i], ".tif"))}
+
+# futurE:
+tmp <- nc_open("../DATA/PDiv/land_use/multiple-states_input4MIPs_landState_ScenarioMIP_UofMD-AIM-ssp370-2-1-f_gn_2015-2100.nc")
+ncatt_get(tmp,"time","units")
+vars <- names(tmp$var)[1:14]
+
+fes <- list()
+for(i in 1:length(vars)){fes[[i]] <- brick(
+  "../DATA/PDiv/land_use/multiple-states_input4MIPs_landState_ScenarioMIP_UofMD-AIM-ssp370-2-1-f_gn_2015-2100.nc",
+  varname=vars[i])}
+names(fes) <- vars
+
+futlist <- function(x, years){x[[1]]-x[[1+years]]}
+fes2 <- lapply(fes, futlist, years=85)
+rm(fes)
+for(i in 1:length(vars)){writeRaster(fes2[[i]], paste0("../DATA/PDiv/land_use/FC_", vars[i], ".tif"))}
+
+
+
+
 
 
 # save data for cluster
-save("shp", "hfp", "deforest", "CHELSA_bio1", "CHELSA_bio5",
-              "CHELSA_bio6", "CHELSA_bio7", "CHELSA_bio12",
-     file="environment_vars.RData")
+# save("shp", "hfp", "deforest", "CHELSA_bio1", "CHELSA_bio5",
+#     "CHELSA_bio6", "CHELSA_bio7", "CHELSA_bio12", "CHELSA_bio15",
+#      "pes2", "fes2",
+#      file="environment_vars.RData")
 
 
 # *** Build scripts -----------------------------------------------------------
-
+# read .tif files
 
 # build R scripts
 Rscript <- "
@@ -255,6 +308,7 @@ names(shp)
 # BIO6 = Min Temperature of Coldest Month
 # BIO7 = Temperature Annual Range (BIO5-BIO6)
 # BIO12 = Annual Precipitation
+# Bio15 = Precipitation Seasonality
 
 
 ## Get future MAT + PRE change -------------------------------------------
