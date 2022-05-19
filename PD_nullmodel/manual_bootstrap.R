@@ -33,5 +33,5 @@ for(i in 1:nrow(submat)){ #
   if(!i%%1)cat(i,"\r")
 }
   
-  
-  saveRDS(PD_ses_tipshuffle, file=paste0('bootstrap_', rep, '.rds'))
+res.all <- list(res, res.sd)  
+saveRDS(res, file=paste0('bootstrap_', rep, '.rds'))
