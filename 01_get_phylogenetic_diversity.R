@@ -63,7 +63,7 @@ myfun <- function(x){return(read_tree(file=x, interpret_quotes = T))}
 phylist <- lapply(phylonames, myfun)
 rm(phylonames)
 
-# match phylso and comm matrix
+# match phylo and comm matrix
 phylist2 <- lapply(phylist, match_phylo_comm, comm=dist.mat)
 rm(phylist)
 
@@ -71,7 +71,7 @@ rm(phylist)
 unique(unlist(lapply(sapply(phylist2, "[[", "comm"), ncol)))
 length(sapply(phylist2, "[[", "phy")[,1]$tip.label)
 
-rm(dist.mat)
+#rm(dist.mat)
 
 submat <- lapply(phylist2, "[[", "comm")
 subphy <- lapply(phylist2, "[[", "phy")
@@ -176,7 +176,7 @@ git push"
 
 # Run my own nullmodel ----------------------------------------------------
 # 
-# load("PD_nullmodel/comm_and_phy.RData")
+ load("PD_nullmodel/comm_and_phy.RData")
 # 
 # # shuffle phylogeny tiplabels (10 min or so for each iteration)
 # set.seed(939)
@@ -191,7 +191,46 @@ git push"
 # PD_sd_manual_ts <- apply(res, 1, sd)
 
 
+# Repeated subsampling with n=minimum species number
+## min number = 45 from the no.na dataset
+submat <- submat[[1]]
+#subphy <- subphy[[1]]
+## all submats should be the same (given all tacted trees hold the same species)
+library(doMC)
+library(phytools)
+registerDoMC(cores = 2)
+set.seed(939)
+res <- matrix(ncol=100, nrow=nrow(submat)) # one column for each phylogeny
+res.sd <- matrix(ncol=100, nrow=nrow(submat)) # one column for each phylogeny
+# one phylo first, later all
+Sys.time()
+for(j in 1:100){
+  subphy <- subphy[[j]]
+  print(paste("Currently running phylogeny", j))
+  for(i in 1:nrow(submat)){ #
+    species.level <- colnames(submat)[which(submat[i,]==1)]
+    physub <- keep.tip(subphy, species.level)
+    tmp <- foreach(icount(1000)) %dopar% {
+      if(length(species.level)<45){
+        tmp <- NA
+        tmp
+      }else{
+        specs <- sample(species.level, 45)
+        physub2 <- keep.tip(physub, specs)
+        tmp <- sum(physub2$edge.length) # PD sensu stricto
+        tmp
+      }
+    }
+    res[i,j] <- mean(unlist(tmp), na.rm=T)
+    res.sd[i,j] <- sd(unlist(tmp), na.rm=T)
+    if(!i%%1)cat(i,"\r")
+  }
+}
+Sys.time()
+beep(2)
 
+PD_manual_ts <- rowMeans(res)
+PD_sd_manual_ts <- apply(res, 1, sd)
 
 
 # Tipshuffle nullmodel ----------------------------------------------------
