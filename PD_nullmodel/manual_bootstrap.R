@@ -34,4 +34,4 @@ for(i in 1:nrow(submat)){ #
 }
   
 res.all <- list(res, res.sd)  
-saveRDS(res, file=paste0('bootstrap_', rep, '.rds'))
+saveRDS(res.all, file=paste0('bootstrap_', rep, '.rds'))
