@@ -7,6 +7,7 @@ rep <- as.numeric(args[6])
 
 library(phyloregion) # PD calculations etc
 library(phytools)
+library(castor)
 load('comm_and_phy.RData')
 submat <- submat[[rep]]
 subphy <- subphy[[rep]]
@@ -22,7 +23,7 @@ for(i in 1:nrow(submat)){ #
       tmp
     }else{
       specs <- sample(species.level, 45)
-      physub2 <- keep.tip(physub, specs)
+      physub2 <- get_subtree_with_tips(physub, specs) # is this the way to go? what about all other 
       tmp <- sum(physub2$edge.length) # PD sensu stricto
       tmp
       j <- j+1
