@@ -52,11 +52,12 @@ vis_miss(dat)
 
 # how many missings?
 n_var_miss(dat)
-gg_miss_upset(dat, nsets=15)
+gg_miss_upset(dat, nsets=20)
 
-dat.sub <- dat[,-grep("_sd$", names(dat))]
+# get rid of SD variables
+dat.sub <- dat[,-grep("_sd", names(dat))]
 n_var_miss(dat.sub)
-gg_miss_upset(dat.sub, nsets=9)
+gg_miss_upset(dat.sub, nsets=37)
 
 plot_grid(ggplot(dat.sub, aes(y=area, group=is.na(hfp_mean)))+
   geom_boxplot(varwidth = T)+
@@ -75,6 +76,11 @@ ggplot(dat.sub, aes(y=PE, group=is.na(hfp_mean)))+
 ggsave("figures/missing_hfp_influence.png", width=5, height=4, 
        units = "in", dpi = 300, bg = "white")
 
+ggplot(dat.sub, aes(y=area, group=is.na(PC_primf_mean)))+
+            geom_boxplot(varwidth = T)+
+            scale_y_log10()+
+            xlab("PRIMF_past change == NA (positive=T)")
+
 
 dat_no.na <- na.omit(dat.sub)
 dim(dat_no.na)
@@ -82,8 +88,8 @@ dim(dat_no.na)
 # Correlation ##########################
 source("99_functions.R")
 library(rstatix)
-cmat <- cor_mat(dat_no.na[,-grep("LEVEL3|hfp|deforest|bio|change",names(dat_no.na))], method = "s")
-cpmat <- cor_pmat(dat_no.na[,-grep("LEVEL3|hfp|deforest|bio|change",names(dat_no.na))], method = "s")
+cmat <- cor_mat(dat_no.na[,-grep("LEVEL3|hfp|deforest|bio|change|PC|FC",names(dat_no.na))], method = "s")
+cpmat <- cor_pmat(dat_no.na[,-grep("LEVEL3|hfp|deforest|bio|change|PC|FC",names(dat_no.na))], method = "s")
 #cor.dat_no.na<- cor(dat_no.na[,-grep("LEVEL3|hfp|deforest|bio|change",names(dat_no.na))], method = "s")
 #p.dat_no.na <- cor_pmat(dat_no.na[,-grep("LEVEL3|hfp|deforest|bio|change",names(dat_no.na))], method = "s")
 
@@ -117,11 +123,12 @@ ggsave("figures/correlation.png", width=7, height=6, units = "in", dpi = 600, bg
 
 # Spatial autocorrelation -------------------------------------------------
 
-
+# subset spatial object to dat_no.na variables
+shp <- shp[,which(names(shp) %in% names(dat_no.na))]
 library(spdep)
 # create neighbor list
-tmp <- na.omit(tmp)
-nb <- spdep::poly2nb(tmp, row.names = tmp$LEVEL3_COD)
+tmp <- na.omit(shp)
+nb <- spdep::poly2nb(tmp, row.names = shp$LEVEL3_COD)
 names(nb) <- tmp$LEVEL3_COD
 
 # distance object
@@ -162,7 +169,7 @@ ggplot(res.df, aes(y=expect, x=row.names(res.df), shape=factor(pvalue<0.05)))+
 nb <- spdep::poly2nb(tmp, row.names = tmp$LEVEL3_COD)
 col.W <- nb2listw(nb, style="W", zero.policy = TRUE)
 
-les <- apply(tmpm[,-2], 2, lee.test, y=tmpm$SES.PD_ts, 
+les <- apply(tmpm[,-3], 2, lee.test, y=tmpm$SES.PD_ts, 
              listw=col.W, zero.policy = TRUE, alternative="two.sided")
 les.df <- sapply(les, "[[", "estimate")
 les.df <- rbind(les.df, sapply(les, "[[", "p.value"))
@@ -177,7 +184,7 @@ ggplot(les.df, aes(y=expect, x=row.names(les.df)))+
   scale_shape("p<0.05")+
   xlab("")+
   coord_flip()
-ggsave("figures/LeesL.png", width=5, height=4, units = "in", dpi = 300)
+ggsave("figures/LeesL.png", width=5, height=8, units = "in", dpi = 300)
 #A positive Lee’s L indicates that clusters match for the two variables. A
 #negative value indicates that the clusters have an opposite spatial
 #distribution . A value around zero indicates that the spatialstructures of the
@@ -214,6 +221,7 @@ sort(car::vif(lm_pd4))
 
 
 plot_grid(ncol=2,
+          
           ggplot(data=shp, aes(fill=PD_obs))+
             geom_sf(lwd=0)
           ,
@@ -232,11 +240,11 @@ plot_grid(ncol=2,
 )
 
 
-ggplot(data=s@data, aes(x=richness, y=PD_obs_ts))+
+ggplot(data=shp, aes(x=richness, y=PD_obs))+
   geom_point()+
   geom_point(aes(y=pd_rand_mean_ts), col="salmon")+
-  scale_x_continuous(trans="sqrt")+
-  scale_y_continuous(trans="sqrt")
+  scale_x_continuous(trans="log")+
+  scale_y_continuous(trans="log")
 
 hist(shp$pd_rand_mean_ts)
 
@@ -250,10 +258,74 @@ hist(shp$pd_rand_mean_ts)
 
 
 
+# Variable importance -----------------------------------------------------
+
+library(caret)
+library(gbm)
+library(parallel)
+# parameter tuning using caret
+gbmControl <- trainControl(method = "repeatedcv", number = 10,
+                           repeats = 3, savePredictions = "final",
+                           returnResamp ="final")
+
+gbmGrid <-  expand.grid(interaction.depth = c(1, 2, 3),
+                        n.trees = (1:10)*50,
+                        shrinkage = c(0.1, 0.01, 0.001),
+                        n.minobsinnode = c(5, 10, 15))
+
+
+# define function
+## formula
+n <- names(dat_no.na[,-grep("LEVEL3_COD", names(dat_no.na))])
+f <- as.formula(paste("SES.PD_ts ~", paste(n[!n %in% "SES.PD_ts"], collapse = " + ")))
+
+run.gbm <- function(i, seeds, data, trControl=gbmControl,
+                    tuneGrid=gbmGrid){
+  set.seed(s[i])
+  if(!i%%1)cat(i,"\r")
+  gbm_temp <- train(f, data, method = "gbm",
+                  trControl = gbmControl, verbose=FALSE,
+                  tuneGrid = gbmGrid)
+  temp <- list(summary(gbm_temp)$var, s[i])
+  return(temp)
+}
+
+n_cores=4
+s <- seq(500,501,1)
+system.time(
+  PD_list <- mclapply(1:length(s), seeds = s, run.gbm,
+                      data = dat_no.na, mc.cores=n_cores)
+)
+#saveRDS(sr_list, "../processed_data/sr_list100_lgm.rds")
+PD_list[1]
 
 
 
+# Distribution, transformations, standardization ---------------------
 
+dat <- dat[,-grep("_sd$", names(dat))]
+# Distributions
+tmp <- apply(dat[,-grep("LEVEL3_COD", names(dat))], 2, shapiro.test)
+any(as.numeric(sapply(tmp, "[[", "p.value"))>0.05)
+#names(tmp)[which(as.numeric(sapply(tmp, "[[", "p.value"))>0.05)] # nothings normally distributed
+
+library(fitdistrplus)
+par(mfrow=c(5,5))
+apply(dat[,c(1,3:25)], 2, hist, breaks=20, main="bla") 
+apply(dat[,c(26:51)], 2, hist, breaks=20)
+apply(dat[,c(52:73)], 2, hist, breaks=20)
+
+
+# Standardization of PD
+## compare ses.pd to pd_obs/richness or area
+hist(shp$PD_obs/shp$richness)
+hist(shp$PD_obs)
+ggplot(shp, aes(x=PD_obs, y=SES.PD_ts))+
+  geom_point()
+ggplot(shp, aes(x=PD_obs, y=richness))+
+  geom_point()
+ggplot(shp, aes(x=PD_obs, y=PD_obs/richness))+
+  geom_point()
 
 # Maps --------------------------------------------------------------------
 
@@ -263,122 +335,108 @@ shp <- st_as_sf(s)
 # transform to Behrmann projection
 shp <- st_transform(shp, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs") # Behrmann
 
+min.area <- 1.5e+9
+class(min.area)
+library(units)
+units(min.area) <- as_units("m^2")
+thicc_lines <- shp[which(shp$area<min.area),]
+lcol <- min(thicc_lines$PD_obs)/max(shp$PD_obs)
+ucol <- max(thicc_lines$PD_obs)/max(shp$PD_obs)
 (pd_map <- ggplot(shp) + 
-    geom_sf(aes(fill=PD_obs_ts),lwd=0, col=NA) + 
-    #geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
-    #scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
-    #                        begin = lcol, end = sqrt(ucol))+
-    scale_fill_viridis_c("PD", option = "plasma")+ #, 
+    geom_sf(aes(fill=PD_obs),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1.5, aes(col=PD_obs), show.legend=F)+
+    scale_colour_viridis_c("PD", option = "plasma", trans = "sqrt", 
+                            begin = lcol, end = sqrt(ucol))+
+    scale_fill_viridis_c("PD", option = "plasma", trans="sqrt")+ #, 
     theme(legend.position = c(0.18, 0.3),
           legend.key.height = unit(6,"mm"),
           legend.background = element_blank(),
           legend.key = element_blank(),
           panel.background = element_blank(),
-          #panel.border = element_blank(),
-          text = element_text(size = 10),
-          # axis.ticks.x = element_line(color="white"),
-          # axis.text.x = element_text(color="white"),
-          # plot.margin = margin(0, 0, 0, 0.5, "cm")
-    )+
-    #coord_sf(expand = F, label_axes = "-N--", ylim=c(-6200000, 8200000))+
-    xlab(" ")
-)
-(pd_zscore_map <- ggplot(shp) + 
-    geom_sf(aes(fill=zscore_ts),lwd=0, col=NA) + 
-    #geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
-    #scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
-    #                        begin = lcol, end = sqrt(ucol))+
-    scale_fill_viridis_c("PD zscore", option = "plasma")+ #, 
-    theme(legend.position = c(0.18, 0.3),
-          legend.key.height = unit(6,"mm"),
-          legend.background = element_blank(),
-          legend.key = element_blank(),
-          panel.background = element_blank(),
-          text = element_text(size = 10),
-    )+
-    xlab(" ")
-)
-(pd_rand_map <- ggplot(shp) + 
-    geom_sf(aes(fill=pd_rand_mean_ts),lwd=0, col=NA) + 
-    #geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
-    #scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
-    #                        begin = lcol, end = sqrt(ucol))+
-    scale_fill_viridis_c("PD null distribution", option = "plasma")+ #, 
-    theme(legend.position = c(0.18, 0.3),
-          legend.key.height = unit(6,"mm"),
-          legend.background = element_blank(),
-          legend.key = element_blank(),
-          panel.background = element_blank(),
-          text = element_text(size = 10),
-    )+
-    xlab(" ")
+          panel.border = element_blank(),
+          text = element_text(size = 10))+
+    xlab(" ")+
+    ggtitle("Raw PD Faith")
 )
 
-# (pd_ses_map <- ggplot(shp) + 
-#     geom_sf(aes(fill=PD_ses),lwd=0, col=NA) + 
+# +100 tweak.....
+lcol <- min(thicc_lines$SES.PD_ts+100)/max(shp$SES.PD_ts+100)
+ucol <- max(thicc_lines$SES.PD_ts+100)/max(shp$SES.PD_ts+100)
+(pd_ses_map <- ggplot(shp) + 
+    geom_sf(aes(fill=SES.PD_ts+100),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1.5, aes(col=SES.PD_ts+100), show.legend=F)+
+    scale_colour_viridis_c("SES.PD", option = "plasma", trans="sqrt",
+                            begin = lcol, end = ucol)+
+    scale_fill_viridis_c("SES.PD+100", option = "plasma",trans="sqrt")+ #, 
+    theme(legend.position = c(0.18, 0.3),
+          legend.key.height = unit(6,"mm"),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          text = element_text(size = 10),
+    )+
+    xlab(" ")+
+    ggtitle("SES PD Faith")
+)
+# (pd_rand_map <- ggplot(shp) + 
+#     geom_sf(aes(fill=pd_rand_mean_ts),lwd=0, col=NA) + 
 #     #geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
 #     #scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
 #     #                        begin = lcol, end = sqrt(ucol))+
-#     scale_fill_viridis_c("PD_ses", option = "plasma")+ #, 
+#     scale_fill_viridis_c("PD null distribution", option = "plasma")+ #, 
 #     theme(legend.position = c(0.18, 0.3),
 #           legend.key.height = unit(6,"mm"),
 #           legend.background = element_blank(),
 #           legend.key = element_blank(),
 #           panel.background = element_blank(),
-#           #panel.border = element_blank(),
 #           text = element_text(size = 10),
-#           # axis.ticks.x = element_line(color="white"),
-#           # axis.text.x = element_text(color="white"),
-#           # plot.margin = margin(0, 0, 0, 0.5, "cm")
 #     )+
-#     #coord_sf(expand = F, label_axes = "-N--", ylim=c(-6200000, 8200000))+
-#     xlab(" ")
-# )
+#     xlab("")
+#)
 
+
+lcol <- min(thicc_lines$PE)/max(shp$PE)
+ucol <- max(thicc_lines$PE)/max(shp$PE)
 (pe_map <- ggplot(shp) + 
     geom_sf(aes(fill=PE),lwd=0, col=NA) + 
-    #geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
-    #scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
-    #                        begin = lcol, end = sqrt(ucol))+
-    scale_fill_viridis_c("PE", option = "plasma")+ #, 
+    geom_sf(data=thicc_lines, lwd=1.5, aes(col=PE), show.legend=F)+
+    scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
+                            begin = lcol, end = sqrt(ucol))+
+    scale_fill_viridis_c("PE", option = "plasma", trans="sqrt")+ #, 
     theme(legend.position = c(0.18, 0.3),
           legend.key.height = unit(6,"mm"),
           legend.background = element_blank(),
           legend.key = element_blank(),
           panel.background = element_blank(),
-          #panel.border = element_blank(),
-          text = element_text(size = 10),
-          # axis.ticks.x = element_line(color="white"),
-          # axis.text.x = element_text(color="white"),
-          # plot.margin = margin(0, 0, 0, 0.5, "cm")
+          panel.border = element_blank(),
+          text = element_text(size = 10)
     )+
-    #coord_sf(expand = F, label_axes = "-N--", ylim=c(-6200000, 8200000))+
-    xlab(" ")
+    xlab(" ")+
+    ggtitle("Phylogenetic endemism")
 )
 
+lcol <- min(thicc_lines$richness)/max(shp$richness)
+ucol <- max(thicc_lines$richness)/max(shp$richness)
 (sr_map <- ggplot(shp) + 
     geom_sf(aes(fill=richness),lwd=0, col=NA) + 
-    #geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
-    #scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
-    #                        begin = lcol, end = sqrt(ucol))+
-    scale_fill_viridis_c("SR", option = "plasma")+ #, 
+    geom_sf(data=thicc_lines, lwd=1.5, aes(col=richness), show.legend=F)+
+    scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
+                            begin = lcol, end = sqrt(ucol))+
+    scale_fill_viridis_c("SR", option = "plasma", trans = "sqrt")+ #, 
     theme(legend.position = c(0.18, 0.3),
           legend.key.height = unit(6,"mm"),
           legend.background = element_blank(),
           legend.key = element_blank(),
           panel.background = element_blank(),
-          #panel.border = element_blank(),
-          text = element_text(size = 10),
-          # axis.ticks.x = element_line(color="white"),
-          # axis.text.x = element_text(color="white"),
-          # plot.margin = margin(0, 0, 0, 0.5, "cm")
+          panel.border = element_blank(),
+          text = element_text(size = 10)
     )+
-    #coord_sf(expand = F, label_axes = "-N--", ylim=c(-6200000, 8200000))+
     xlab(" ")
 )
 
-plot_grid(pd_map, pd_rand_map, pd_zscore_map, sr_map, nrow = 2)
-
+plot_grid(pd_map, pd_ses_map, pe_map, sr_map, nrow = 4)
+ggsave("figures/maps.png", width=8, height=16, units = "in", dpi = 600, bg = "white")
 
 plot(shp$PD_obs_ts, shp$pd_rand_mean_ts)
 plot(shp$PD_obs_ts, shp$PE)
@@ -391,6 +449,8 @@ plot(shp$PD_obs_ts, shp$PE)
 
 # Hotspot definition ------------------------------------------------------
 
+s@data$LEVEL3_COD <- s@data$LEVEL_3_CO
+shp <- merge(shp, s@data[,c("LEVEL3_COD", "LEVEL_NAME")])
 
 # Endemism hotspots ##
 C <- coldspots(shp$PE) # coldspots
@@ -432,11 +492,14 @@ ggplot(shp)+
   ggtitle("Phylogenetic Endemism Hotspots and Coldspots")
 ggsave("figures/PE_hot_cold.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
 
+# Names islands:
+View(st_drop_geometry(thicc_lines[,c("PE_spot.x", "LEVEL3_COD", "LEVEL_NAME")]))
+thicc_lines$LEVEL_NAME
 
 
 # Diversity hotspots ##
-C <- coldspots(shp$PD_obs_ts) # coldspots
-H <- hotspots(shp$PD_obs_ts) # hotspots
+C <- coldspots(shp$PD_obs) # coldspots
+H <- hotspots(shp$PD_obs) # hotspots
 DF <- data.frame(LEVEL3_COD=shp$LEVEL3_COD, cold=C, hot=H)
 DF$PD_spot <- 0
 DF$PD_spot[DF$hot==1] <- 1
@@ -456,29 +519,36 @@ ggplot(shp)+
   ggtitle("Observed PD Hotspots and Coldspots")
 ggsave("figures/PD_hot_cold.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
 
+# Names islands:
+View(st_drop_geometry(thicc_lines[,c("PD_spot.x", "LEVEL3_COD", "LEVEL_NAME")]))
+thicc_lines$LEVEL_NAME
 
 
 # Standardized PD hotspots
 C <- coldspots(shp$SES.PD_ts) # coldspots
 H <- hotspots(shp$SES.PD_ts) # hotspots
 DF <- data.frame(LEVEL3_COD=shp$LEVEL3_COD, cold=C, hot=H)
-DF$PD_zspot <- 0
-DF$PD_zspot[DF$hot==1] <- 1
-DF$PD_zspot[DF$cold==1] <- -1
-shp <- merge(shp, DF[,c("LEVEL3_COD", "PD_zspot")], by = "LEVEL3_COD", all = TRUE)
+DF$SES.PD_spot <- 0
+DF$SES.PD_spot[DF$hot==1] <- 1
+DF$SES.PD_spot[DF$cold==1] <- -1
+shp <- merge(shp, DF[,c("LEVEL3_COD", "SES.PD_spot")], by = "LEVEL3_COD", all = TRUE)
 
 
 thicc_lines <- shp[which(shp$area<min.area),]
-thicc_lines <- thicc_lines[thicc_lines$PD_zspot!=0,]
+thicc_lines <- thicc_lines[thicc_lines$SES.PD_spot!=0,]
 
 ggplot(shp)+
-  geom_sf(aes(fill=factor(PD_zspot)),lwd=0, col=NA) + 
-  geom_sf(data=thicc_lines, aes(col=factor(PD_zspot)), show.legend=F, lwd=2)+
+  geom_sf(aes(fill=factor(SES.PD_spot)),lwd=0, col=NA) + 
+  geom_sf(data=thicc_lines, aes(col=factor(SES.PD_spot)), show.legend=F, lwd=2)+
   scale_fill_manual("spot", values = c("blue", "grey80", "red"))+
   scale_color_manual(values = c("red"))+ # MANUALLY CHECK if all are positive
   theme(panel.border = element_blank())+
   ggtitle("SES.PD Hotspots and Coldspots")
 ggsave("figures/SES.PD_hot_cold.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
+
+# Names islands:
+View(st_drop_geometry(thicc_lines[,c("SES.PD_spot", "LEVEL3_COD", "LEVEL_NAME")]))
+thicc_lines$LEVEL_NAME
 
 # 
 # co <- 0.025 # top 9 countries
@@ -524,25 +594,42 @@ ggsave("figures/SES.PD_hot_cold.png", width=7, height=4, units = "in", dpi = 600
 #   xlab(" ")
 
 
+# Diversity hotspots ##
+C <- coldspots(shp$richness) # coldspots
+H <- hotspots(shp$richness) # hotspots
+DF <- data.frame(LEVEL3_COD=shp$LEVEL3_COD, cold=C, hot=H)
+DF$sr_spot <- 0
+DF$sr_spot[DF$hot==1] <- 1
+DF$sr_spot[DF$cold==1] <- -1
+shp <- merge(shp, DF[,c("LEVEL3_COD", "sr_spot")], by = "LEVEL3_COD", all = TRUE)
+
+
+thicc_lines <- shp[which(shp$area<min.area),]
+thicc_lines <- thicc_lines[thicc_lines$sr_spot!=0,]
+
+ggplot(shp)+
+  geom_sf(aes(fill=factor(sr_spot)),lwd=0, col=NA) + 
+  geom_sf(data=thicc_lines, aes(col=factor(sr_spot)), show.legend=F, lwd=2)+
+  scale_fill_manual(values = c("blue", "grey80", "red"))+
+  scale_color_manual(values = c("blue", "grey80", "red"))+
+  theme(panel.border = element_blank())+
+  ggtitle("Observed SR Hotspots and Coldspots")
+ggsave("figures/SR_hot_cold.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
+
+View(st_drop_geometry(thicc_lines[,c("sr_spot", "LEVEL3_COD", "LEVEL_NAME")]))
+thicc_lines$LEVEL_NAME
+
+
+
 # High threat regions -----------------------------------------------------
 
 
-# plot(shp$mat_change~shp$SES.PD_ts)
-# plot(shp$pre_change~shp$SES.PD_ts)
-# plot(shp$deforest.1~shp$SES.PD_ts)
-# plot(shp$hfp.1~shp$SES.PD_ts)
-# cor.test(shp$hfp.1,shp$SES.PD_ts)
-# 
-# plot(shp$pre_change~shp$SES.PD_ts)
-# plot(shp$deforest_mean~shp$SES.PD_ts)
-# 
-# 
 nb <- spdep::poly2nb(shp, row.names = shp$LEVEL3_COD)
 col.W <- nb2listw(nb, style="W", zero.policy = TRUE)
-thr <- shp[,grep("LEVEL|SES|_spot|zspot|PE|hfp|deforest|_change", names(shp))]
+thr <- shp[,grep("LEVEL|SES|_spot|zspot|PE|hfp|deforest|_change|FC|PC", names(shp))]
 thr <- st_drop_geometry(thr)
 
-tes <- apply(thr[,c("hfp_mean", "deforest_mean", "mat_change", "pre_change")], 2, lee.test, y=thr$SES.PD_ts, 
+tes <- apply(thr[,grep("hfp|deforest|_change|FC|PC", names(thr))], 2, lee.test, y=thr$SES.PD_ts, 
              listw=col.W, zero.policy = TRUE, alternative="two.sided", na.action=na.omit)
 tes.df <- sapply(tes, "[[", "estimate")
 tes.df <- rbind(tes.df, sapply(tes, "[[", "p.value"))
@@ -550,9 +637,9 @@ row.names(tes.df) <- c("Lee", "expect", "var", "pvalue")
 tes.df <- as.data.frame(t(tes.df))
 tes.df$twoSD <- 2*sqrt(tes.df$var)
 
-ggplot(tes.df, aes(y=expect, x=row.names(tes.df)))+
+ggplot(tes.df, aes(y=expect, x=gsub("_mean", "", row.names(tes.df))))+
   geom_pointrange(aes(ymin=expect-twoSD, ymax=expect+twoSD))+
-  geom_point(aes(y=Lee, x=row.names(tes.df), shape=factor(pvalue<0.05)), col="red", size=3)+
+  geom_point(aes(y=Lee, x=gsub("_mean", "", row.names(tes.df)), shape=factor(pvalue<0.05)), col="red", size=3)+
   ylab("Lee's L with SES.PD")+
   scale_shape("p<0.05")+
   xlab("")+
@@ -564,7 +651,7 @@ ggsave("figures/LeesL_PD_threat.png", width=5, height=4, units = "in", dpi = 300
 #two variables do not match. The significance of the values of Lee’s L was
 #evaluated using a Monte Carlo test with 999 randomizations.
 
-tes <- apply(thr[,c("hfp_mean", "deforest_mean", "mat_change", "pre_change")], 2, lee.test, y=thr$PD_zspot, 
+tes <- apply(thr[,grep("hfp|deforest|_change|FC|PC", names(thr))], 2, lee.test, y=thr$SES.PD_spot, 
              listw=col.W, zero.policy = TRUE, alternative="two.sided", na.action=na.omit)
 tes.df <- sapply(tes, "[[", "estimate")
 tes.df <- rbind(tes.df, sapply(tes, "[[", "p.value"))
@@ -572,13 +659,36 @@ row.names(tes.df) <- c("Lee", "expect", "var", "pvalue")
 tes.df <- as.data.frame(t(tes.df))
 tes.df$twoSD <- 2*sqrt(tes.df$var)
 
-ggplot(tes.df, aes(y=expect, x=row.names(tes.df)))+
+ggplot(tes.df, aes(y=expect, x=gsub("_mean", "", row.names(tes.df))))+
   geom_pointrange(aes(ymin=expect-twoSD, ymax=expect+twoSD))+
-  geom_point(aes(y=Lee, x=row.names(tes.df), shape=factor(pvalue<0.05)), col="red", size=3)+
+  geom_point(aes(y=Lee, x=gsub("_mean", "", row.names(tes.df)), shape=factor(pvalue<0.05)), col="red", size=3)+
   ylab("Lee's L with SES.PD hotspots")+
   scale_shape("p<0.05")+
   xlab("")+
   coord_flip()
-ggsave("figures/LeesL_hotspots_threat.png", width=5, height=4, units = "in", dpi = 300)
+ggsave("figures/LeesL_SES.PD_hotspots_threat.png", width=5, height=4, units = "in", dpi = 300)
+
+
+# Threat hotspots ##
+C <- coldspots(shp$hfp_mean) # coldspots
+H <- hotspots(shp$hfp_mean) # hotspots
+DF <- data.frame(LEVEL3_COD=shp$LEVEL3_COD, cold=C, hot=H)
+DF$hfp_spot <- 0
+DF$hfp_spot[DF$hot==1] <- 1
+DF$hfp_spot[DF$cold==1] <- -1
+shp <- merge(shp, DF[,c("LEVEL3_COD", "hfp_spot")], by = "LEVEL3_COD", all = TRUE)
+
+
+thicc_lines <- shp[which(shp$area<min.area),]
+thicc_lines <- thicc_lines[thicc_lines$hfp_spot!=0,]
+
+ggplot(shp)+
+  geom_sf(aes(fill=factor(hfp_spot)),lwd=0, col=NA) + 
+  geom_sf(data=thicc_lines, aes(col=factor(hfp_spot)), show.legend=F, lwd=2)+
+  scale_fill_manual(values = c("blue", "grey80", "red"))+
+  scale_color_manual(values = c("blue", "grey80", "red"))+
+  theme(panel.border = element_blank())+
+  ggtitle("Observed HFP Hotspots and Coldspots")
+ggsave("figures/PD_hot_cold.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
 
 

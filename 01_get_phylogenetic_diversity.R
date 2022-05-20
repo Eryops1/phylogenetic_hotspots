@@ -193,41 +193,46 @@ git push"
 
 # Repeated subsampling with n=minimum species number
 ## min number = 45 from the no.na dataset
-submat <- submat[[1]]
+## ____ Run this on cluster using bootstrap_job_array.sh ____________###
+#submat <- submat[[1]]
 #subphy <- subphy[[1]]
 ## all submats should be the same (given all tacted trees hold the same species)
-library(doMC)
-library(phytools)
-registerDoMC(cores = 2)
-set.seed(939)
-res <- matrix(ncol=100, nrow=nrow(submat)) # one column for each phylogeny
-res.sd <- matrix(ncol=100, nrow=nrow(submat)) # one column for each phylogeny
-# one phylo first, later all
-Sys.time()
-for(j in 1:100){
-  subphy <- subphy[[j]]
-  print(paste("Currently running phylogeny", j))
-  for(i in 1:nrow(submat)){ #
-    species.level <- colnames(submat)[which(submat[i,]==1)]
-    physub <- keep.tip(subphy, species.level)
-    tmp <- foreach(icount(1000)) %dopar% {
-      if(length(species.level)<45){
-        tmp <- NA
-        tmp
-      }else{
-        specs <- sample(species.level, 45)
-        physub2 <- keep.tip(physub, specs)
-        tmp <- sum(physub2$edge.length) # PD sensu stricto
-        tmp
-      }
-    }
-    res[i,j] <- mean(unlist(tmp), na.rm=T)
-    res.sd[i,j] <- sd(unlist(tmp), na.rm=T)
-    if(!i%%1)cat(i,"\r")
-  }
-}
-Sys.time()
-beep(2)
+# library(doMC)
+# library(phytools)
+# registerDoMC(cores = 2)
+# set.seed(939)
+# res <- matrix(ncol=100, nrow=nrow(submat)) # one column for each phylogeny
+# res.sd <- matrix(ncol=100, nrow=nrow(submat)) # one column for each phylogeny
+# # one phylo first, later all
+# Sys.time()
+# for(j in 1:100){
+#   subphy <- subphy[[j]]
+#   print(paste("Currently running phylogeny", j))
+#   for(i in 1:nrow(submat)){ #
+#     species.level <- colnames(submat)[which(submat[i,]==1)]
+#     physub <- keep.tip(subphy, species.level)
+#     tmp <- foreach(icount(1000)) %dopar% {
+#       if(length(species.level)<45){
+#         tmp <- NA
+#         tmp
+#       }else{
+#         specs <- sample(species.level, 45)
+#         physub2 <- keep.tip(physub, specs)
+#         tmp <- sum(physub2$edge.length) # PD sensu stricto
+#         tmp
+#       }
+#     }
+#     res[i,j] <- mean(unlist(tmp), na.rm=T)
+#     res.sd[i,j] <- sd(unlist(tmp), na.rm=T)
+#     if(!i%%1)cat(i,"\r")
+#   }-
+# }
+# Sys.time()
+# beep(2)
+fil <- dir("PD_nullmodel", pattern="bootstrap_[1-9]", full.names = T)
+res <- lapply(fil, readRDS)
+tmp <- readRDS(fil[1])
+
 
 PD_manual_ts <- rowMeans(res)
 PD_sd_manual_ts <- apply(res, 1, sd)

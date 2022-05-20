@@ -151,7 +151,7 @@ names(shp)<- gsub("\\.2", "_sd", names(shp))
 # remove BOU that has no data
 shp <- shp[!shp$LEVEL3_COD=="BOU",]
 
-tmp <- shp[,-grep("LEVEL3_COD|rand_|hfp|deforest|bio|change", names(shp))]
+tmp <- shp[,-grep("LEVEL3_COD|rand_|hfp|deforest|bio|change|PC|FC", names(shp))]
 tmp$centroids <- st_centroid(tmp) %>% 
   st_coordinates()
 tmp$y <- tmp$centroids[,1] # x=lng
@@ -162,6 +162,8 @@ tmp <- tmp[,-grep("centroids|PD_obs|PE_sd|PE|WE|mdr", names(tmp))]
 tmp <- na.omit(tmp)
 rvi2 <- rvi(tmp[, -2], tmp[, 2], family = "gaussian", n.cores=4)
 
+#gbmok1 <- gbmok(tmp[, c("x", "y")], tmp[, -2], tmp[, 2], family = "gaussian", n.cores=4,
+#                    cv.fold = 10, predacc = "ALL")
 gbmokcv2 <- gbmokcv(tmp[, c("x", "y")], tmp[, -2], tmp[, 2], family = "gaussian", n.cores=4,
                     cv.fold = 10, predacc = "ALL")
 gbmokpred1 <- gbmokpred(tmp[, c("x", "y")], tmp[, c("x", "y", 6:9)], petrel[, 3],
