@@ -24,7 +24,7 @@ for(i in 1:nrow(submat)){ #
     }else{
       specs <- sample(species.level, 45)
       physub2 <- get_subtree_with_tips(physub, specs) # is this the way to go? what about all other 
-      tmp <- sum(physub2$edge.length) # PD sensu stricto
+      tmp <- sum(physub2$subtree$edge.length) # PD sensu stricto
       tmp
       j <- j+1
     }
