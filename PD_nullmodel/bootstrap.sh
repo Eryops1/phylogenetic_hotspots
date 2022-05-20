@@ -8,7 +8,7 @@
 #SBATCH --mem-per-cpu=8gb
 #SBATCH --cpus-per-task 1
 #SBATCH --time 00:20:00
-#SBATCH --output=/dev/null
+##SBATCH --output=/dev/null
 
 source ~/miniconda3/bin/activate R-env-4
-Rscript manual_bootstrap.R $this_rep 
+Rscript manual_bootstrap.R $this_rep > bootlog.txt
