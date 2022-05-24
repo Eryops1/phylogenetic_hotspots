@@ -254,11 +254,11 @@ shp <- readRDS("fin_shp.rds")
 shp <- shp[!shp$LEVEL3_COD=="BOU",]
 
 shp$bootstrapPD <- bootstrap.PD
-plot(shp$SES.PD, shp$bootstrapPD)
-plot(shp$PD_obs, shp$bootstrapPD)
-
-shp$PD.SR <- shp$PD_obs/shp$richness
-shp$PD.AREA <- shp$PD_obs/shp$area
+# plot(shp$SES.PD, shp$bootstrapPD)
+# plot(shp$PD_obs, shp$bootstrapPD)
+# 
+# shp$PD.SR <- shp$PD_obs/shp$richness
+# shp$PD.AREA <- shp$PD_obs/shp$area
 # ggplot(shp, aes(x=richness, y=PD_obs, col=log(area)))+
 #   geom_point()+
 #   facet_wrap(~CONTINENT)
@@ -294,33 +294,44 @@ pairD.df <- as.data.frame(tmppairD)
 pairD <- na.omit(rowMeans(pairD.df))
 
 
-shp <- readRDS("fin_shp.rds")
+# shp <- readRDS("fin_shp.rds")
 # remove BOU that has no data
-shp <- shp[!shp$LEVEL3_COD=="BOU",]
+# shp <- shp[!shp$LEVEL3_COD=="BOU",]
 shp$pairD <- pairD
 
 
 
 
-# Tipshuffle nullmodel ----------------------------------------------------
+# SES.PD, AvTD, TTD --------------------------------------------------
 
-### read cluster results and get means
-pdnames <- dir("PD_nullmodel", pattern="tipshuffle.*?.rds", full.names = T)
+# SES.PD
+pdnames <- dir("PD_nullmodel", pattern="indices.*?.rds", full.names = T)
 
-# 100 or 1000?
-pdnames <- pdnames[grep("1000", pdnames)]
+# # 100 or 1000?
+# pdnames <- pdnames[grep("1000", pdnames)]
 
-PD.list <- lapply(pdnames, readRDS)
-tipshuffle.df <- data.frame(LEVEL3_COD = PD.list[[1]]$grids,
-                    richness = apply(sapply(PD.list, "[[", "richness"), 1, mean),
-                    PD_obs = apply(sapply(PD.list, "[[", "PD_obs"), 1, mean),
-                    pd_rand_mean = apply(sapply(PD.list, "[[", "pd_rand_mean"), 1, mean),
-                    pd_rand_sd = apply(sapply(PD.list, "[[", "pd_rand_sd"), 1, mean),
-                    pd_obs_rank = apply(sapply(PD.list, "[[", "pd_obs_rank"), 1, mean),
-                    SES.PD = apply(sapply(PD.list, "[[", "zscore"), 1, mean),
-                    pd_obs_p = apply(sapply(PD.list, "[[", "pd_obs_p"), 1, mean),
-                    reps = apply(sapply(PD.list, "[[", "reps"), 1, mean)
+
+ind.list <- lapply(pdnames, readRDS)
+tmp <- lapply(ind.list, function(x){cbind(x[[1]], x[[2]])})
+
+# mapply(cbind, filelist, "SampleID"=ID, SIMPLIFY=F)
+# tmp2 <- mapply(append, tmp, sapply(ind.list, "[[", 3), SIMPLIFY=FALSE)
+ttd <- sapply(ind.list, "[[", 3)
+TTD <- rowMeans(ttd)
+
+tipshuffle.df <- data.frame(LEVEL3_COD = ind.list[[1]][[1]]$grids,
+                    richness = apply(sapply(tmp, "[[", "richness"), 1, mean),
+                    PD_obs = apply(sapply(tmp, "[[", "PD_obs"), 1, mean),
+                    pd_rand_mean = apply(sapply(tmp, "[[", "pd_rand_mean"), 1, mean),
+                    pd_rand_sd = apply(sapply(tmp, "[[", "pd_rand_sd"), 1, mean),
+                    pd_obs_rank = apply(sapply(tmp, "[[", "pd_obs_rank"), 1, mean),
+                    SES.PD = apply(sapply(tmp, "[[", "zscore"), 1, mean),
+                    pd_obs_p = apply(sapply(tmp, "[[", "pd_obs_p"), 1, mean),
+                    reps = apply(sapply(tmp, "[[", "reps"), 1, mean),
+                    AvTD = apply(sapply(tmp, "[[", "x[[2]]"), 1, mean)
 )
+
+tipshuffle.df$TTD <- TTD
 # names(tipshuffle.df)[-grep("LEVEL3|richness|reps", names(tipshuffle.df))] <- 
 #   paste0(names(tipshuffle.df)[-grep("LEVEL3|richness|reps", names(tipshuffle.df))], "")
 
@@ -328,26 +339,37 @@ tipshuffle.df <- data.frame(LEVEL3_COD = PD.list[[1]]$grids,
 
 # Removed entries with richness < 30? Zscore is not to be trusted: Central Limit Theorem
 table(tipshuffle.df$richness<30)
-tipshuffle.df[tipshuffle.df$richness<30, -c(1,2)] <- NA
+tipshuffle.df[tipshuffle.df$richness<30, -c(1:3,9:11)] <- NA
 
-
+# PLOTS
+plot_grid(nrow=2,
 ggplot(tipshuffle.df, aes(x=richness, y=PD_obs, col=pd_obs_p<0.05))+
   geom_point()+
-  scale_x_continuous("sqrt (species richness)", trans="sqrt", 
+  scale_x_continuous("species richness", trans="sqrt", 
                      breaks = c(10, 100, 1000, 10000), limits = c(30, 23000))+
-  scale_y_continuous("sqrt (PD)", trans="sqrt", breaks=c(100, 1000, 10000, 100000))+
+#  scale_y_continuous("sqrt (PD)", trans="sqrt", breaks=c(100, 1000, 10000, 100000))+
   scale_color_discrete("diff from null dist", na.translate=F)+
   geom_line(aes(y=pd_rand_mean), col="grey")+
   geom_ribbon(aes(ymin=pd_rand_mean-2*sqrt(pd_rand_sd), 
               ymax=pd_rand_mean+2*sqrt(pd_rand_sd)), alpha=0.3, color=NA)+
-  theme(legend.position = c(x=0.15, y=0.85), )
-
+  theme(legend.position = c(x=0.15, y=0.85))
+,
 ggplot(tipshuffle.df, aes(x=richness, y=SES.PD, col=pd_obs_p<0.05))+
   geom_point()+
-  scale_x_continuous(trans="log", limits = c(30, 23000))
-ggplot(tipshuffle.df, aes(x=richness, y=pairD, col=pd_obs_p<0.05))+
+  scale_x_continuous(trans="sqrt", limits = c(30, 23000))+
+  theme(legend.position = c(x=0.15, y=0.15))
+,
+ggplot(tipshuffle.df, aes(x=richness, y=AvTD))+
   geom_point()+
-  scale_x_continuous(trans="log", limits = c(30, 23000))
+  scale_x_continuous(trans="sqrt", limits = c(30, 23000))
+,
+ggplot(tipshuffle.df, aes(x=richness, y=TTD))+
+  geom_point()+
+  scale_x_continuous(trans="sqrt", limits = c(30, 23000))
+)
+
+ggplot(tipshuffle.df, aes(x=PD_obs, y=AvTD))+
+  geom_point()
 
 
 # DOES THE Zscore SCALE WITH SR??
