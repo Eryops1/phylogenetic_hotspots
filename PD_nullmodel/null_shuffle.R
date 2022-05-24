@@ -8,6 +8,10 @@
   library(phyloregion) # PD calculations etc
   library(ecospat)
   load('comm_and_phy.RData')
+<<<<<<< HEAD
+  PD_ses_tipshuffle <- PD_ses(submat[[rep]], subphy[[rep]], model=model, reps=1000)
+  saveRDS(PD_ses_tipshuffle, file=paste0(model,'_', rep, '.rds'))
+=======
   
   # PD_ses
   PD_ses_tipshuffle <- PD_ses(submat[[rep]], subphy[[rep]], model=model, reps=1000)
@@ -32,3 +36,4 @@
   
   all <- list(PD_ses_tipshuffle, res.avTD, res.TTD)
   saveRDS(all, file=paste0("indices_", rep, '.rds'))
+>>>>>>> 0571433986b7bd0045f2427c8893bd3144bda85a
