@@ -15,12 +15,12 @@ model=('tipshuffle' 'rowwise' 'colwise')
 
 
 # pass on variables to child script
-for ((m=0; m<=2; m++)) do
-  this_model=${model[${m}]}
+#for ((m=0; m<=2; m++)) do
+  this_model='tipshuffle' #${model[${m}]}
   export this_model
   for ((i=0; i<=99; i++)) do
     this_rep=${rep[${i}]}
     export this_rep
     sbatch null_shuffle.sh
   done
-done
+#done
