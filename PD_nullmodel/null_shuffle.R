@@ -10,7 +10,7 @@ library(ecospat)
 load('comm_and_phy.RData')
 
 # PD_ses
-PD_ses_tipshuffle <- PD_ses(submat[[rep]], subphy[[rep]], model=model, reps=1000)
+#PD_ses_tipshuffle <- PD_ses(submat[[rep]], subphy[[rep]], model=model, reps=1000)
 #PE_tipshuffle <- phylo_endemism((submat[[rep]], subphy[[rep]])
 #saveRDS(PD_ses_tipshuffle, file=paste0(model,'_', rep, '.rds'))
 
@@ -20,7 +20,7 @@ print("PD_ses done")
 tmp <- sparse2dense(submat[[rep]])
 tmp <- as.data.frame(tmp)
 res.avTD <- ecospat.calculate.pd(subphy[[rep]], tmp, type="AvTD", method="pairwise")
-#saveRDS(res.avTD, file=paste0("AvTD_", rep, '.rds'))
+saveRDS(res.avTD, file=paste0("AvTD_", rep, '.rds'))
 
 print("AvTD done")
 
@@ -30,5 +30,5 @@ res.TTD <- ecospat.calculate.pd(subphy[[rep]], tmp, type="TTD", method="pairwise
 
 print("TTD done")
 
-all <- list(PD_ses_tipshuffle, res.avTD, res.TTD)
+all <- list(res.avTD, res.TTD) #PD_ses_tipshuffle, 
 saveRDS(all, file=paste0("indices_", rep, '.rds'))
