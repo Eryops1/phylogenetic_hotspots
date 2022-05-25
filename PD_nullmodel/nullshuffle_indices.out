@@ -1,17 +1,42 @@
 Loading required package: ade4
 Loading required package: ade4
 Loading required package: ade4
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ape
+Loading required package: ape
+Loading required package: ape
+Loading required package: ape
+Loading required package: ape
+Loading required package: ape
+Loading required package: ape
 Loading required package: ape
 Loading required package: gbm
-Loading required package: ape
 Loading required package: gbm
-Loading required package: ape
 Loading required package: gbm
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: gbm
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
 Loaded gbm 2.1.8
 Loading required package: sp
-Loaded gbm 2.1.8
 Loading required package: sp
-Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: sp
+Loading required package: sp
+Loading required package: sp
+Loading required package: sp
 Loading required package: sp
 Registered S3 methods overwritten by 'adehabitatMA':
   method                       from
@@ -21,76 +46,6 @@ Registered S3 methods overwritten by 'adehabitatMA':
   method                       from
   print.SpatialPixelsDataFrame sp  
   print.SpatialPixels          sp  
-Loading required package: ade4
-Registered S3 methods overwritten by 'adehabitatMA':
-  method                       from
-  print.SpatialPixelsDataFrame sp  
-  print.SpatialPixels          sp  
-Loading required package: ade4
-Loading required package: ape
-Loading required package: ade4
-Loading required package: ade4
-Loading required package: gbm
-Loading required package: ade4
-Loading required package: ade4
-Loading required package: ape
-Loading required package: gbm
-Loading required package: ade4
-Loading required package: ade4
-Loading required package: ade4
-Loading required package: ade4
-Loaded gbm 2.1.8
-Loading required package: sp
-Loading required package: ape
-Loading required package: ape
-Loaded gbm 2.1.8
-Loading required package: ape
-Loading required package: sp
-Loading required package: ape
-Loading required package: gbm
-Loading required package: gbm
-Loading required package: gbm
-Loading required package: gbm
-Registered S3 methods overwritten by 'adehabitatMA':
-  method                       from
-  print.SpatialPixelsDataFrame sp  
-  print.SpatialPixels          sp  
-Loading required package: ape
-Loading required package: ape
-Loading required package: ape
-Loading required package: gbm
-Loading required package: gbm
-Loading required package: gbm
-Loading required package: ape
-Loaded gbm 2.1.8
-Loaded gbm 2.1.8
-Registered S3 methods overwritten by 'adehabitatMA':
-  method                       from
-  print.SpatialPixelsDataFrame sp  
-  print.SpatialPixels          sp  
-Loaded gbm 2.1.8
-Loading required package: sp
-Loading required package: sp
-Loading required package: sp
-Loading required package: gbm
-Loaded gbm 2.1.8
-Loading required package: sp
-Loaded gbm 2.1.8
-Loaded gbm 2.1.8
-Loaded gbm 2.1.8
-Loading required package: sp
-Loading required package: sp
-Loading required package: sp
-Registered S3 methods overwritten by 'adehabitatMA':
-  method                       from
-  print.SpatialPixelsDataFrame sp  
-  print.SpatialPixels          sp  
-Loaded gbm 2.1.8
-Registered S3 methods overwritten by 'adehabitatMA':
-  method                       from
-  print.SpatialPixelsDataFrame sp  
-  print.SpatialPixels          sp  
-Loading required package: sp
 Registered S3 methods overwritten by 'adehabitatMA':
   method                       from
   print.SpatialPixelsDataFrame sp  
@@ -124,3 +79,1075 @@ Registered S3 methods overwritten by 'adehabitatMA':
   method                       from
   print.SpatialPixelsDataFrame sp  
   print.SpatialPixels          sp  
+Loading required package: ade4
+Loading required package: ape
+Loading required package: ade4
+Loading required package: gbm
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: ape
+Loading required package: gbm
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loaded gbm 2.1.8
+Loading required package: sp
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: gbm
+Loading required package: ape
+Loading required package: ape
+Loading required package: gbm
+Loading required package: gbm
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: ape
+Loading required package: gbm
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: sp
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ade4
+en by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ade4
+Loaded gbm 2.1.8
+Loading required package: sp
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ade4
+Loading required package: ape
+Loading required package: ape
+Loading required package: ape
+Loading required package: ape
+Loading required package: ade4
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: gbm
+Loaded gbm 2.1.8
+package: ape
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: sp
+Loading required package: sp
+Loading required package: sp
+Loading required package: ape
+Loading required package: gbm
+Loading required package: gbm
+Loaded gbm 2.1.8
+Loading required package: sp
+Loaded gbm 2.1.8
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: sp
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ape
+Loading required package: ape
+Loading required package: ape
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: ape
+Loading required package: gbm
+Loading required package: ape
+Loading required package: gbm
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: sp
+Loaded gbm 2.1.8
+Loading required package: sp
+Loaded gbm 2.1.8
+Loading required package: sp
+Loaded gbm 2.1.8
+Loading required package: sp
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ape
+Loading required package: ape
+Loading required package: gbm
+Loading required package: ade4
+Loading required package: gbm
+Loading required package: ape
+Loading required package: gbm
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: sp
+Loaded gbm 2.1.8
+Loading required package: ape
+Loading required package: sp
+Loading required package: gbm
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loaded gbm 2.1.8
+Loading required package: sp
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ape
+Loading required package: gbm
+Loading required package: ape
+Loading required package: gbm
+Loaded gbm 2.1.8
+Loading required package: ade4
+Loading required package: sp
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: ade4
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ape
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: gbm
+
+Loading required package: ape
+Loading required package: gbm
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: ape
+Loaded gbm 2.1.8
+Loading required package: gbm
+Loading required package: sp
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ade4
+Loading required package: ade4
+Loaded gbm 2.1.8
+Loading required package: ade4
+Loading required package: sp
+Loading required package: ade4
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ape
+Loading required package: ade4
+Loading required package: gbm
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ape
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ade4
+Loading required package: ape
+Loading required package: gbm
+Loading required package: ape
+Loading required package: gbm
+Loading required package: ape
+Loading required package: ade4
+Loaded gbm 2.1.8
+Loading required package: gbm
+Loading required package: sp
+Loading required package: gbm
+Loading required package: ape
+Loading required package: ape
+Loaded gbm 2.1.8
+Loading required package: ade4
+Loading required package: gbm
+Loading required package: sp
+Loaded gbm 2.1.8
+Loading required package: ape
+Loading required package: ape
+Loading required package: sp
+Loading required package: gbm
+Loading required package: ape
+Loaded gbm 2.1.8
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: sp
+Loaded gbm 2.1.8
+Loading required package: gbm
+Loading required package: sp
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ape
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: gbm
+Loaded gbm 2.1.8
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: sp
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: sp
+Loaded gbm 2.1.8
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ape
+Loading required package: sp
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: gbm
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: ade4
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loaded gbm 2.1.8
+Loading required package: sp
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ade4
+Loading required package: ape
+Loading required package: ade4
+Loading required package: gbm
+Loaded gbm 2.1.8
+Loading required package: ape
+Loading required package: sp
+Loading required package: ape
+Loading required package: gbm
+Loading required package: gbm
+Loaded gbm 2.1.8
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: sp
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: ade4
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ape
+Loading required package: gbm
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: ade4
+Loading required package: ade4
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ade4
+Loading required package: ape
+Loading required package: ape
+Loading required package: ape
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ade4
+Loaded gbm 2.1.8
+Loading required package: ade4
+Loaded gbm 2.1.8
+Loading required package: sp
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: ade4
+Loading required package: sp
+Loading required package: ape
+Loading required package: gbm
+Loading required package: ape
+Loading required package: ape
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: ape
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: gbm
+Loading required package: ape
+Loading required package: gbm
+Loaded gbm 2.1.8
+Loading required package: ape
+Loading required package: sp
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: sp
+Loading required package: gbm
+Loaded gbm 2.1.8
+Loading required package: sp
+Loaded gbm 2.1.8
+Loading required package: sp
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ade4
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ade4
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ade4
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ape
+Loading required package: ape
+Loading required package: ade4
+Loading required package: ape
+Loading required package: ape
+
+Loading required package: ade4
+Loading required package: ape
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: ape
+Loading required package: ape
+Loading required package: ape
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: ade4
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: ape
+Loading required package: ape
+Loading required package: ade4
+Loading required package: ape
+Loading required package: ape
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: gbm
+Loading required package: ade4
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: sp
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+package: ape
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: ape
+Loading required package: sp
+Loading required package: sp
+Loading required package: sp
+Loading required package: sp
+Loading required package: sp
+Loading required package: gbm
+Loaded gbm 2.1.8
+Loading required package: gbm
+Loading required package: ape
+Loading required package: sp
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loading required package: sp
+Loading required package: sp
+Loading required package: sp
+Loading required package: sp
+Loading required package: gbm
+Loading required package: ape
+Loading required package: gbm
+Loading required package: ape
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: gbm
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loaded gbm 2.1.8
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loaded gbm 2.1.8
+Loaded gbm 2.1.8
+Loading required package: sp
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ape
+Loading required package: sp
+Loading required package: sp
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loaded gbm 2.1.8
+Loading required package: gbm
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: sp
+Loaded gbm 2.1.8
+Loading required package: sp
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loaded gbm 2.1.8
+Loading required package: sp
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ade4
+Loading required package: ade4
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ape
+Loading required package: ape
+Loading required package: gbm
+Loading required package: ade4
+Loading required package: gbm
+Loaded gbm 2.1.8
+Loading required package: sp
+Loaded gbm 2.1.8
+package: ape
+Loading required package: sp
+Loading required package: gbm
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loaded gbm 2.1.8
+Loading required package: sp
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Loading required package: ade4
+Loading required package: ade4
+Loading required package: ape
+Loading required package: gbm
+Loading required package: ape
+Loaded gbm 2.1.8
+Loading required package: gbm
+Loading required package: sp
+Loaded gbm 2.1.8
+Loading required package: sp
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Registered S3 methods overwritten by 'adehabitatMA':
+  method                       from
+  print.SpatialPixelsDataFrame sp  
+  print.SpatialPixels          sp  
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
+Error: 
+Type of measure 'AvTD' unknow, stopping here
+
+Execution halted
