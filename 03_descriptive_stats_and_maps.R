@@ -573,7 +573,7 @@ plot(m)
 # 
 # mprob <- st_union(mprob)
 # 
-# mprob <- st_transform(mprob, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs",
+# mprob <- st_transform(mprob, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs"
 #                         )
 # 
 
@@ -587,7 +587,7 @@ thicc_lines <- data[which(data$area<min.area),]
   geom_sf(data=thicc_lines, lwd=1.5, aes(col=bi_class), show.legend=F)+
   bi_scale_color(pal = "GrPink2", dim = 3, na.value="white") +
   bi_theme()+
-  geom_sf(data=m, aes(fill="green", col="grey", alpha=0.5))+
+  geom_sf(data=m[m$Type="hotspot area",], fill="green", color=NA, alpha=0.5, show.legend=F)+
   ggtitle("PD and WE"))
 legend <- bi_legend(pal = "GrPink2",
                     dim = 3,
@@ -597,9 +597,7 @@ legend <- bi_legend(pal = "GrPink2",
 ggdraw() +
   draw_plot(map, 0, 0, 1, 1) +
   draw_plot(legend, 0.05, 0.25, 0.2, 0.2)
-
-
-#ggsave("figures/phylo_pure_colorpleth_map.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
+ggsave("figures/phylo_pure_colorpleth_map.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
 
 
 data <- bi_class(shp, x = SES.PD, y = PE, style = "jenks", dim = 3)
