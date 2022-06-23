@@ -94,22 +94,59 @@ rm(phylist2)
 
 ### save data
 # transfer to cluster manually, file too big for github
+
+#check if all submat really the same:
+cn <- lapply(submat, colnames)
+for(i in 1:99)print(all(cn[i]%in%cn[i+1])) # all true, save space:
+submat <- submat[[1]]
+
 save(list = c("submat", "subphy"), file="PD_nullmodel/comm_and_phy.RData")
+# gdat = list(submat, subphy)
+# saveRDS(gdat, file="PD_nullmodel/comm_and_phy.rds")
 
 
 ### build R scripts
 Rscript <- "
-  # get rep number (=tree number)
-  args <- commandArgs()
-  print(args)
-  rep <- as.numeric(args[6])
-  model <- args[7]
-  
-  library(phyloregion) # PD calculations etc
-  load('comm_and_phy.RData')
-  PD_ses_tipshuffle <- PD_ses(submat[[rep]], subphy[[rep]], model=model, reps=100)
-  #PE_tipshuffle <- phylo_endemism((submat[[rep]], subphy[[rep]])
-  saveRDS(PD_ses_tipshuffle, file=paste0(model,'_', rep, '.rds'))
+  # # get rep number (=tree number)
+args <- commandArgs()
+print(args)
+rep <- as.numeric(args[6])
+model <- args[7]
+
+library(phyloregion) # PD calculations etc
+library(ecospat)
+load('comm_and_phy.RData')
+
+# PD_ses
+ind <- PD_ses(submat[[rep]], subphy[[rep]], model=model, reps=1000)
+#saveRDS(PD_ses_tipshuffle, file=paste0(model,'_', rep, '.rds'))
+
+print('PD_ses done')
+
+# AvTD
+tmp <- sparse2dense(submat[[rep]])
+tmp <- as.data.frame(tmp)
+rm(submat)
+sphy <- subphy[[rep]]
+rm(subphy)
+
+res.avTD <- ecospat.calculate.pd(sphy, tmp, type='AvTD'', method='pairwise')
+saveRDS(res.avTD, file=paste0('AvTD_, rep, '.rds'))
+
+print('AvTD done'')
+
+# TTD
+res.TTD <- ecospat.calculate.pd(sphy, tmp, type='TTD', method='pairwise')
+saveRDS(res.TTD, file=paste0('TTD_', rep, '.rds'))
+
+print('TTD done')
+
+all <- list(PD_ses_tipshuffle, res.avTD, res.TTD) #
+saveRDS(all, file=paste0('indices_', rep, '.rds'))
+
+ind$AvTD <- res.avTD
+ind$TTD <- res.TTD
+saveRDS(ind, file=paste0('ind_df_', rep, '.rds'))
 "
 cat(Rscript, file="PD_nullmodel/null_shuffle.R")
 
@@ -121,9 +158,9 @@ bashscript2 <- '#!/bin/bash
 #SBATCH --mail-type=FAIL,END
 #SBATCH --mail-user=melanie.tietje@bio.au.dk
 #SBATCH --partition normal
-#SBATCH --mem-per-cpu=8gb
+#SBATCH --mem-per-cpu=64gb
 #SBATCH --cpus-per-task 1
-#SBATCH --time 00:30:00
+#SBATCH --time 04:00:00
 #SBATCH --output=nullshuffle.out
 
 source ~/miniconda3/bin/activate R-env-4
@@ -182,24 +219,57 @@ git push"
 
 
 # Run my own nullmodel ----------------------------------------------------
+ 
+# load("PD_nullmodel/comm_and_phy.RData")
+# tree <- subphy[[1]]
+# mat <- submat
+# rm(subphy, submat)
 # 
- load("PD_nullmodel/comm_and_phy.RData")
-
-
-
-# 
-# # shuffle phylogeny tiplabels (10 min or so for each iteration)
+# # shuffle phylogeny tiplabels (ca 10 min for each iteration)
 # set.seed(939)
-# res <- matrix(ncol=100, nrow=nrow(submat[[1]]))
+# res <- matrix(ncol=100, nrow=nrow(mat))
 # for(i in 1:100){
-#   subphy[[i]]$tip.label <- sample(subphy[[i]]$tip.label)
-#   res[,i] <- PD(submat[[i]], subphy[[i]])
+#   tree$tip.label <- sample(tree$tip.label)
+#   res[,i] <- PD(mat, tree)
 #   if(!i%%1)cat(i,"\r")
 # }
 # beep(2)
-# PD_manual <- rowMeans(res)
+# # add observed
+# #saveRDS(res, "res.rds")
+# res <- cbind(res, PD(mat, subphy[[2]]))
+# #PD_manual <- rowMeans(res)
 # PD_sd_manual <- apply(res, 1, sd)
+# 
+# # plot histograms for each distribution and add observed PD
+# resdf <- as.data.frame(res)
+# names(resdf) <- c(paste0("rand_", 1:100), "PD_obs")
+# saveRDS(resdf, "randomizedPD_100_and_obs.rds")
+# 
+# rest <- t(resdf)
+# rest <- rest[rownames(rest)!="PD_obs",]
+# resdf_long <- reshape2::melt(rest)
+# bot <- unique(resdf_long$Var2)
+# PD_obs <- PD(mat, subphy[[2]])
+# PD_obs <- data.frame(PD_obs, Var2=names(PD_obs))
+# tmp <- merge(resdf_long, PD_obs, all.x=TRUE)
+# # add species richness
+# s <- readRDS("fin_shp.rds")
+# s <- st_drop_geometry(s)
+# tmp <- merge(tmp, s[,c("LEVEL3_COD", "richness")], by.x="Var2", by.y="LEVEL3_COD", all.x=TRUE)
+# tmp <- tmp[order(tmp$richness),]
+# 
+# ggplot(tmp[tmp$Var2 %in% bot[1:100],], aes(x=value, label=richness))+
+#   geom_histogram(bins=120)+
+#   facet_wrap(~Var2, ncol=5)+
+#   geom_vline(aes(xintercept=PD_obs), col="red")+
+#   geom_text(aes(x=0, y=75))
+# 
+# s <- s[!s$LEVEL3_COD=="BOU",]
+# plot(tapply(tmp$value, tmp$Var2, sd), unique(tmp$PD_obs))
+# plot(s$richness, res[,101]-rowMeans(res[,-101]), ylab="PDobs-PDrandom")
+# plot(s$richness, (res[,101]-rowMeans(res[,-101]))/s$richness, ylab="(PDobs-PDrandom)/SR")
 
+# sd does not increase the same as PD_obs. Small changes in small PD_obs are accompanied by big increases in SD, making it less likely the PDobs is outside the 2xSD - is this only a significance problem or also a ... z-score is the distance
 
 # Repeated subsampling with n=minimum species number
 ## min number = 45 from the no.na dataset
@@ -239,21 +309,21 @@ git push"
 # }
 # Sys.time()
 # beep(2)
-fil <- dir("PD_nullmodel", pattern="bootstrap_[1-9]", full.names = T)
-res <- lapply(fil, readRDS)
-
-tmpPD <- lapply(res, FUN=function(x){x[[1]]})
-sdPD <- lapply(res, FUN=function(x){x[[2]]})
-pd.df <- as.data.frame(tmpPD)
-pdsd.df <- as.data.frame(sdPD)
-bootstrap.PD <- rowMeans(pd.df)
-bootstrap.PD.sd <- rowMeans(pdsd.df)
-
-shp <- readRDS("fin_shp.rds")
-# remove BOU that has no data
-shp <- shp[!shp$LEVEL3_COD=="BOU",]
-
-shp$bootstrapPD <- bootstrap.PD
+# fil <- dir("PD_nullmodel", pattern="bootstrap_[1-9]", full.names = T)
+# res <- lapply(fil, readRDS)
+# 
+# tmpPD <- lapply(res, FUN=function(x){x[[1]]})
+# sdPD <- lapply(res, FUN=function(x){x[[2]]})
+# pd.df <- as.data.frame(tmpPD)
+# pdsd.df <- as.data.frame(sdPD)
+# bootstrap.PD <- rowMeans(pd.df)
+# bootstrap.PD.sd <- rowMeans(pdsd.df)
+# 
+# shp <- readRDS("fin_shp.rds")
+# # remove BOU that has no data
+# shp <- shp[!shp$LEVEL3_COD=="BOU",]
+# 
+# shp$bootstrapPD <- bootstrap.PD
 # plot(shp$SES.PD, shp$bootstrapPD)
 # plot(shp$PD_obs, shp$bootstrapPD)
 # 
@@ -282,220 +352,181 @@ shp$bootstrapPD <- bootstrap.PD
 # PD_sd_manual <- apply(res, 1, sd)
 
 
-# Pairwise distances ------------------------------------------------------
-## NOT READY YET?
-fil <- dir("PD_nullmodel", pattern="pairwise_dist_[1-9]", full.names = T)
-res <- lapply(fil, readRDS)
+# MPD + NRI (SES.MPD) ------------------------------------------------------
+# library(PhyloMeasures)
+# 
+# system.time(load("PD_nullmodel/comm_and_phy.RData")) 
+# 
+# mat <- sparse2dense(submat)
+# rm(submat)
+# system.time(mpd <- mpd.query(subphy[[1]], mat, standardize = FALSE)) # 9sec
+# 
+# mpd <- matrix(ncol=100,nrow=nrow(mat))
+# for(i in 1:100){
+#   mpd[,i] <- mpd.query(subphy[[i]], mat, standardize = FALSE)
+#   cat(i,"\r")
+# }
+# saveRDS(mpd, "mpd.rds")
 
-tmppairD <- lapply(res, FUN=function(x){x[[1]]})
-# sdpairD <- lapply(res, FUN=function(x){x[[2]]})
-pairD.df <- as.data.frame(tmppairD)
-# pairDsd.df <- as.data.frame(sdpairD)
-pairD <- na.omit(rowMeans(pairD.df))
-
-
-# shp <- readRDS("fin_shp.rds")
-# remove BOU that has no data
-# shp <- shp[!shp$LEVEL3_COD=="BOU",]
-shp$pairD <- pairD
+# NRI runs on cluster with ses.mpd.R script
+# ses.mpd <- mpd.query(subphy[[1]], mat, standardize = TRUE, null.model="uniform", reps=1000)
 
 
 
 
 # SES.PD, AvTD, TTD --------------------------------------------------
 
-# SES.PD
-pdnames <- dir("PD_nullmodel", pattern="indices.*?.rds", full.names = T)
-
-# # 100 or 1000?
-# pdnames <- pdnames[grep("1000", pdnames)]
-
-
-ind.list <- lapply(pdnames, readRDS)
-tmp <- lapply(ind.list, function(x){cbind(x[[1]], x[[2]])})
-
-# mapply(cbind, filelist, "SampleID"=ID, SIMPLIFY=F)
-# tmp2 <- mapply(append, tmp, sapply(ind.list, "[[", 3), SIMPLIFY=FALSE)
-ttd <- sapply(ind.list, "[[", 3)
-TTD <- rowMeans(ttd)
-
-tipshuffle.df <- data.frame(LEVEL3_COD = ind.list[[1]][[1]]$grids,
-                    richness = apply(sapply(tmp, "[[", "richness"), 1, mean),
-                    PD_obs = apply(sapply(tmp, "[[", "PD_obs"), 1, mean),
-                    pd_rand_mean = apply(sapply(tmp, "[[", "pd_rand_mean"), 1, mean),
-                    pd_rand_sd = apply(sapply(tmp, "[[", "pd_rand_sd"), 1, mean),
-                    pd_obs_rank = apply(sapply(tmp, "[[", "pd_obs_rank"), 1, mean),
-                    SES.PD = apply(sapply(tmp, "[[", "zscore"), 1, mean),
-                    pd_obs_p = apply(sapply(tmp, "[[", "pd_obs_p"), 1, mean),
-                    reps = apply(sapply(tmp, "[[", "reps"), 1, mean),
-                    AvTD = apply(sapply(tmp, "[[", "x[[2]]"), 1, mean)
-)
-
-tipshuffle.df$TTD <- TTD
-# names(tipshuffle.df)[-grep("LEVEL3|richness|reps", names(tipshuffle.df))] <- 
-#   paste0(names(tipshuffle.df)[-grep("LEVEL3|richness|reps", names(tipshuffle.df))], "")
-
-# Careful with SD: from the function "pd_rand_sd <- apply(X = y, MARGIN = 2, FUN = var, na.rm = TRUE)" this is variance! --> zscore is fine: zscore <- (PD_obs - pd_rand_mean)/sqrt(pd_rand_sd)
-
-# Removed entries with richness < 30? Zscore is not to be trusted: Central Limit Theorem
-table(tipshuffle.df$richness<30)
-tipshuffle.df[tipshuffle.df$richness<30, -c(1:3,9:11)] <- NA
-
-# PLOTS
-plot_grid(nrow=2,
-ggplot(tipshuffle.df, aes(x=richness, y=PD_obs, col=pd_obs_p<0.05))+
-  geom_point()+
-  scale_x_continuous("species richness", trans="sqrt", 
-                     breaks = c(10, 100, 1000, 10000), limits = c(30, 23000))+
-#  scale_y_continuous("sqrt (PD)", trans="sqrt", breaks=c(100, 1000, 10000, 100000))+
-  scale_color_discrete("diff from null dist", na.translate=F)+
-  geom_line(aes(y=pd_rand_mean), col="grey")+
-  geom_ribbon(aes(ymin=pd_rand_mean-2*sqrt(pd_rand_sd), 
-              ymax=pd_rand_mean+2*sqrt(pd_rand_sd)), alpha=0.3, color=NA)+
-  theme(legend.position = c(x=0.15, y=0.85))
-,
-ggplot(tipshuffle.df, aes(x=richness, y=SES.PD, col=pd_obs_p<0.05))+
-  geom_point()+
-  scale_x_continuous(trans="sqrt", limits = c(30, 23000))+
-  theme(legend.position = c(x=0.15, y=0.15))
-,
-ggplot(tipshuffle.df, aes(x=richness, y=AvTD))+
-  geom_point()+
-  scale_x_continuous(trans="sqrt", limits = c(30, 23000))
-,
-ggplot(tipshuffle.df, aes(x=richness, y=TTD))+
-  geom_point()+
-  scale_x_continuous(trans="sqrt", limits = c(30, 23000))
-)
-
-ggplot(tipshuffle.df, aes(x=PD_obs, y=AvTD))+
-  geom_point()
-
-
-# DOES THE Zscore SCALE WITH SR??
-# Does the SD of distributions scale with SES.PD?
-ggplot(tipshuffle.df, aes(x=richness, y=sqrt(pd_rand_sd), col=pd_obs_p<0.05))+
-  geom_point()#+
-#  scale_x_continuous(limits = c(30, 23000))
-## SD rises like crazy at the start and slows down for higher SR. An increase
-## from 15k to 20k in SR only means and increase in SDrand of 100, whereas the
-## same increase from 30 to 5k means an SD increase of 900.
-ggplot(tipshuffle.df, aes(x=PD_obs, y=sqrt(pd_rand_sd), col=pd_obs_p<0.05))+
-  geom_point()
-## PD_randSD scales with observed PD non linearly 
-ggplot(tipshuffle.df, aes(x=richness, y=sqrt(pd_rand_sd)/PD_obs))+
-  geom_point()
-## The ratio of PD_randSD : PD_obs gets rapidly Bigger for higher SR: It
-## starts with 1:10 for small values and grows to 1:40 for high species
-## richness. What does that mean: This does not affect the random PD curve
-## position, but only its width: means that the random PD curve gets relatively
-## narrower to the absolute value, so they can lay outside of this narrower
-## distribution more easily?
-# standard error of the mean equals the standard deviation divided by the square root of the sample size
-ggplot(tipshuffle.df, aes(x=richness, y=sqrt(pd_rand_sd)/sqrt(richness)))+
-  geom_point()
-## Standard Error decreases more smoothly than SD
-
-# Does scaling z score with SR again make sense?
-ggplot(tipshuffle.df, aes(x=richness, y=SES.PD/richness, col=pd_obs_p<0.05))+
-  geom_point()+
-  scale_x_continuous(trans="log", limits = c(30, 23000))
-
-# using SE instead of SD
-tipshuffle.df$z.se=(tipshuffle.df$PD_obs-tipshuffle.df$pd_rand_mean)/(sqrt(tipshuffle.df$pd_rand_sd)/sqrt(tipshuffle.df$richness))
-ggplot(tipshuffle.df, aes(x=PD_obs, y=z.se, col=pd_obs_p<0.05))+
-  geom_point()
-ggplot(tipshuffle.df, aes(x=PD_obs, y=SES.PD, col=pd_obs_p<0.05))+
-  geom_point()
-
-
-# # Rowwise nullmodel -------------------------------------------------------
-# ### read cluster results and get means
-# pdnames <- dir("PD_nullmodel", pattern="rowwise.*?.rds", full.names = T)
-# rowwise.df <- data.frame(LEVEL3_COD = PD.list[[1]]$grids,
-#                             richness = apply(sapply(PD.list, "[[", "richness"), 1, mean),
-#                             PD_obs = apply(sapply(PD.list, "[[", "PD_obs"), 1, mean),
-#                             pd_rand_mean = apply(sapply(PD.list, "[[", "pd_rand_mean"), 1, mean),
-#                             pd_rand_sd = apply(sapply(PD.list, "[[", "pd_rand_sd"), 1, mean),
-#                             pd_obs_rank = apply(sapply(PD.list, "[[", "pd_obs_rank"), 1, mean),
-#                             SES.PD = apply(sapply(PD.list, "[[", "zscore"), 1, mean),
-#                             pd_obs_p = apply(sapply(PD.list, "[[", "pd_obs_p"), 1, mean),
-#                             reps = apply(sapply(PD.list, "[[", "reps"), 1, mean)
+# # SES.PD, AvTD, TTD
+# pdnames <- dir("PD_nullmodel", pattern="ind_df", full.names = T)
+# ind.list <- lapply(pdnames, readRDS)
+# 
+# #alt.list <- readRDS("PD_nullmodel/indices_2.rds") # 1=AvDT, 2=TTD
+# #tmp <- lapply(ind.list, function(x){cbind(x[[1]], x[[2]])})
+# 
+# # ttd <- sapply(ind.list, "[[", 3)
+# # TTD <- rowMeans(ttd)
+# 
+# tipshuffle.df <- data.frame(LEVEL3_COD = ind.list[[1]]$grids,
+#                     richness = apply(sapply(ind.list, "[[", "richness"), 1, mean),
+#                     PD_obs = apply(sapply(ind.list, "[[", "PD_obs"), 1, mean),
+#                     pd_rand_mean = apply(sapply(ind.list, "[[", "pd_rand_mean"), 1, mean),
+#                     pd_rand_sd = apply(sapply(ind.list, "[[", "pd_rand_sd"), 1, mean),
+#                     pd_obs_rank = apply(sapply(ind.list, "[[", "pd_obs_rank"), 1, mean),
+#                     SES.PD = apply(sapply(ind.list, "[[", "zscore"), 1, mean),
+#                     pd_obs_p = apply(sapply(ind.list, "[[", "pd_obs_p"), 1, mean),
+#                     reps = apply(sapply(ind.list, "[[", "reps"), 1, mean),
+#                     AvTD = apply(sapply(ind.list, "[[", "AvTD"), 1, mean),
+#                     TTD = apply(sapply(ind.list, "[[", "TTD"), 1, mean)
 # )
-# names(rowwise.df)[-grep("LEVEL3|richness|reps", names(rowwise.df))] <- 
-#   paste0(names(rowwise.df)[-grep("LEVEL3|richness|reps", names(rowwise.df))], "_rw")
 # 
+# # Careful with SD: from the function "pd_rand_sd <- apply(X = y, MARGIN = 2, FUN = var, na.rm = TRUE)" this is variance! --> zscore is fine: zscore <- (PD_obs - pd_rand_mean)/sqrt(pd_rand_sd)
 # 
+# # Removed entries with richness < 30? Zscore is not to be trusted: Central Limit Theorem
+# table(tipshuffle.df$richness<30)
+# tipshuffle.df[tipshuffle.df$richness<30, -c(1:3,9:11)] <- NA
 # 
-# 
-# # Colwise nullmodel -------------------------------------------------------
-# ### read cluster results and get means
-# pdnames <- dir("PD_nullmodel", pattern="colwise.*?.rds", full.names = T)
-# PD.list <- lapply(pdnames, readRDS)
-# colwise.df <- data.frame(LEVEL3_COD = PD.list[[1]]$grids,
-#                          richness = apply(sapply(PD.list, "[[", "richness"), 1, mean),
-#                          PD_obs = apply(sapply(PD.list, "[[", "PD_obs"), 1, mean),
-#                          pd_rand_mean = apply(sapply(PD.list, "[[", "pd_rand_mean"), 1, mean),
-#                          pd_rand_sd = apply(sapply(PD.list, "[[", "pd_rand_sd"), 1, mean),
-#                          pd_obs_rank = apply(sapply(PD.list, "[[", "pd_obs_rank"), 1, mean),
-#                          SES.PD = apply(sapply(PD.list, "[[", "zscore"), 1, mean),
-#                          pd_obs_p = apply(sapply(PD.list, "[[", "pd_obs_p"), 1, mean),
-#                          reps = apply(sapply(PD.list, "[[", "reps"), 1, mean)
-# )
-# names(colwise.df)[-grep("LEVEL3|richness|reps", names(colwise.df))] <- 
-#   paste0(names(colwise.df)[-grep("LEVEL3|richness|reps", names(colwise.df))], "_cw")
-# 
-# 
+# saveRDS(tipshuffle.df, "tipshuffle.rds")
 
-
-
-
-# Assemble df + shapefile ------------------------------------------------
-
-#dat <- merge.data.table(tipshuffle.df, rowwise.df, by=c("LEVEL3_COD", "richness", "reps"))
-#dat <- merge.data.table(dat, colwise.df, by=c("LEVEL3_COD", "richness", "reps"))
-#dat$PD_manual <- PD_manual
-#dat$PD_sd_manual <- PD_sd_manual
-
-#plot(dat$pd_rand_mean, dat$PD_manual)
-#cor(dat$pd_rand_mean, dat$PD_manual)
-#hist(dat$pd_rand_mean- dat$PD_manual)
-# the phyloregion tipshuffle model is legit
-
-s <- raster::shapefile("../DATA/shapefile_bot_countries/level3.shp")
-s$LEVEL3_COD <- s$LEVEL_3_CO
-s@data <- merge(s@data, tipshuffle.df, by="LEVEL3_COD", all.x=TRUE)
 
 
 # *** PE ------------------------------------------------------------------
 
-# takes some time (couple minutes)
-load("PD_nullmodel/comm_and_phy.RData")
-tmp <- mapply(phylo_endemism, submat, subphy)
-tmp <- as.matrix(tmp)
+# # takes some time (couple minutes)
+# load("PD_nullmodel/comm_and_phy.RData")
+# tmp <- lapply(subphy, phylo_endemism, x=submat)
+# PE <- colMeans(do.call(rbind,tmp))
+# saveRDS(PE, "PE.rds")
 
-pe <- data.frame(PE = apply(tmp, 1, mean), PE_sd = apply(tmp, 1, sd))
-pe$LEVEL3_COD <- row.names(pe)
-s@data <- merge(s@data, pe, all.x=TRUE)
+# # bonus: make this faster:
+# library(Rcpp)
+# cppFunction('int add(int x, int y, int z) {
+#   int sum = x + y + z;
+#   return sum;
+# }')
+# add(1,5,8)
 
 
 # *** Weighted endemism -------------------------------------------------------
 # species richness inversely weighted by species ranges
 
-tmp <- mapply(weighted_endemism, submat[1]) # one is enough: distribution never changes
-rm(submat, subphy)
-tmp <- as.matrix(tmp)
+WE <- weighted_endemism(submat) # one is enough: distribution never changes
+#rm(submat, subphy)
 
-we <- data.frame(WE = tmp[,1], LEVEL3_COD = row.names(tmp))
-s@data <- merge(s@data, we, all.x=TRUE)
+
+
+# Assemble df + shapefile ------------------------------------------------
+
+
+tipshuffle.df <- readRDS("tipshuffle.rds")
+mpd <- readRDS("mpd.rds")
+mpd <- rowMeans(mpd)
+ses.mpd <- readRDS("PD_nullmodel/ses_mpd.rds")
+ses.mpd <- rowMeans(ses.mpd)
+PE <- readRDS("PE.rds")
+
+s <- raster::shapefile("../DATA/shapefile_bot_countries/level3.shp")
+s$LEVEL3_COD <- s$LEVEL_3_CO
+s <- s[!s$LEVEL3_COD=="BOU",]
+s@data <- merge(s@data, tipshuffle.df, by="LEVEL3_COD", all.x=TRUE)
+
+s@data$mpd <- mpd
+s@data$ses.mpd <- ses.mpd
+s@data$PE <- PE
+s@data$WE <- WE
 
 
 
 # *** Save  --------------------------------------------------------------
 
-
 saveRDS(s, "fin_shape.rds")
 
 
+
+
+# Plots -------------------------------------------------------------------
+
+
+plot_grid(nrow=2,
+          ggplot(tipshuffle.df, aes(x=richness, y=PD_obs, col=pd_obs_p<0.05))+
+            geom_point()+
+            scale_x_continuous("", trans="log", 
+                               breaks = c(10, 100, 1000, 10000), limits = c(30, 23000))+
+            #  scale_y_continuous("sqrt (PD)", trans="sqrt", breaks=c(100, 1000, 10000, 100000))+
+            scale_color_discrete("diff from null dist", na.translate=F)+
+            geom_line(aes(y=pd_rand_mean), col="grey")+
+            geom_ribbon(aes(ymin=pd_rand_mean-2*sqrt(pd_rand_sd), 
+                            ymax=pd_rand_mean+2*sqrt(pd_rand_sd)), alpha=0.3, color=NA)+
+            theme(legend.position = c(x=0.15, y=0.85))
+          ,
+          ggplot(tipshuffle.df, aes(x=richness, y=SES.PD, col=pd_obs_p<0.05))+
+            geom_point()+
+            scale_x_continuous("", trans="log", limits = c(30, 23000))+
+            theme(legend.position = "none")
+          ,
+          ggplot(tipshuffle.df, aes(x=richness, y=mpd))+
+            geom_point()+
+            scale_x_continuous("Species richness", trans="log", limits = c(30, 23000))
+          ,
+          ggplot(tipshuffle.df, aes(x=richness, y=ses.mpd))+
+            geom_point()+
+            scale_x_continuous("Species richness", trans="log", limits = c(30, 23000))
+)
+
+plot_grid(
+ggplot(tipshuffle.df, aes(x=richness, y=PD_obs/richness, label=LEVEL3_COD))+
+  geom_point(shape=NA)+
+  geom_text(size=3)
+,
+ggplot(tipshuffle.df, aes(x=PD_obs, y=SES.PD, label=LEVEL3_COD))+
+  geom_point(shape=NA)+
+  geom_text(size=3)
+)
+
+# DOES THE Zscore SCALE WITH SR? yes
+# ratio zscore to species richness:
+plot(tipshuffle.df$richness, tipshuffle.df$SES.PD/tipshuffle.df$richness)
+
+# Rank comparison SES.PD vs PD
+PD_ranks <- order(tipshuffle.df$PD_obs, decreasing = T)
+SES.PD_ranks <- order(tipshuffle.df$SES.PD, decreasing = T)
+# biggest rank difference?
+tipshuffle.df$LEVEL3_COD[which.max(PD_ranks - SES.PD_ranks)] # Wisconsin
+rank.df = data.frame(rank.diff = PD_ranks - SES.PD_ranks, level3=s@data$LEVEL_NAME)
+
+# lock factor levels order
+rank.df <- rank.df[order(rank.diff),]
+rank.df$level3 <- factor(rank.df$level3, levels = rank.df$level3)
+pos <- as.numeric(rank.df$rank.diff<1)
+pos[pos==0] <- -1
+
+ggplot(rank.df, aes(x=level3, y=rank.diff, label=level3))+
+  geom_bar(stat="identity")+
+  geom_text(aes(y = pos*15,  angle = 45), size=3, hjust=as.numeric(rank.df$rank.diff>1))+
+  facet_wrap(~factor(rank.diff<0), ncol = 1, scales = "free_x")#+
+#  theme(axis.text.x = element_text(angle = 45))
+
+# top.level3 <- tipshuffle.df$LEVEL3_COD[order(tipshuffle.df$PD_obs, decreasing = T)]
+# top.level3.ses <- tipshuffle.df$LEVEL3_COD[order(abs(tipshuffle.df$SES.PD), decreasing = T)]
+# data.frame(PD_order=top.level3, SES.PD_order=top.level3.ses)
 
 
