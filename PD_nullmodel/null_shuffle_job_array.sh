@@ -18,7 +18,7 @@ model=('tipshuffle' 'rowwise' 'colwise')
 #for ((m=0; m<=2; m++)) do
   this_model='tipshuffle' #${model[${m}]}
   export this_model
-  for ((i=0; i<=1; i++)) do
+  for ((i=0; i<=99; i++)) do
     this_rep=${rep[${i}]}
     export this_rep
     sbatch null_shuffle.sh
