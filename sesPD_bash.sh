@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --account PDiv
-#SBATCH --job-name=picante SES.PD
+#SBATCH --job-name=picante SES_PD
 #SBATCH --mail-type=FAIL,END
 #SBATCH --mail-user=melanie.tietje@bio.au.dk
 #SBATCH --partition normal
