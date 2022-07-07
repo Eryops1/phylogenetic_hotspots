@@ -288,7 +288,7 @@ global_drivers <- global_drivers[,-grep("ID|_NAM|CONTINENT|sr|pet_|_n|_abs|mangr
 global_drivers <- sf::st_drop_geometry(global_drivers)
 
 # merge into shape object
-shp <- merge(shp, global_drivers, by.x="LEVEL3_COD", by.y="LEVEL_3_CO", all.x=TRUE)
+shp <- merge(shp, global_drivers, all.x=TRUE)
 
 
 ## Load Environment data ---------------------------------------------------
