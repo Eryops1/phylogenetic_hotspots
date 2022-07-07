@@ -6,8 +6,11 @@ library(picante)
 load("tmp.RData")
 
 pic <- ses.pd(submat, phy, null.model = "independentswap",
-              runs = 10, iterations = 10, include.root=TRUE)
+              runs = 100, iterations = 100, include.root=TRUE)
 
 saveRDS(pic, "picante_trial_run.rds")
 
 
+## results
+# 
+# dat <- readRDS("picante_trial_run.rds")
