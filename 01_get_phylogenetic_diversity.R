@@ -405,55 +405,118 @@ git push"
 # table(tipshuffle.df$richness<30)
 # tipshuffle.df[tipshuffle.df$richness<30, -c(1:3,9:11)] <- NA
 # 
-# saveRDS(tipshuffle.df, "tipshuffle.rds")
+# # saveRDS(tipshuffle.df, "tipshuffle.rds")
 
+# PD rowwise -------------------------------------------------------------
+ś
+# pdnames <- dir("PD_nullmodel", pattern="rowwise", full.names = T)
+# ind.list <- lapply(pdnames, readRDS)
+# 
+# #alt.list <- readRDS("PD_nullmodel/indices_2.rds") # 1=AvDT, 2=TTD
+# #tmp <- lapply(ind.list, function(x){cbind(x[[1]], x[[2]])})
+# 
+# # ttd <- sapply(ind.list, "[[", 3)
+# # TTD <- rowMeans(ttd)
+# 
+# rowshuffle.df <- data.frame(LEVEL3_COD = ind.list[[1]]$grids,
+#                             richness = apply(sapply(ind.list, "[[", "richness"), 1, mean),
+#                             PD_obs = apply(sapply(ind.list, "[[", "PD_obs"), 1, mean),
+#                             pd_rand_mean = apply(sapply(ind.list, "[[", "pd_rand_mean"), 1, mean),
+#                             pd_rand_sd = apply(sapply(ind.list, "[[", "pd_rand_sd"), 1, mean),
+#                             pd_obs_rank = apply(sapply(ind.list, "[[", "pd_obs_rank"), 1, mean),
+#                             SES.PD = apply(sapply(ind.list, "[[", "zscore"), 1, mean),
+#                             pd_obs_p = apply(sapply(ind.list, "[[", "pd_obs_p"), 1, mean),
+#                             reps = apply(sapply(ind.list, "[[", "reps"), 1, mean)
+# )
+# 
+# # Careful with SD: from the function "pd_rand_sd <- apply(X = y, MARGIN = 2, FUN = var, na.rm = TRUE)" this is variance! --> zscore is fine: zscore <- (PD_obs - pd_rand_mean)/sqrt(pd_rand_sd)
+# 
+# # Removed entries with richness < 30? Zscore is not to be trusted: Central Limit Theorem
+# table(rowshuffle.df$richness<30)
+# rowshuffle.df[rowshuffle.df$richness<30, -c(1:3,9:11)] <- NA
+# 
+# # saveRDS(rowshuffle.df, "rowshuffle.rds")
 
 
 # *** PE ------------------------------------------------------------------
 
-# # takes some time (couple minutes)
+# takes some time (couple minutes)
 # load("PD_nullmodel/comm_and_phy.RData")
 # tmp <- lapply(subphy, phylo_endemism, x=submat)
 # PE <- colMeans(do.call(rbind,tmp))
 # saveRDS(PE, "PE.rds")
 
-# # bonus: make this faster:
-# library(Rcpp)
-# cppFunction('int add(int x, int y, int z) {
-#   int sum = x + y + z;
-#   return sum;
-# }')
-# add(1,5,8)
+# load results from GDK run
+pdnames <- dir("PD_nullmodel", pattern="PE_", full.names = T)
+ind.list <- lapply(pdnames, readRDS)
+
+# alt.list <- readRDS("PD_nullmodel/indices_2.rds") # 1=AvDT, 2=TTD
+# tmp <- lapply(ind.list, function(x){cbind(x[[1]], x[[2]])})
+
+# ttd <- sapply(ind.list, "[[", )
+# TTD <- rowMeans(ttd)
+
+pe.df <- data.frame(LEVEL3_COD = ind.list[[1]]$grids,
+                    richness = apply(sapply(ind.list, "[[", "richness"), 1, mean),
+                    PE_obs = apply(sapply(ind.list, "[[", "PE_obs"), 1, mean),
+                    pe_rand_mean = apply(sapply(ind.list, "[[", "pe_rand_mean"), 1, mean),
+                    pe_rand_sd = apply(sapply(ind.list, "[[", "pe_rand_sd"), 1, mean),
+                    pe_obs_rank = apply(sapply(ind.list, "[[", "pe_obs_rank"), 1, mean),
+                    SES.PE = apply(sapply(ind.list, "[[", "zscore"), 1, mean),
+                    pe_obs_p = apply(sapply(ind.list, "[[", "pe_obs_p"), 1, mean),
+                    reps = apply(sapply(ind.list, "[[", "reps"), 1, mean)
+)
+
+# Careful with SD: from the function "pd_rand_sd <- apply(X = y, MARGIN = 2, FUN = var, na.rm = TRUE)" this is variance! --> zscore is fine: zscore <- (PD_obs - pd_rand_mean)/sqrt(pd_rand_sd)
+
+# Removed entries with richness < 30? Zscore is not to be trusted: Central Limit Theorem
+which(pe.df$richness<30)
+pe.df[pe.df$richness<30, -c(1:3,9:11)] <- NA
+
 
 
 # *** Weighted endemism -------------------------------------------------------
 # species richness inversely weighted by species ranges
 
-WE <- weighted_endemism(submat) # one is enough: distribution never changes
+WE <- weighted_endemism(submat) # one is enough
 #rm(submat, subphy)
 
 
 
 # Assemble df + shapefile ------------------------------------------------
 
-
+rowshuffle.df <- readRDS("rowshuffle.rds")
 tipshuffle.df <- readRDS("tipshuffle.rds")
+# wuick test
+plot(rowshuffle.df$PD_obs, tipshuffle.df$PD_obs)
+plot(rowshuffle.df$SES.PD, tipshuffle.df$SES.PD)
+names(rowshuffle.df)[4:8] <- paste0(names(rowshuffle.df)[4:8], "_RW")
+
 mpd <- readRDS("mpd.rds")
 mpd <- rowMeans(mpd)
 ses.mpd <- readRDS("PD_nullmodel/ses_mpd.rds")
 ses.mpd <- rowMeans(ses.mpd)
-PE <- readRDS("PE.rds")
+#PE <- readRDS("PE.rds")
 
 s <- raster::shapefile("../DATA/shapefile_bot_countries/level3.shp")
 s$LEVEL3_COD <- s$LEVEL_3_CO
 s <- s[!s$LEVEL3_COD=="BOU",]
 s@data <- merge(s@data, tipshuffle.df, by="LEVEL3_COD", all.x=TRUE)
+s@data <- merge(s@data, rowshuffle.df[,c(1,4:8)], by="LEVEL3_COD", all.x=TRUE)
+plot(s$richness, s$SES.PD_RW) # ok this is bullshit....
+
+# penalize SES.PD for richness
+plot(s$richness, s$SES.PD)
+plot(s$richness, s$SES.PD/sqrt(s$richness))
+
 
 s@data$mpd <- mpd
 s@data$ses.mpd <- ses.mpd
-s@data$PE <- PE
 s@data$WE <- WE
 
+s@data$PE_obs <- pe.df$PE_obs
+s@data$SES.PE <- pe.df$SES.PE
+s@data$pe_obs_p <- pe.df$pe_obs_p
 
 
 # *** Save  --------------------------------------------------------------

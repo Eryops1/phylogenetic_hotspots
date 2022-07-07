@@ -13,3 +13,6 @@ pic <- ses.pd(submat, phy, null.model = "independentswap",
 saveRDS(pic, "picante_run100.rds")
 
 
+## results
+# 
+# dat <- readRDS("picante_trial_run.rds")

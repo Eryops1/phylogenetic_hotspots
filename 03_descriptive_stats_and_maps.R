@@ -2,6 +2,7 @@
 wd <- dirname(rstudioapi::getSourceEditorContext()$path)
 setwd(wd)
 rm(list = setdiff(ls(), lsf.str()))  
+gc()
 library(phyloregion) # PD calculations
 library(raster)
 library(sf)
@@ -29,9 +30,9 @@ shp <- shp[!shp$LEVEL3_COD=="BOU",]
 
 # Explorative plots -------------------------------------------------------
 
-plot(st_drop_geometry(shp)[,c(1,4:12,13:23)])
-plot(st_drop_geometry(shp)[,c(1,4:12,24:35)])
-plot(st_drop_geometry(shp)[,c(1,4:12,36:57)])
+# plot(st_drop_geometry(shp)[,c(1,4:12,13:23)])
+# plot(st_drop_geometry(shp)[,c(1,4:12,24:35)])
+# plot(st_drop_geometry(shp)[,c(1,4:12,36:57)])
 
 
 
@@ -63,7 +64,8 @@ n_var_miss(dat.sub)
 gg_miss_upset(dat.sub, nsets=37)
 
 
-plot_grid(ggplot(dat.sub, aes(y=area, group=is.na(hfp_mean)))+
+plot_grid(
+ggplot(dat.sub, aes(y=area, group=is.na(hfp_mean)))+
   geom_boxplot(varwidth = T)+
   scale_y_log10()+
   xlab("HFP == NA (positive=T: n=27)"),
@@ -73,7 +75,7 @@ ggplot(dat.sub, aes(y=PD_obs, group=is.na(hfp_mean)))+
 ggplot(dat.sub, aes(y=SES.PD, group=is.na(hfp_mean)))+
   geom_boxplot(varwidth = T)+
   xlab("HFP == NA (positive=T: n=27)"),
-ggplot(dat.sub, aes(y=PE, group=is.na(hfp_mean)))+
+ggplot(dat.sub, aes(y=SES.PE, group=is.na(hfp_mean)))+
   geom_boxplot(varwidth = T)+
   scale_y_log10()+
   xlab("HFP == NA (positive=T: n=27)"))
@@ -286,7 +288,7 @@ n <- names(dat_no.na[,-grep("LEVEL", names(dat_no.na))])
 f <- as.formula(paste("SES.PD ~", paste(n[!n %in% "SES.PD"], collapse = " + ")))
 
 run.gbm <- function(i, seeds, data, trControl=gbmControl,
-                    tuneGrid=gbmGrid){
+                    tuneGrid=gbmGrid, f=f){
   set.seed(s[i])
   if(!i%%1)cat(i,"\r")
   temp <- train(f, data, method = "gbm",
@@ -303,31 +305,55 @@ system.time(
 )
 
 #pd_list <- unlist(PD_list, recursive = F)
-eq <- matrix(sapply(PD_list, "[[", 1), ncol=72, byrow = T)
-eq <- reshape2::melt(eq)
-ggplot(eq, aes(value))+
-  geom_bar()+
-  facet_wrap(~Var2, scales = "free")+
-  theme(axis.text.x = element_text(size=6, angle = 45, hjust=1),
-        strip.background = element_blank())
+pdl <- lapply(PD_list, varImp)
+pdm <- as.data.frame(sapply(pdl, "[", "importance"))
+su <- rowSums(pdm)
+pdm$pred = row.names(pdm) 
+pddf <- reshape2::melt(pdm, id.name= "pred", value.name = "varImp")
+# sort factors
+pddf$pred <- factor(pddf$pred)
+pddf$pred <- factor(pddf$pred, levels=names(sort(su, decreasing = F)))
 
-eqr <-tapply(eq$value, eq$Var2, function(x){names(sort(table(x), decreasing = T))})
-fin_sr <- sort(tapply(eq$Var2, eq$value, function(x){sum(x)/length(x)}), decreasing=F)
+ggplot(pddf, aes(x=pred, y=varImp))+
+  geom_boxplot()+
+  ylab("Variable importance")+
+#  facet_wrap(~Var2, scales = "free")+
+#  theme(axis.text.x = element_text(size=6, angle = 45, hjust=1),
+#        strip.background = element_blank())+
+  theme(axis.title.y = element_blank(), axis.text.y = element_text(size=9))+
+  coord_flip()
+ggsave("figures/varImp_SES_PD_gbm10_runs.png", width=7, height=10, units = "in", dpi = 600)
 
-# select variables that score lowest position relative to their number of
-# appearances in different positions (the lower the more important)
-fin_sr <- data.frame(fin_sr, variable=names(fin_sr))
 
 
-fin_sr <- fin_sr[order(fin_sr$fin_sr, decreasing = T),]
-fin_sr$variable <- factor(fin_sr$variable, levels = fin_sr$variable)
+## formula
+f2 <- as.formula(paste("SES.PE ~", paste(n[!n %in% "SES.PE"], collapse = " + ")))
 
-ggplot(fin_sr, aes(y=variable, x=fin_sr))+
-  xlab("Average variable position")+
-  geom_bar(stat = "identity")+
-  theme(axis.title.x = element_blank(), axis.text.y = element_text(size=9))
-ggsave("figures/varImp_SES_PD_gbm10_runs.png", width=7, height=14, units = "in", dpi = 600)
+n_cores=4
+s <- seq(500,507,1) # models are rather slow with that many variables, ca. 5 minutes per model
+system.time(
+  PE_list <- mclapply(1:length(s), seeds = s, run.gbm, f=f2,
+                      data = dat_no.na, mc.cores=n_cores)
+)
 
+pel <- lapply(PE_list, varImp)
+pem <- as.data.frame(sapply(pel, "[", "importance"))
+su <- rowSums(pem)
+pem$pred = row.names(pem) 
+pedf <- reshape2::melt(pem, id.name= "pred", value.name = "varImp")
+# sort factors
+pedf$pred <- factor(pedf$pred)
+pedf$pred <- factor(pedf$pred, levels=names(sort(su, decreasing = F)))
+
+ggplot(pedf, aes(x=pred, y=varImp))+
+  geom_boxplot()+
+  ylab("Variable importance")+
+  #  facet_wrap(~Var2, scales = "free")+
+  #  theme(axis.text.x = element_text(size=6, angle = 45, hjust=1),
+  #        strip.background = element_blank())+
+  theme(axis.title.y = element_blank(), axis.text.y = element_text(size=9))+
+  coord_flip()
+ggsave("figures/varImp_SES_PE_gbm10_runs.png", width=7, height=14, units = "in", dpi = 600)
 
 
 
@@ -383,6 +409,21 @@ saveRDS(shp, "for_plotting.rds")
 
 # Maps --------------------------------------------------------------------
 
+wd <- dirname(rstudioapi::getSourceEditorContext()$path)
+setwd(wd)
+rm(list = setdiff(ls(), lsf.str()))  
+gc()
+library(phyloregion) # PD calculations
+library(raster)
+library(sf)
+library(ggplot2)
+theme_set(theme_bw())
+library(cowplot)
+library(rgdal)
+library(beepr)
+if(!dir.exists("figures"))dir.create("figures")
+
+
 # format to sf object for plotting
 shp <- readRDS("for_plotting.rds")
 shp <- st_as_sf(shp)
@@ -414,12 +455,10 @@ ucol <- max(thicc_lines$PD_obs)/max(shp$PD_obs)
     ggtitle("Raw PD Faith")
 )
 
-# +100 tweak.....
-#lcol <- min(thicc_lines$SES.PD, na.rm = T)/max(shp$SES.PD, na.rm = T)
-#ucol <- max(thicc_lines$SES.PD, na.rm = T)/max(shp$SES.PD, na.rm = T)
-(pd_ses_map <- ggplot(shp) + 
+
+(pd_ses_map <- ggplot(na.omit(shp)) + 
     geom_sf(aes(fill=SES.PD),lwd=0, col=NA) + 
-    geom_sf(data=thicc_lines, lwd=1.5, aes(col=SES.PD), show.legend=F)+
+    geom_sf(data=na.omit(thicc_lines), lwd=1.5, aes(col=SES.PD), show.legend=F)+
     scale_colour_viridis_c("SES.PD", option = "plasma")+
     scale_fill_viridis_c("SES.PD", option = "plasma")+ #, 
     theme(legend.position = c(0.18, 0.3),
@@ -457,38 +496,53 @@ ucol <- max(thicc_lines$PD_obs/thicc_lines$richness)/max(shp2$PD_obs/shp2$richne
     )+
     xlab(" ")+
     ggtitle("PD Faith / richness")
-  
+  )
+
+
+thicc_lines <- shp2[which(shp2$area<min.area),]
+lcol <- min(thicc_lines$PE_obs)/max(shp2$PE_obs)
+ucol <- max(thicc_lines$PE_obs)/max(shp2$PE_obs)
+(pe_map <- ggplot(shp2) + 
+    geom_sf(aes(fill=PE_obs),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1.5, aes(col=thicc_lines$PE_obs), show.legend=F)+
+    scale_colour_viridis_c("PE", option = "plasma", trans="sqrt",
+                           begin = lcol, end = ucol)+
+    scale_fill_viridis_c("PE", option = "plasma",trans="sqrt")+ #, 
+    theme(legend.position = c(0.18, 0.3),
+          legend.key.height = unit(6,"mm"),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          text = element_text(size = 10),
+    )+
+    xlab(" ")+
+    ggtitle("PE")
 )
-# (pd_rand_map <- ggplot(shp) + 
-#     geom_sf(aes(fill=pd_rand_mean),lwd=0, col=NA) + 
-#     #geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
-#     #scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
-#     #                        begin = lcol, end = sqrt(ucol))+
-#     scale_fill_viridis_c("PD null distribution", option = "plasma")+ #, 
-#     theme(legend.position = c(0.18, 0.3),
-#           legend.key.height = unit(6,"mm"),
-#           legend.background = element_blank(),
-#           legend.key = element_blank(),
-#           panel.background = element_blank(),
-#           text = element_text(size = 10),
-#     )+
-#     xlab("")
-#)
 
+thicc_lines <- shp2[which(shp2$area<min.area),]
+# negative numbers fix. range of number spans negative to positive, so the color range needs to be adjusted
+lcol <- min(thicc_lines$SES.PE+abs(min(shp2$SES.PE)))/diff(range(shp2$SES.PE)) 
+ucol <- max(thicc_lines$SES.PE+abs(min(shp2$SES.PE)))/diff(range(shp2$SES.PE))
+(ses.pe_map <- ggplot(shp2) + 
+    geom_sf(aes(fill=SES.PE),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1.5, aes(col=thicc_lines$SES.PE), show.legend=F)+
+    scale_colour_viridis_c("PE", option = "plasma",
+                           begin = lcol, end = ucol)+
+    scale_fill_viridis_c("SES.PE", option = "plasma")+ #, 
+    theme(legend.position = c(0.18, 0.3),
+          legend.key.height = unit(6,"mm"),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          text = element_text(size = 10),
+    )+
+    xlab(" ")+
+    ggtitle("SES.PE")
+)
 
-
-#     theme(legend.position = c(0.18, 0.3),
-#           legend.key.height = unit(6,"mm"),
-#           legend.background = element_blank(),
-#           legend.key = element_blank(),
-#           panel.background = element_blank(),
-#           panel.border = element_blank(),
-#           text = element_text(size = 10)
-#     )+
-#     xlab(" ")+
-#     ggtitle("Phylogenetic endemism")
-# )
-
+# Simple SR
 lcol <- min(thicc_lines$richness)/max(shp$richness)
 ucol <- max(thicc_lines$richness)/max(shp$richness)
 (sr_map <- ggplot(shp) + 
@@ -508,14 +562,102 @@ ucol <- max(thicc_lines$richness)/max(shp$richness)
     xlab(" ")
 )
 
-plot_grid(pd_map, pd_ses_map, pd_richness_map, sr_map, nrow = 4)
- #ggsave("figures/maps.png", width=8, height=16, units = "in", dpi = 600, bg = "white")
+plot_grid(pd_map, pd_ses_map, pe_map, ses.pe_map, sr_map, nrow = 3)
+ggsave("figures/maps.png", width=10, height=10, units = "in", dpi = 600, bg = "white")
 
-par(mfrow=c(1,2))
-plot(shp2$richness, shp2$SES.PD)
-plot(shp2$richness, shp2$PD_obs/shp2$richness)
 
-cor.test(shp2$richness, shp2$PD_obs/shp2$richness, method="s")
+# Standardization effects ------------------------------------------------
+normalized = function(x)(x-min(x, na.rm=T))/(max(x, na.rm=T)-min(x, na.rm=T))
+shp2$SES.PD.norm <- normalized(shp2$SES.PD)
+shp2$PD_obs.norm <- normalized(shp2$PD_obs)
+
+# get plots and linear model
+par(mfrow=c(2,2))
+hist(shp2$PD_obs)
+hist(shp2$SES.PD)
+plot(shp2$PD_obs.norm, shp2$SES.PD.norm)
+abline(a=1, b=-1)
+#plot(order(shp2$PD_obs), order(shp2$SES.PD))
+cor.test(shp2$PD_obs.norm, shp2$SES.PD.norm, method = "s")
+
+df <- st_drop_geometry(shp2)
+df$PD_rank <- rank(df$PD_obs)
+df$SES.PD_rank <- rank(df$SES.PD)
+df$PE_rank <- rank(df$PE_obs)
+df$SES.PE_rank <- rank(df$SES.PE)
+
+library(tidyr); library(ggbump); library(dplyr)
+df <- df[,c("LEVEL_NAME", "PD_rank", "SES.PD_rank", "PE_rank", "SES.PE_rank", "richness", "area")]
+df2 <- pivot_longer(df, cols = c("PD_rank", "SES.PD_rank", "PE_rank", "SES.PE_rank"))
+
+alevel = 0.4
+sm <- 4
+bonbon_SR <-
+  ggplot(df2[grep("PD", df2$name),], aes(name, value, color = richness, group=LEVEL_NAME))+
+  geom_bump(size = 1, position = "identity", smooth=sm) +
+  scale_color_viridis_c("Species richness", trans="sqrt", alpha = alevel, option = "plasma", guide = "none")+
+  scale_x_discrete("", expand = c(0.05,0.05))+
+  scale_y_discrete("rank")+
+#  geom_point(size = 0, aes(fill=richness)) +
+#  scale_fill_viridis_c("Species richness", trans="sqrt", alpha = 1, option = "plasma")+
+  theme_minimal()
+
+
+# bonbon_area <- ggplot(df2[grep("PD", df2$name),], aes(name, value, color = area, group=LEVEL_NAME))+
+#   geom_bump(size = 1, position = "identity", smooth=sm) +
+#   scale_color_viridis_c(trans="sqrt", alpha = alevel, option = "plasma", guide = "none")+
+#   scale_x_discrete("", expand = c(0.05,0.05))+
+#   scale_y_discrete("rank")+
+#   geom_point(size = 0, aes(fill=area)) +
+#   scale_fill_viridis_c("Area", trans="sqrt", alpha = 1, option = "plasma")+
+#   theme_minimal()
+
+bonbon_SR_PE <- ggplot(df2[grep("PE", df2$name),], aes(name, value, color = richness, group=LEVEL_NAME))+
+  geom_bump(size = 1, position = "identity", smooth=sm) +
+  scale_color_viridis_c("Species richness", trans="sqrt", alpha = alevel, option = "plasma", guide = "none")+
+  scale_x_discrete("", expand = c(0.05,0.05))+
+  scale_y_discrete("rank")+
+  geom_point(size = 0, aes(fill=richness)) +
+  scale_fill_viridis_c("Species richness", trans="sqrt", alpha = 1, option = "plasma")+
+  theme_minimal()
+
+# bonbon_area_PE <- ggplot(df2[grep("PE", df2$name),], aes(name, value, color = area, group=LEVEL_NAME))+
+#   geom_bump(size = 2, position = "identity", smooth=sm) +
+#   scale_color_viridis_c(trans="sqrt", alpha = alevel, option = "plasma", guide = "none")+
+#   scale_x_discrete("", expand = c(0.05,0.05))+
+#   scale_y_discrete("rank")+
+#   geom_point(size = 0, aes(fill=area)) +
+#   scale_fill_viridis_c("Area", trans="sqrt", alpha = 1, option = "plasma")+
+#   theme_minimal()
+
+plot_grid(bonbon_SR, bonbon_SR_PE, ncol=2, rel_widths = c(.41,.59))  
+ggsave("figures/bonbon_plots.png", width=8, height=4, units = "in", dpi = 600, bg = "white")
+
+#plot_grid(bonbon_SR+coord_flip(), bonbon_SR_PE+coord_flip(), ncol=1)  
+
+
+       
+# SES.PD vs PD_obs colored for SR
+ggplot(shp2, aes(x=PD_obs, y=SES.PD, color=richness))+
+  geom_point(aes(size=3))+
+  scale_color_viridis_c(trans="sqrt")
+
+source("99_functions.R")
+shp2$SES.PE.norm <- normalized(shp2$SES.PE)
+shp2$PE_obs.norm <- normalized(shp2$PE_obs)
+
+thicc_lines <- shp2[which(shp2$area<min.area),]
+lcol <- min(thicc_lines$SES.PE.norm)/max(shp2$SES.PE.norm)
+ucol <- max(thicc_lines$SES.PE.norm)/max(shp2$SES.PE.norm)
+(pe_standardization_effects_map <- ggplot(shp2) + 
+    geom_sf(aes(fill=PE_obs.norm-SES.PE.norm)) + 
+    geom_sf(data=thicc_lines, lwd=1.5, aes(col=PE_obs.norm-SES.PE.norm), show.legend=F)+
+    scale_color_gradient2("stand. differences",low = "red", mid = "white", high = "blue")+
+    scale_fill_gradient2("stand. differences",low = "red", mid = "white", high = "blue")+
+    ggtitle("PE[0,1] - SES.PE[0,1]. Blue=SES is smaller, red=SES is bigger than raw values")
+)
+plot_grid(pd_standardization_effects_map, pe_standardization_effects_map, nrow=2)
+
 
 
 # lm1 <- lm(data=shp, PD_obs~mrd + soil + mat_mean + tra_mean + pre_mean + prs_mean + elev_range+
@@ -524,240 +666,297 @@ cor.test(shp2$richness, shp2$PD_obs/shp2$richness, method="s")
 
 
 
-# Bivariate colorpleth map -------------------------------------------------
-# map that shows areas with two variables
+# Choropleth maps -------------------------------------------------
+## get overlap of PD and PE, and both with SR
 library(biscale)
-meyer <- readOGR("hotspots_2016_1/hotspots_2016_1.shp")
-#sf_use_s2(FALSE)
-# library(rgdal)
-# meyer <- spTransform(meyer, CRS("+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs"))
 
-# library(terra)
-# meyer2 <- vect("hotspots_2016_1/hotspots_2016_1.shp")
-# is.valid(meyer2)
-# #makeValid(meyer2)
-# 
-# behrmann <- "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs"
-# p <- terra::project(meyer2, behrmann)
-# 
-# m <- st_as_sf(meyer)
-# st_is_valid(m)
-# m = st_buffer(m, 0)  ## fixes some issues
-# m <- st_make_valid(m)
-# 
-# m <- st_transform(m, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs") # Behrmann
+shp2 <- bi_class(shp2, x = PD_obs, y = PE_obs, style = "jenks", dim = 3)
+thicc_lines <- shp2[which(shp2$area<min.area),]
 
-# extract problem polygons
-m <- st_as_sf(meyer)
-#tmp <- st_union(m, by_feature = TRUE)
-#plot(tmp)
-wrld_wrap <- st_wrap_dateline(m, options = c("WRAPDATELINE=YES", "DATELINEOFFSET=180"))
-m <- st_transform(wrld_wrap, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs")
-plot(m)
+# test colors
+# "Bluegill", "BlueGold", "BlueOr", "BlueYl", "Brown"/"Brown2", "DkBlue"/"DkBlue2", "DkCyan"/"DkCyan2", "DkViolet"/"DkViolet2", "GrPink"/"GrPink2", "PinkGrn", "PurpleGrn", or "PurpleOr"
+# bi_pal(pal = "BlueGold", dim = 3, preview = TRUE)
 
-# inv <- which(!st_is_valid(m))
-# m$NAME[inv]
-# m$Type[inv]
-# 
-# # subset
-# msub <- m[-inv,]
-# msub <- st_transform(msub, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs")
-# 
-# mprob <- m[inv,]
-# mprob <- st_shift_longitude(mprob)
-# p1 <- st_cast(mprob[1,], "POLYGON")
-# p1 <- st_union(p1)
-# p1 <- st_cast(p1, "POLYGON")
-# 
-# p1 <- st_union(p1, is_coverage = T) # makes a multipolygon again....
-# 
-# mprob <- st_union(mprob)
-# 
-# mprob <- st_transform(mprob, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs"
-#                         )
-# 
-
-
-
-data <- bi_class(shp, x = PD_obs, y = PE, style = "jenks", dim = 3)
-thicc_lines <- data[which(data$area<min.area),]
-(map <- ggplot() +
-  geom_sf(data = data, mapping = aes(fill = bi_class), color = "black", size = 0.1, show.legend = FALSE) +
-  bi_scale_fill(pal = "GrPink2", dim = 3, na.value="white") +
+(chloropl1 <- ggplot() +
+  geom_sf(na.omit(shp2), mapping = aes(fill = bi_class), color = NA, size = 0.1, show.legend = FALSE) +
+  bi_scale_fill(pal = "BlueGold", dim = 3, na.value="white") +
   geom_sf(data=thicc_lines, lwd=1.5, aes(col=bi_class), show.legend=F)+
-  bi_scale_color(pal = "GrPink2", dim = 3, na.value="white") +
+  bi_scale_color(pal = "BlueGold", dim = 3, na.value="white") +
   bi_theme()+
-  geom_sf(data=m[m$Type=="hotspot area",], fill="green", color=NA, alpha=0.5, show.legend=F)+
-  ggtitle("PD and WE"))
-legend <- bi_legend(pal = "GrPink2",
+  #geom_sf(data=m[m$Type=="hotspot area",], fill="green", color=NA, alpha=0.5, show.legend=F)+
+  #geom_sf(data=m[m$NAME=="Polynesia-Micronesia" & m$Type=="outer limit",], fill="green", color=NA, alpha=0.5, show.legend=F)+
+  ggtitle("PD and PE")+
+  theme(title = element_text(size=10)))
+legend <- bi_legend(pal = "BlueGold",
                     dim = 3,
                     xlab = "PD",
                     ylab = "PE ",
                     size = 8)
-ggdraw() +
-  draw_plot(map, 0, 0, 1, 1) +
-  draw_plot(legend, 0.05, 0.25, 0.2, 0.2)
-ggsave("figures/phylo_pure_colorpleth_map.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
+(pd_pe_map <- ggdraw() +
+  draw_plot(chloropl1, 0, 0, 1, 1) +
+  draw_plot(legend, 0.05, 0.25, 0.2, 0.2))
 
+data <- bi_class(shp2, x = SES.PD, y = SES.PE, style = "jenks", dim = 3)
+data$bi_class_ses <- data$bi_class
+shp2$bi_class_ses <- data$bi_class_ses
+rm(data)
 
-data <- bi_class(shp, x = SES.PD, y = PE, style = "jenks", dim = 3)
-thicc_lines <- data[which(data$area<min.area),]
-(map <- ggplot() +
-    geom_sf(data = data, mapping = aes(fill = bi_class), color = "black", size = 0.1, show.legend = FALSE) +
-    bi_scale_fill(pal = "GrPink2", dim = 3, na.value="white") +
+thicc_lines <- data[which(shp2$area<min.area),]
+(chloropl2 <- ggplot() +
+    geom_sf(shp2, mapping = aes(fill = bi_class_ses), color = NA, size = 0.1, show.legend = FALSE) +
+    bi_scale_fill(pal = "BlueGold", dim = 3, na.value="white") +
     geom_sf(data=thicc_lines, lwd=1.5, aes(col=bi_class), show.legend=F)+
-    bi_scale_color(pal = "GrPink2", dim = 3, na.value="white") +
+    bi_scale_color(pal = "BlueGold", dim = 3, na.value="white") +
     bi_theme()+
-    ggtitle("PD and WE"))
-legend <- bi_legend(pal = "GrPink2",
+    #geom_sf(data=m[m$Type=="hotspot area",], fill="green", color=NA, alpha=0.5, show.legend=F)+
+    #geom_sf(data=m[m$NAME=="Polynesia-Micronesia" & m$Type=="outer limit",], fill="green", color=NA, alpha=0.5, show.legend=F)+
+    ggtitle("SES.PD and SES.PE")+
+  theme(title = element_text(size=10)))
+legend <- bi_legend(pal = "BlueGold",
                     dim = 3,
                     xlab = "SES.PD",
-                    ylab = "PE ",
+                    ylab = "SES.PE ",
                     size = 8)
-ggdraw() +
-  draw_plot(map, 0, 0, 1, 1) +
-  draw_plot(legend, 0.05, 0.25, 0.2, 0.2)
-#ggsave("figures/taxo_colorpleth_map.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
 
-library(ggtern)
-source("../Global_Drivers_2022/scripts/0_functions.R")
-shp2.sd <- shp2
-shp2.sd$PD_obs <- ztrans(shp2.sd$PD_obs)
-shp2.sd$richness <- ztrans(shp2.sd$richness)
-shp2.sd$PE <- ztrans(shp2.sd$PE)
-shp2.sd$SES.PD <- ztrans(shp2.sd$SES.PD)
-shp2.sd$SES.PD <- shp2.sd$SES.PD+5
+(ses_pd_pe_map <- ggdraw() +
+  draw_plot(chloropl2, 0, 0, 1, 1) +
+  draw_plot(legend, 0.05, 0.25, 0.2, 0.2))
 
-ggtern(shp2.sd, aes(x=PD_obs, y=richness, z=PE))+
-  geom_confidence_tern()+
-  geom_point(col="grey")+
-  theme_bvbw()
-
-ggtern(shp2.sd, aes(x=SES.PD, y=richness, z=PE))+
-  geom_confidence_tern()+
-  geom_point(col="grey")+
-  theme_bvbw()
+plot_grid(pd_pe_map, ses_pd_pe_map, ncol=1)
+ggsave("figures/phylo_colorpleth_map2.png", width=10, height=10, units = "in", dpi = 600, bg = "white")
 
 
-# classic hotspots a la meyer ---------------------------------------------
+## with Myer hotspots -------------------------------------
 meyer <- readOGR("hotspots_2016_1/hotspots_2016_1.shp")
+
+# extract problem polygons
 m <- st_as_sf(meyer)
+wrld_wrap <- st_wrap_dateline(m, options = c("WRAPDATELINE=YES", "DATELINEOFFSET=180"))
+m <- st_transform(wrld_wrap, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs")
+plot(m)
 
-ggplot(m[m$Type=="outer limit",])+
-  geom_sf()
-ggplot(m[m$Type=="hotspot area",])+
-  geom_sf()
+#library(ggpattern)
+(chloropl3 <- ggplot() +
+    geom_sf(shp2, mapping = aes(fill = bi_class_ses), color = NA, size = 0.1, show.legend = FALSE) +
+    bi_scale_fill(pal = "BlueGold", dim = 3, na.value="white") +
+    geom_sf(data=thicc_lines, lwd=1.5, aes(col=bi_class), show.legend=F)+
+    bi_scale_color(pal = "BlueGold", dim = 3, na.value="white") +
+    bi_theme()+
+    geom_sf(data=m[m$Type=="hotspot area",], fill="red", color=NA, alpha=0.5, show.legend=F)+
+    geom_sf(data=m[m$NAME=="Polynesia-Micronesia" & m$Type=="outer limit",], fill="red", color=NA, alpha=0.5, show.legend=F)+
+    ggtitle("SES.PD and SES.PE")+
+  theme(title = element_text(size=10)))
+legend <- bi_legend(pal = "BlueGold", dim = 3, xlab = "SES.PD", ylab = "SES.PE ", size = 8)
 
-ggplot(m)+
-  geom_sf(aes(col=NA))+
-  geom_sf(data=shp, fill=richness)
+(ses_pd_pe_hotspots_map <- ggdraw() +
+  draw_plot(chloropl3, 0, 0, 1, 1) +
+  draw_plot(legend, 0.05, 0.25, 0.2, 0.2))
 
+plot_grid(ses_pd_pe_hotspots_map)
+ggsave("figures/phylo_colorpleth_map2_hotspots.png", width=10, height=5, units = "in", dpi = 600, bg = "white")
+ggsave("figures/phylo_colorpleth_map2_hotspots.pdf", width=10, height=5, units = "in", dpi = 600, bg = "white")
+
+
+# boxplot for richness vs biclass groups -a more quantitative plot
+coropleth_palette <- read.csv("figures/coropleth_palette.txt", header = F)$V1 # actual order
+
+bplot <- ggplot(shp2)+
+  geom_boxplot(aes(x=bi_class_ses, y=richness, fill=bi_class_ses), varwidth = T,  show.legend=F)+
+  scale_fill_manual(values=coropleth_palette)+
+  xlab("SES.PD-SES.PE group")
+(bplot2 <- ggdraw() +
+    draw_plot(bplot, 0, 0, 1, 1) +
+    draw_plot(legend, 0.65, 0.65, 0.3, 0.3))
+ggsave("figures/boxplot_PD_PE_SR.png", width=5, height=4, units = "in", dpi = 600, bg = "white")
+
+l1 <- lm(data=shp2, log(richness)~SES.PD*SES.PE)
+summary(l1)
+b <- mgcv::gam(data=shp2, log(richness)~s(SES.PD)+s(SES.PE))
+summary(b)
+plot(b,pages=1,residuals=TRUE)  ## show partial residuals
+mgcv::gam.check(b)
+mgcv::vis.gam(b,theta=30,phi=30,ticktype="detailed")
+
+# sort factor to match facet wrap
+shp2$bi_class_ses_l <- factor(shp2$bi_class_ses, levels=c("1-3", "2-3", "3-3", "1-2", "2-2", "3-2", "1-1", "2-1" ,"3-1"))
+ggplot(shp2)+
+  geom_boxplot(aes(x=bi_class_ses_l, y=richness, col=bi_class_ses_l, fill=bi_class_ses_l), varwidth = F)+
+  scale_fill_manual(values=coropleth_palette[c(3,6,9,2,5,8,1,4,7)])+
+  scale_color_manual(values=coropleth_palette[c(3,6,9,2,5,8,1,4,7)])+
+  facet_wrap("bi_class_ses_l", ncol=3, scales="free_x")+
+  scale_x_discrete("", expand = c(0.2,0.2))+
+  theme_minimal_hgrid()+
+  scale_y_continuous(trans="sqrt", expand=c(0,0))+
+  theme(
+    strip.background = element_blank(),
+    strip.text.x = element_blank(),
+    axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size=8),
+    legend.position = "none"
+    )
+
+
+# Intersection with hotspot area a la Myer ----------------------------
+
+# calculate quantitative overlay with hotspots per country as proportion?
+
+st_is_valid(m)
+m2 <- st_make_valid(m)
+#write_sf(m2, "hotspots_2016_1/myer_trans.shp")
+
+geosphere::areaPolygon(shp2[1,], )
+
+s <- as(st_geometry(shp2), "Spatial")
+m3 <- as(st_geometry(m), "Spatial")
+
+a <- c()
+for(i in 1:length(s)){
+  tmp <- s[i,]
+  res <- intersect(tmp, m3) # zero width buffering happens automatically now
+  if(class(res)!="NULL"){
+    hot_area <- sum(area(res))
+    tmp_area <- area(tmp)
+    a <- c(a, hot_area / tmp_area)
+  }else{a <- c(a, 0)}
+  if(!i%%1)cat(i,"\r")
+}
+
+shp2$hotspot_coverage <- a
+
+plot_grid(chloropl3, 
+ggplot(shp2) + 
+  geom_sf(aes(fill=hotspot_coverage, col=hotspot_coverage)), nrow = 2 
+)
+
+cor.test(shp2$richness, shp2$hotspot_coverage, method="s") # nothing, probs binary if at all
+cor.test(shp2$SES.PE, shp2$hotspot_coverage, method="s")
+cor.test(shp2$SES.PD, shp2$hotspot_coverage, method="s")
+# SES.PD supports PE hotspot definition?
+
+plot_grid(
+ggplot(shp2)+
+  geom_boxplot(aes(x=hotspot_coverage>0, y=richness)),
+ggplot(shp2)+
+  geom_boxplot(aes(x=hotspot_coverage>0, y=SES.PD)),
+ggplot(shp2)+
+  geom_boxplot(aes(x=hotspot_coverage>0, y=SES.PE)), 
+nrow=1)
+kruskal.test(shp2$richness, shp2$hotspot_coverage>0) #yes
+kruskal.test(shp2$SES.PD, shp2$hotspot_coverage>0) # nope
+kruskal.test(shp2$SES.PE, shp2$hotspot_coverage>0) # yes
 
 
 
 
 # Hotspot definition ------------------------------------------------------
+# Myer2000 uses endemism (at least x number of endemics) and habitat loss(at least 70% habitat loss)
 
-s@data$LEVEL3_COD <- s@data$LEVEL_3_CO
-shp <- merge(shp, s@data[,c("LEVEL3_COD", "LEVEL_NAME")])
-
-# Endemism hotspots ##
-C <- coldspots(shp$PE) # coldspots
-H <- hotspots(shp$PE) # hotspots
-
+# highest 2.5% of everything:
+## Endemism hotspots ---------------------
+C <- coldspots(shp2$SES.PE) # coldspots
+H <- hotspots(shp2$SES.PE) # hotspots
 ## Merge endemism values to shapefile of grid cells.
-DF <- data.frame(LEVEL3_COD=shp$LEVEL3_COD, cold=C, hot=H)
-DF$PE_spot <- 0
-DF$PE_spot[DF$hot==1] <- 1
-DF$PE_spot[DF$cold==1] <- -1
-shp <- merge(shp, DF[,c("LEVEL3_COD", "PE_spot")], by = "LEVEL3_COD", all = TRUE)
-shp$PE_spot
+DF <- data.frame(LEVEL3_COD=shp2$LEVEL3_COD, cold=C, hot=H)
+DF$SES.PE_spot <- 0
+DF$SES.PE_spot[DF$hot==1] <- 1
+DF$SES.PE_spot[DF$cold==1] <- -1
+shp2 <- merge(shp2, DF[,c("LEVEL3_COD", "SES.PE_spot")], by = "LEVEL3_COD", all = TRUE)
+shp2$SES.PE_spot
 
+ggplot(shp2, aes(x=factor(SES.PE_spot), y=hotspot_coverage, label=LEVEL3_COD))+
+  #geom_point() +
+  geom_text(hjust=0, vjust=0)
 
-# add area to define thick lines for small countries
-shp$area <- st_area(shp)
-
-min.area <- 1.5e+9
-class(min.area)
-library(units)
-units(min.area) <- as_units("m^2")
-thicc_lines <- shp[which(shp$area<min.area),]
-thicc_lines <- thicc_lines[thicc_lines$PE_spot!=0,]
-
-# 
-# (sr_map2 <- ggplot(test) + 
-#     geom_sf(aes(fill=sr),lwd=0, col=NA) + 
-#     geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
-#     scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
-#                            begin = lcol, end = sqrt(ucol))+
-#     scale_fill_viridis_c("SR", option = "plasma", trans = "sqrt")+ #, 
-
-ggplot(shp)+
-  geom_sf(aes(fill=factor(PE_spot)),lwd=0, col=NA) + 
-  geom_sf(data=thicc_lines, aes(col=factor(PE_spot)), show.legend=F, lwd=2)+
-  scale_fill_manual(values = c("blue", "grey80", "red"))+
-  scale_color_manual(values = c("blue", "red"))+
-  theme(panel.border = element_blank())+
-  ggtitle("Phylogenetic Endemism Hotspots and Coldspots")
-ggsave("figures/PE_hot_cold.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
-
-# Names islands:
-View(st_drop_geometry(thicc_lines[,c("PE_spot.x", "LEVEL3_COD", "LEVEL_NAME")]))
-thicc_lines$LEVEL_NAME
-
-
-# Diversity hotspots ##
-C <- coldspots(shp$PD_obs) # coldspots
-H <- hotspots(shp$PD_obs) # hotspots
-DF <- data.frame(LEVEL3_COD=shp$LEVEL3_COD, cold=C, hot=H)
-DF$PD_spot <- 0
-DF$PD_spot[DF$hot==1] <- 1
-DF$PD_spot[DF$cold==1] <- -1
-shp <- merge(shp, DF[,c("LEVEL3_COD", "PD_spot")], by = "LEVEL3_COD", all = TRUE)
-
-
-thicc_lines <- shp[which(shp$area<min.area),]
-thicc_lines <- thicc_lines[thicc_lines$PD_spot!=0,]
-
-ggplot(shp)+
-  geom_sf(aes(fill=factor(PD_spot)),lwd=0, col=NA) + 
-  geom_sf(data=thicc_lines, aes(col=factor(PD_spot)), show.legend=F, lwd=2)+
-  scale_fill_manual(values = c("blue", "grey80", "red"))+
-  scale_color_manual(values = c("blue", "grey80", "red"))+
-  theme(panel.border = element_blank())+
-  ggtitle("Observed PD Hotspots and Coldspots")
-ggsave("figures/PD_hot_cold.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
-
-# Names islands:
-View(st_drop_geometry(thicc_lines[,c("PD_spot.x", "LEVEL3_COD", "LEVEL_NAME")]))
-thicc_lines$LEVEL_NAME
-
-
-# Standardized PD hotspots
-C <- coldspots(shp$SES.PD) # coldspots
-H <- hotspots(shp$SES.PD) # hotspots
-DF <- data.frame(LEVEL3_COD=shp$LEVEL3_COD, cold=C, hot=H)
+## PD hotspots --------------------------
+C <- coldspots(shp2$SES.PD) # coldspots
+H <- hotspots(shp2$SES.PD) # hotspots
+DF <- data.frame(LEVEL3_COD=shp2$LEVEL3_COD, cold=C, hot=H)
 DF$SES.PD_spot <- 0
 DF$SES.PD_spot[DF$hot==1] <- 1
 DF$SES.PD_spot[DF$cold==1] <- -1
-shp <- merge(shp, DF[,c("LEVEL3_COD", "SES.PD_spot")], by = "LEVEL3_COD", all = TRUE)
+shp2 <- merge(shp2, DF[,c("LEVEL3_COD", "SES.PD_spot")], by = "LEVEL3_COD", all = TRUE)
 
 
-thicc_lines <- shp[which(shp$area<min.area),]
-thicc_lines <- thicc_lines[thicc_lines$SES.PD_spot!=0,]
+## Richness hotspots -----------------------
+C <- coldspots(shp2$richness) # coldspots
+H <- hotspots(shp2$richness) # hotspots
+DF <- data.frame(LEVEL3_COD=shp2$LEVEL3_COD, cold=C, hot=H)
+DF$SR_spot <- 0
+DF$SR_spot[DF$hot==1] <- 1
+DF$SR_spot[DF$cold==1] <- -1
+shp2 <- merge(shp2, DF[,c("LEVEL3_COD", "SR_spot")], by = "LEVEL3_COD", all = TRUE)
 
-ggplot(shp)+
+## Deforestation hotspots -----------------------
+H <- hotspots(shp2$deforest_mean) # hotspots
+shp2$deforest_spot <- H
+
+
+
+## Maps hotspots ---------------------------
+min.area <- 1.5e+9
+thicc_lines <- shp2[which(shp2$area<min.area),]
+
+thicc_lines$SES.PE_spot[thicc_lines$SES.PE_spot!=0] # no hot/cold zones in small areas
+PE_hotspot_map <- ggplot(shp2)+
+  geom_sf(aes(fill=factor(SES.PE_spot)),lwd=0, col=NA) + 
+  geom_sf(data=thicc_lines, aes(col=factor(SES.PE_spot)), show.legend=F, lwd=2)+
+  scale_fill_manual(values = c("blue", "grey80", "red"))+
+  scale_color_manual(values = c("blue", "grey80", "red"))+
+  theme(panel.border = element_blank())+
+  ggtitle("SES.PE Hotspots and Coldspots")
+
+table(thicc_lines$SES.PD_spot) # only hot zones in small areas, adjust color
+PD_hotspot_map <- ggplot(shp2)+
   geom_sf(aes(fill=factor(SES.PD_spot)),lwd=0, col=NA) + 
   geom_sf(data=thicc_lines, aes(col=factor(SES.PD_spot)), show.legend=F, lwd=2)+
-  scale_fill_manual("spot", values = c("blue", "grey80", "red"))+
-  scale_color_manual(values = c("red"))+ # MANUALLY CHECK if all are positive
+  scale_fill_manual(values = c("blue", "grey80", "red"))+
+  scale_color_manual(values = c("grey80", "red"))+
   theme(panel.border = element_blank())+
   ggtitle("SES.PD Hotspots and Coldspots")
-ggsave("figures/SES.PD_hot_cold.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
 
-# Names islands:
-View(st_drop_geometry(thicc_lines[,c("SES.PD_spot", "LEVEL3_COD", "LEVEL_NAME")]))
-thicc_lines$LEVEL_NAME
+table(thicc_lines$SR_spot) # only cold zones in small areas, adjust color
+SR_hotspot_map <- ggplot(shp2)+
+  geom_sf(aes(fill=factor(SR_spot)),lwd=0, col=NA) + 
+  geom_sf(data=thicc_lines, aes(col=factor(SR_spot)), show.legend=F, lwd=2)+
+  scale_fill_manual(values = c("blue", "grey80", "red"))+
+  scale_color_manual(values = c("blue", "grey80"))+
+  theme(panel.border = element_blank())+
+  ggtitle("SR Hotspots and Coldspots")
+
+plot_grid(PE_hotspot_map, PD_hotspot_map, SR_hotspot_map, ncol=1)
+ggsave("figures/single_hotspots.png", width=10, height=10, units = "in", dpi = 600, bg = "white")
+
+
+table(thicc_lines$deforest_spot) # only NA zones in small areas
+deforest_hotspot_map <- ggplot(shp2)+
+  geom_sf(aes(fill=factor(deforest_spot)),lwd=0, col=NA) + 
+  geom_sf(data=thicc_lines, aes(col=factor(deforest_spot)), show.legend=F, lwd=2)+
+  scale_fill_manual(values = c("grey80", "red"))+
+  scale_color_manual(values = c("grey80"))+
+  theme(panel.border = element_blank())+
+  ggtitle("Deforestation Hotspots")
+## Visualize overlap of hotspots -------------------------------
+
+#fwrite(st_drop_geometry(shp2), "hotspots_table.csv")
+
+
+
+
+# # Ternary plots -------------------------------------------------------------
+# library(ggtern)
+  # shp2$richness.norm <- normalized(shp2$richness)
+# 
+# # ggtern(shp2, aes(x=PD_obs.norm, y=richness.norm, z=PE_obs.norm))+
+# #   geom_confidence_tern()+
+# #   tern_limit(T = 1.05, L = 1.05, R = 1.05)+
+# #   geom_point()+
+# #   theme_bvbw()+
+# #   Tlab("SR", labelarrow = "species richness")+
+# #   Llab("PD", labelarrow = "phylogenetic diversity")+
+# #   Rlab("PE", labelarrow = "phylogenetic endemism")
+
+
 
 # 
 # co <- 0.025 # top 9 countries
@@ -802,31 +1001,6 @@ thicc_lines$LEVEL_NAME
 #   #coord_sf(expand = F, label_axes = "-N--", ylim=c(-6200000, 8200000))+
 #   xlab(" ")
 
-
-# Diversity hotspots ##
-C <- coldspots(shp$richness) # coldspots
-H <- hotspots(shp$richness) # hotspots
-DF <- data.frame(LEVEL3_COD=shp$LEVEL3_COD, cold=C, hot=H)
-DF$sr_spot <- 0
-DF$sr_spot[DF$hot==1] <- 1
-DF$sr_spot[DF$cold==1] <- -1
-shp <- merge(shp, DF[,c("LEVEL3_COD", "sr_spot")], by = "LEVEL3_COD", all = TRUE)
-
-
-thicc_lines <- shp[which(shp$area<min.area),]
-thicc_lines <- thicc_lines[thicc_lines$sr_spot!=0,]
-
-ggplot(shp)+
-  geom_sf(aes(fill=factor(sr_spot)),lwd=0, col=NA) + 
-  geom_sf(data=thicc_lines, aes(col=factor(sr_spot)), show.legend=F, lwd=2)+
-  scale_fill_manual(values = c("blue", "grey80", "red"))+
-  scale_color_manual(values = c("blue", "grey80", "red"))+
-  theme(panel.border = element_blank())+
-  ggtitle("Observed SR Hotspots and Coldspots")
-ggsave("figures/SR_hot_cold.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
-
-View(st_drop_geometry(thicc_lines[,c("sr_spot", "LEVEL3_COD", "LEVEL_NAME")]))
-thicc_lines$LEVEL_NAME
 
 
 
