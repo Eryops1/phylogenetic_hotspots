@@ -823,6 +823,7 @@ for(i in 1:length(s)){
 }
 
 shp2$hotspot_coverage <- a
+saveRDS(shp2, "including_hotspot_coverage.rds")
 
 plot_grid(chloropl3, 
 ggplot(shp2) + 
@@ -849,8 +850,28 @@ kruskal.test(shp2$SES.PE, shp2$hotspot_coverage>0) # yes
 
 
 
+
+
 # Hotspot definition ------------------------------------------------------
 # Myer2000 uses endemism (at least x number of endemics) and habitat loss(at least 70% habitat loss)
+
+shp2 <- readRDS("including_hotspot_coverage.rds")
+
+# get a reasonable percent:
+kmean_calc <- function(df, ...){
+  kmeans(df, scaled = ..., nstart = 30)
+}
+km2 <- kmean_calc(shp2$SES.PE, 2)
+km3 <- kmean_calc(shp2$SES.PE, 3)
+km4 <- kmeans(shp2$SES.PE, 4)
+km5 <- kmeans(shp2$SES.PE, 5)
+km6 <- kmeans(shp2$SES.PE, 6)
+km7 <- kmeans(shp2$SES.PE, 7)
+km8 <- kmeans(shp2$SES.PE, 8)
+km9 <- kmeans(shp2$SES.PE, 9)
+km_perc <- function(x)x$betweenss/x$totss
+plot(unlist(lapply(list(km2,km3,km4,km5,km6,km7,km8,km9),km_perc)))
+plot(shp2$SES.PE~shp2$richness, col=km6$cluster) # top 8 look good, matches 2.5% well
 
 # highest 2.5% of everything:
 ## Endemism hotspots ---------------------
@@ -866,7 +887,8 @@ shp2$SES.PE_spot
 
 ggplot(shp2, aes(x=factor(SES.PE_spot), y=hotspot_coverage, label=LEVEL3_COD))+
   #geom_point() +
-  geom_text(hjust=0, vjust=0)
+  geom_text(position="jitter")
+
 
 ## PD hotspots --------------------------
 C <- coldspots(shp2$SES.PD) # coldspots
@@ -878,6 +900,7 @@ DF$SES.PD_spot[DF$cold==1] <- -1
 shp2 <- merge(shp2, DF[,c("LEVEL3_COD", "SES.PD_spot")], by = "LEVEL3_COD", all = TRUE)
 
 
+
 ## Richness hotspots -----------------------
 C <- coldspots(shp2$richness) # coldspots
 H <- hotspots(shp2$richness) # hotspots
@@ -887,9 +910,31 @@ DF$SR_spot[DF$hot==1] <- 1
 DF$SR_spot[DF$cold==1] <- -1
 shp2 <- merge(shp2, DF[,c("LEVEL3_COD", "SR_spot")], by = "LEVEL3_COD", all = TRUE)
 
+
+
 ## Deforestation hotspots -----------------------
 H <- hotspots(shp2$deforest_mean) # hotspots
 shp2$deforest_spot <- H
+
+# Myers & PD hotspot matches:
+shp2$LEVEL_NAME[shp2$hotspot_coverage>0 & shp2$SES.PD_spot==1]
+# Myers & PD hotspot no matches:
+shp2$LEVEL_NAME[shp2$hotspot_coverage==0 & shp2$SES.PD_spot==1]
+
+# Myers & PE hotspot matches:
+shp2$LEVEL_NAME[shp2$hotspot_coverage>0 & shp2$SES.PE_spot==1]
+# Myers & PE hotspot no matches:
+shp2$LEVEL_NAME[shp2$hotspot_coverage==0 & shp2$SES.PE_spot==1]
+
+# Myers & SR hotspot matches:
+shp2$LEVEL_NAME[shp2$hotspot_coverage>0 & shp2$SR_spot==1]
+# Myers & SR hotspot no matches:
+shp2$LEVEL_NAME[shp2$hotspot_coverage==0 & shp2$SR_spot==1]
+
+# Myers & Deforestation hotspot matches:
+shp2$LEVEL_NAME[shp2$hotspot_coverage>0 & shp2$deforest_spot==1]
+# Myers & Deforestation hotspot no matches:
+shp2$LEVEL_NAME[shp2$hotspot_coverage==0 & shp2$deforest_spot==1]
 
 
 
@@ -897,35 +942,56 @@ shp2$deforest_spot <- H
 min.area <- 1.5e+9
 thicc_lines <- shp2[which(shp2$area<min.area),]
 
-thicc_lines$SES.PE_spot[thicc_lines$SES.PE_spot!=0] # no hot/cold zones in small areas
-PE_hotspot_map <- ggplot(shp2)+
-  geom_sf(aes(fill=factor(SES.PE_spot)),lwd=0, col=NA) + 
-  geom_sf(data=thicc_lines, aes(col=factor(SES.PE_spot)), show.legend=F, lwd=2)+
-  scale_fill_manual(values = c("blue", "grey80", "red"))+
-  scale_color_manual(values = c("blue", "grey80", "red"))+
-  theme(panel.border = element_blank())+
-  ggtitle("SES.PE Hotspots and Coldspots")
+# extract overlapping parts for another color
+hf <- st_read("hotspots_fixed.gpkg")
+# fix sf trouble...
+sf::sf_use_s2(FALSE)
+hf <- st_transform(hf, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs") # Behrmann
+PE.int <- st_intersection(s[s$SES.PE_spot==1,],hf)
+#st_write(int, "hotspot_clip.gpkg")
+int <- st_read("hotspot_clip.gpkg")
 
-table(thicc_lines$SES.PD_spot) # only hot zones in small areas, adjust color
+# put myers map on top
+thicc_lines$SES.PE_spot[thicc_lines$SES.PE_spot!=0] # no hot/cold zones in small areas
+(PE_hotspot_map <- ggplot(shp2)+
+  geom_sf(aes(fill=factor(SES.PE_spot==1)),lwd=0, col=NA, show.legend = F) + 
+  geom_sf(data=thicc_lines, aes(col=factor(SES.PE_spot==1)), show.legend=F, lwd=2)+
+  scale_fill_manual(values = c("grey80", "#8B679F"))+
+  scale_color_manual(values = c("grey80", "#8B679F"))+
+  theme_void()+
+    # add Myer layer
+  geom_sf(data=m[m$Type=="hotspot area",], fill="#75B165", color=NA, alpha=.7, show.legend=F)+
+  geom_sf(data=m[m$NAME=="Polynesia-Micronesia" & m$Type=="outer limit",], fill="#75B165", color=NA, alpha=.7, show.legend=F)+
+    # add hotspot intersection area
+  geom_sf(data=int[m$Type=="hotspot area",], fill="#75B165", color=NA, alpha=.7, show.legend=F)+  
+    # add text
+  geom_hline(yintercept=c(-2343636,0,2343636), size=0.1, lty=c("dashed", "solid","dashed"))+
+  annotate("text", x= -17067530, y= 2043636, label= "Tropic of Cancer", hjust=0)+
+  annotate("text", x= -17067530, y= -330000, label= "Equator", hjust=0)+
+  annotate("text", x= -17067530, y= -2643636, label= "Tropic of Capricorn", hjust=0)+
+  ggtitle("Top SES.PE 2.5% with Myers biodiv hotspots"))
+
+
+mapstable(thicc_lines$SES.PD_spot) # only hot zones in small areas, adjust color
 PD_hotspot_map <- ggplot(shp2)+
-  geom_sf(aes(fill=factor(SES.PD_spot)),lwd=0, col=NA) + 
-  geom_sf(data=thicc_lines, aes(col=factor(SES.PD_spot)), show.legend=F, lwd=2)+
-  scale_fill_manual(values = c("blue", "grey80", "red"))+
+  geom_sf(aes(fill=factor(SES.PD_spot==1)),lwd=0, col=NA, show.legend = F) + 
+  geom_sf(data=thicc_lines, aes(col=factor(SES.PD_spot==1)), show.legend=F, lwd=2)+
+  scale_fill_manual(values = c("grey80", "red"))+
   scale_color_manual(values = c("grey80", "red"))+
   theme(panel.border = element_blank())+
   ggtitle("SES.PD Hotspots and Coldspots")
 
 table(thicc_lines$SR_spot) # only cold zones in small areas, adjust color
 SR_hotspot_map <- ggplot(shp2)+
-  geom_sf(aes(fill=factor(SR_spot)),lwd=0, col=NA) + 
-  geom_sf(data=thicc_lines, aes(col=factor(SR_spot)), show.legend=F, lwd=2)+
-  scale_fill_manual(values = c("blue", "grey80", "red"))+
-  scale_color_manual(values = c("blue", "grey80"))+
+  geom_sf(aes(fill=factor(SR_spot==1)),lwd=0, col=NA, show.legend = F) + 
+  geom_sf(data=thicc_lines, aes(col=factor(SR_spot==1)), show.legend=F, lwd=2)+
+  scale_fill_manual(values = c("grey80", "red"))+
+  scale_color_manual(values = c("grey80"))+
   theme(panel.border = element_blank())+
   ggtitle("SR Hotspots and Coldspots")
 
-plot_grid(PE_hotspot_map, PD_hotspot_map, SR_hotspot_map, ncol=1)
-ggsave("figures/single_hotspots.png", width=10, height=10, units = "in", dpi = 600, bg = "white")
+plot_grid(PE_hotspot_map, PD_hotspot_map, SR_hotspot_map, ncol=2)
+ggsave("figures/single_hotspots.png", width=10, height=6, units = "in", dpi = 600, bg = "white")
 
 
 table(thicc_lines$deforest_spot) # only NA zones in small areas
