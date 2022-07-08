@@ -11,7 +11,7 @@
 #SBATCH --partition normal
 #SBATCH --mem-per-cpu=50gb
 #SBATCH --cpus-per-task 1
-#SBATCH --time 32:00:00
+#SBATCH --time 168:00:00
 #SBATCH --output=picante.out
 
 source ~/miniconda3/bin/activate R-env-4
