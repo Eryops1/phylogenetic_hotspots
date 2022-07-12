@@ -2,7 +2,7 @@
 
 #SBATCH --account PDiv
 #SBATCH --job-name=picante
-#SBATCH --job-name=picante SES_PD
+#SBATCH --job-name=picante_SES_PD
 #SBATCH --mail-type=FAIL,END
 #SBATCH --mail-user=melanie.tietje@bio.au.dk
 #SBATCH --partition normal
