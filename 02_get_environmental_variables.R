@@ -277,9 +277,8 @@ git push"
 
 
 shp <- readRDS("fin_shape.rds")
-shp <- st_as_sf(shp)
 # transform to Behrmann projection
-# shp <- st_transform(shp, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs") # Behrmann
+shp <- st_transform(shp, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs") # Behrmann
 
 
 ## Load data from Global Plant Diversity Drivers --------------------------

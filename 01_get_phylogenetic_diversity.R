@@ -498,25 +498,25 @@ ses.mpd <- readRDS("PD_nullmodel/ses_mpd.rds")
 ses.mpd <- rowMeans(ses.mpd)
 #PE <- readRDS("PE.rds")
 
-s <- raster::shapefile("../DATA/shapefile_bot_countries/level3.shp")
+s <- st_read("../DATA/shapefile_bot_countries/level3_fixed.gpkg")
 s$LEVEL3_COD <- s$LEVEL_3_CO
 s <- s[!s$LEVEL3_COD=="BOU",]
-s@data <- merge(s@data, tipshuffle.df, by="LEVEL3_COD", all.x=TRUE)
-s@data <- merge(s@data, rowshuffle.df[,c(1,4:8)], by="LEVEL3_COD", all.x=TRUE)
-plot(s$richness, s$SES.PD_RW) # ok this is bullshit....
+s <- merge(s, tipshuffle.df, by="LEVEL3_COD", all.x=TRUE)
+s <- merge(s, rowshuffle.df[,c(1,4:8)], by="LEVEL3_COD", all.x=TRUE)
+plot(s$richness, s$SES.PD_RW) # same same
 
 # penalize SES.PD for richness
 plot(s$richness, s$SES.PD)
 plot(s$richness, s$SES.PD/sqrt(s$richness))
 
 
-s@data$mpd <- mpd
-s@data$ses.mpd <- ses.mpd
-s@data$WE <- WE
+s$mpd <- mpd
+s$ses.mpd <- ses.mpd
+s$WE <- WE
 
-s@data$PE_obs <- pe.df$PE_obs
-s@data$SES.PE <- pe.df$SES.PE
-s@data$pe_obs_p <- pe.df$pe_obs_p
+s$PE_obs <- pe.df$PE_obs
+s$SES.PE <- pe.df$SES.PE
+s$pe_obs_p <- pe.df$pe_obs_p
 
 
 # *** Save  --------------------------------------------------------------

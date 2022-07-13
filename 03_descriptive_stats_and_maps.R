@@ -239,7 +239,7 @@ plot_grid(ncol=2,
           ggplot(data=shp, aes(x=richness, y=SES.PD))+
             geom_text(aes(label=LEVEL3_COD))
           ,
-          ggplot(data=s@data, aes(x=pd_rand_mean, y=PD_obs, col=log(richness)))+
+          ggplot(data=shp, aes(x=pd_rand_mean, y=PD_obs, col=log(richness)))+
             geom_point()+
             geom_abline(x=1)+
             scale_x_continuous(trans="sqrt")+
@@ -300,9 +300,11 @@ run.gbm <- function(i, seeds, data, trControl=gbmControl,
 n_cores=4
 s <- seq(500,507,1) # models are rather slow with that many variables, ca. 5 minutes per model
 system.time(
-  PD_list <- mclapply(1:length(s), seeds = s, run.gbm,
-                      data = dat_no.na, mc.cores=n_cores)
+  PD_list <- mclapply(i=1:length(s), seeds = s, run.gbm,
+                      data = dat_no.na, mc.cores=n_cores, f=f)
 )
+
+# this throws errors currently, no fucking idea why.... single rungs outside parallel are fine
 
 #pd_list <- unlist(PD_list, recursive = F)
 pdl <- lapply(PD_list, varImp)
@@ -426,7 +428,12 @@ if(!dir.exists("figures"))dir.create("figures")
 
 # format to sf object for plotting
 shp <- readRDS("for_plotting.rds")
-shp <- st_as_sf(shp)
+sfixed <- read_sf("../DATA/shapefile_bot_countries/level3_fixed.gpkg")
+sfixed <- sfixed[!sfixed$LEVEL_3_CO=="BOU",]
+# move data over to fixed shapefile, can be removed later when fix is completely
+# established in earlier pipeline
+shp <- merge(sfixed, st_drop_geometry(shp))
+
 
 # transform to Behrmann projection
 shp <- st_transform(shp, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs") # Behrmann
@@ -727,10 +734,9 @@ ggsave("figures/phylo_colorpleth_map2.png", width=10, height=10, units = "in", d
 
 
 ## with Myer hotspots -------------------------------------
-meyer <- readOGR("hotspots_2016_1/hotspots_2016_1.shp")
+m <- st_read("hotspots_fixed.gpkg")
 
 # extract problem polygons
-m <- st_as_sf(meyer)
 wrld_wrap <- st_wrap_dateline(m, options = c("WRAPDATELINE=YES", "DATELINEOFFSET=180"))
 m <- st_transform(wrld_wrap, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs")
 plot(m)
@@ -801,11 +807,9 @@ ggplot(shp2)+
 
 # calculate quantitative overlay with hotspots per country as proportion?
 
-st_is_valid(m)
+all(st_is_valid(m))
 m2 <- st_make_valid(m)
 #write_sf(m2, "hotspots_2016_1/myer_trans.shp")
-
-geosphere::areaPolygon(shp2[1,], )
 
 s <- as(st_geometry(shp2), "Spatial")
 m3 <- as(st_geometry(m), "Spatial")
@@ -813,7 +817,7 @@ m3 <- as(st_geometry(m), "Spatial")
 a <- c()
 for(i in 1:length(s)){
   tmp <- s[i,]
-  res <- intersect(tmp, m3) # zero width buffering happens automatically now
+  res <- raster::intersect(tmp, m3) # zero width buffering happens automatically now
   if(class(res)!="NULL"){
     hot_area <- sum(area(res))
     tmp_area <- area(tmp)
@@ -944,26 +948,28 @@ thicc_lines <- shp2[which(shp2$area<min.area),]
 
 # extract overlapping parts for another color
 hf <- st_read("hotspots_fixed.gpkg")
+wrld_wrap <- st_wrap_dateline(hf, options = c("WRAPDATELINE=YES", "DATELINEOFFSET=180"))
+m <- st_transform(wrld_wrap, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs")
 # fix sf trouble...
-sf::sf_use_s2(FALSE)
-hf <- st_transform(hf, "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs") # Behrmann
-PE.int <- st_intersection(s[s$SES.PE_spot==1,],hf)
-#st_write(int, "hotspot_clip.gpkg")
-int <- st_read("hotspot_clip.gpkg")
+#sf::sf_use_s2(FALSE)
+#PE.int <- st_intersection(shp2[shp2$SES.PE_spot==1,], m)
+# subtract countries from hotspot areas to not cover them
+#hs.int <- st_(m, shp2[shp2$SES.PE_spot==1,])
+
 
 # put myers map on top
 thicc_lines$SES.PE_spot[thicc_lines$SES.PE_spot!=0] # no hot/cold zones in small areas
 (PE_hotspot_map <- ggplot(shp2)+
-  geom_sf(aes(fill=factor(SES.PE_spot==1)),lwd=0, col=NA, show.legend = F) + 
+  geom_sf(aes(fill=factor(SES.PE_spot==1)),lwd=.1, col=NA, show.legend = F) + 
   geom_sf(data=thicc_lines, aes(col=factor(SES.PE_spot==1)), show.legend=F, lwd=2)+
-  scale_fill_manual(values = c("grey80", "#8B679F"))+
-  scale_color_manual(values = c("grey80", "#8B679F"))+
+  scale_fill_manual(values = c("grey90", "#6575B1"))+
+  scale_color_manual(values = c("grey90", "#6575B1"))+
   theme_void()+
     # add Myer layer
-  geom_sf(data=m[m$Type=="hotspot area",], fill="#75B165", color=NA, alpha=.7, show.legend=F)+
-  geom_sf(data=m[m$NAME=="Polynesia-Micronesia" & m$Type=="outer limit",], fill="#75B165", color=NA, alpha=.7, show.legend=F)+
+  geom_sf(data=m[m$Type=="hotspot area",], fill="#75B165", color=NA, show.legend=F, alpha=.5)+
+  geom_sf(data=m[m$NAME=="Polynesia-Micronesia" & m$Type=="outer limit",], fill="#75B165", alpha=.5, color=NA, show.legend=F)+
     # add hotspot intersection area
-  geom_sf(data=int[m$Type=="hotspot area",], fill="#75B165", color=NA, alpha=.7, show.legend=F)+  
+  #geom_sf(data=PE.int, fill="#B16575", color=NA, show.legend=F)+  
     # add text
   geom_hline(yintercept=c(-2343636,0,2343636), size=0.1, lty=c("dashed", "solid","dashed"))+
   annotate("text", x= -17067530, y= 2043636, label= "Tropic of Cancer", hjust=0)+
@@ -972,39 +978,154 @@ thicc_lines$SES.PE_spot[thicc_lines$SES.PE_spot!=0] # no hot/cold zones in small
   ggtitle("Top SES.PE 2.5% with Myers biodiv hotspots"))
 
 
-mapstable(thicc_lines$SES.PD_spot) # only hot zones in small areas, adjust color
 PD_hotspot_map <- ggplot(shp2)+
   geom_sf(aes(fill=factor(SES.PD_spot==1)),lwd=0, col=NA, show.legend = F) + 
   geom_sf(data=thicc_lines, aes(col=factor(SES.PD_spot==1)), show.legend=F, lwd=2)+
-  scale_fill_manual(values = c("grey80", "red"))+
-  scale_color_manual(values = c("grey80", "red"))+
+  scale_fill_manual(values = c("grey90", "red"))+
+  scale_color_manual(values = c("grey90", "red"))+
   theme(panel.border = element_blank())+
-  ggtitle("SES.PD Hotspots and Coldspots")
+  ggtitle("SES.PD Hotspots")+
+  theme_void()+
+  # add Myer layer
+  geom_sf(data=m[m$Type=="hotspot area",], fill="#75B165", color=NA, show.legend=F, alpha=.5)+
+  geom_sf(data=m[m$NAME=="Polynesia-Micronesia" & m$Type=="outer limit",], fill="#75B165", alpha=.5, color=NA, show.legend=F)
 
 table(thicc_lines$SR_spot) # only cold zones in small areas, adjust color
 SR_hotspot_map <- ggplot(shp2)+
   geom_sf(aes(fill=factor(SR_spot==1)),lwd=0, col=NA, show.legend = F) + 
   geom_sf(data=thicc_lines, aes(col=factor(SR_spot==1)), show.legend=F, lwd=2)+
-  scale_fill_manual(values = c("grey80", "red"))+
-  scale_color_manual(values = c("grey80"))+
+  scale_fill_manual(values = c("grey90", "red"))+
+  scale_color_manual(values = c("grey90"))+
   theme(panel.border = element_blank())+
-  ggtitle("SR Hotspots and Coldspots")
+  ggtitle("SR Hotspots")+
+  theme_void()+
+  # add Myer layer
+  geom_sf(data=m[m$Type=="hotspot area",], fill="#75B165", color=NA, show.legend=F, alpha=.5)+
+  geom_sf(data=m[m$NAME=="Polynesia-Micronesia" & m$Type=="outer limit",], fill="#75B165", alpha=.5, color=NA, show.legend=F)
 
 plot_grid(PE_hotspot_map, PD_hotspot_map, SR_hotspot_map, ncol=2)
 ggsave("figures/single_hotspots.png", width=10, height=6, units = "in", dpi = 600, bg = "white")
 
 
-table(thicc_lines$deforest_spot) # only NA zones in small areas
-deforest_hotspot_map <- ggplot(shp2)+
+table(thicc_lines$deforest_spot)
+(deforest_hotspot_map <- ggplot(shp2)+
   geom_sf(aes(fill=factor(deforest_spot)),lwd=0, col=NA) + 
   geom_sf(data=thicc_lines, aes(col=factor(deforest_spot)), show.legend=F, lwd=2)+
-  scale_fill_manual(values = c("grey80", "red"))+
-  scale_color_manual(values = c("grey80"))+
+  scale_fill_manual(values = c("grey90", "#6575B1"))+
+  scale_color_manual(values = c("grey90", "#6575B1"))+
   theme(panel.border = element_blank())+
-  ggtitle("Deforestation Hotspots")
-## Visualize overlap of hotspots -------------------------------
+  ggtitle("Top 2.5% deforestation countries")+
+  theme_void()+
+  # add Myer layer
+  geom_sf(data=m[m$Type=="hotspot area",], fill="#75B165", color=NA, show.legend=F, alpha=.5)+
+  geom_sf(data=m[m$NAME=="Polynesia-Micronesia" & m$Type=="outer limit",], fill="#75B165", alpha=.5, color=NA, show.legend=F)
+)
 
-#fwrite(st_drop_geometry(shp2), "hotspots_table.csv")
+## Visualize overlap of hotspots -------------------------------
+data <- bi_class(shp2, x = deforest_mean, y = SES.PE, style = "jenks", dim = 3)
+data$bi_class_ses <- data$bi_class
+shp2$bi_class_PE_deforest <- data$bi_class_ses
+rm(data)
+
+thicc_lines <- data[which(shp2$area<min.area),]
+(PE_deforest <- ggplot() +
+    geom_sf(shp2, mapping = aes(fill = bi_class_PE_deforest), color = NA, size = 0.1, show.legend = FALSE) +
+    bi_scale_fill(pal = "BlueGold", dim = 3, na.value="white") +
+    geom_sf(data=thicc_lines, lwd=1.5, aes(col=bi_class), show.legend=F)+
+    bi_scale_color(pal = "BlueGold", dim = 3, na.value="white") +
+    bi_theme()+
+    #geom_sf(data=m[m$Type=="hotspot area",], fill="green", color=NA, alpha=0.5, show.legend=F)+
+    #geom_sf(data=m[m$NAME=="Polynesia-Micronesia" & m$Type=="outer limit",], fill="green", color=NA, alpha=0.5, show.legend=F)+
+    ggtitle("SES.PE and deforestation")+
+    theme(title = element_text(size=10)))
+legend <- bi_legend(pal = "BlueGold",
+                    dim = 3,
+                    xlab = "deforestation",
+                    ylab = "SES.PE ",
+                    size = 8)
+
+(ses_pe_deforest_map <- ggdraw() +
+    draw_plot(PE_deforest, 0, 0, 1, 1) +
+    draw_plot(legend, 0.05, 0.25, 0.2, 0.2))
+ggsave("figures/choropleth_PE_deforest.png", width=10, height=5, units = "in", dpi = 600, bg = "white")
+
+data <- bi_class(shp2, x = deforest_mean, y = SES.PD, style = "jenks", dim = 3)
+data$bi_class_ses <- data$bi_class
+shp2$bi_class_PD_deforest <- data$bi_class_ses
+rm(data)
+thicc_lines <- shp2[which(shp2$area<min.area),]
+(PD_deforest <- ggplot() +
+    geom_sf(shp2, mapping = aes(fill = bi_class_PD_deforest), color = NA, size = 0.1, show.legend = FALSE) +
+    bi_scale_fill(pal = "BlueGold", dim = 3, na.value="white") +
+    geom_sf(data=thicc_lines, lwd=1.5, aes(col=bi_class), show.legend=F)+
+    bi_scale_color(pal = "BlueGold", dim = 3, na.value="white") +
+    bi_theme()+
+    #geom_sf(data=m[m$Type=="hotspot area",], fill="green", color=NA, alpha=0.5, show.legend=F)+
+    #geom_sf(data=m[m$NAME=="Polynesia-Micronesia" & m$Type=="outer limit",], fill="green", color=NA, alpha=0.5, show.legend=F)+
+    ggtitle("SES.PD and deforestation")+
+    theme(title = element_text(size=10)))
+legend <- bi_legend(pal = "BlueGold",
+                    dim = 3,
+                    xlab = "deforestation",
+                    ylab = "SES.PD ",
+                    size = 8)
+
+(ses_pd_deforest_map <- ggdraw() +
+    draw_plot(PD_deforest, 0, 0, 1, 1) +
+    draw_plot(legend, 0.05, 0.25, 0.2, 0.2))
+ggsave("figures/choropleth_PD_deforest.png", width=10, height=5, units = "in", dpi = 600, bg = "white")
+
+
+# all hotspots in one map
+thicc_lines <- shp2[which(shp2$area<min.area),]
+al <- 0.3
+ggplot()+
+  # world layer
+    geom_sf(data=shp2, col=NA, fill="grey95", lwd=0, show.legend = F) +
+  # PE layer
+    geom_sf(data=shp2[shp2$SES.PE_spot==1, ], fill="#6575B1", col=NA, lwd=0, show.legend = F, alpha=al) + 
+    geom_sf(data=thicc_lines[thicc_lines$SES.PE_spot==1, ], col="#6575B1", show.legend=F, lwd=2) +
+  # PD layer
+    geom_sf(data=shp2[shp2$SES.PD_spot==1, ], fill="#6575B1", col=NA, lwd=0, show.legend = F, alpha=al) + 
+    geom_sf(data=thicc_lines[thicc_lines$SES.PD_spot==1, ], col=alpha("#6575B1",0.3), show.legend=F, lwd=2) +
+  # SR layer
+    geom_sf(data=shp2[shp2$SR_spot==1, ], fill="#6575B1", col=NA, lwd=0, show.legend = F, alpha=al) + 
+    geom_sf(data=thicc_lines[thicc_lines$SR_spot==1, ], col="#6575B1", show.legend=F, lwd=2) +
+  # style settings
+    ggtitle("All hotspots, layered")#+
+#  theme_void()+
+#  # add Myer layer
+#  geom_sf(data=m[m$Type=="hotspot area",], fill="#75B165", color=NA, show.legend=F, alpha=.5)+
+#  geom_sf(data=m[m$NAME=="Polynesia-Micronesia" & m$Type=="outer limit",], fill="#75B165", alpha=.5, color=NA, show.legend=F)
+
+# get 
+x <- st_drop_geometry(shp2[,c("SR_spot","SES.PD_spot", "SES.PE_spot")])
+x$SR_spot <- ifelse(x$SR_spot<0, NA,x$SR_spot)
+x$SES.PE_spot <- ifelse(x$SES.PE_spot<0, NA,x$SES.PE_spot)
+x$SES.PD_spot <- ifelse(x$SES.PD_spot<0, NA,x$SES.PD_spot)
+shp2$hotspot_sum <- rowSums(x, na.rm = T)
+
+ggplot()+
+  # world layer
+  geom_sf(data=shp2, aes(fill=factor(hotspot_sum)),col=NA, lwd=0) +
+  geom_sf(data=thicc_lines[which(thicc_lines$LEVEL3_COD %in% shp2$LEVEL3_COD[shp2$hotspot_sum!=0]), ],
+          col="#6575B1", show.legend=F, lwd=2) +
+  # hotspot sum laye...
+  # geom_sf(aes(fill=hotspot_sum), col=NA, lwd=0, show.legend = F, alpha=al) + 
+  # geom_sf(data=thicc_lines[thicc_lines$SES.PE_spot==1, ], col="#6575B1", show.legend=F, lwd=2) +
+  # # PD layer
+  # geom_sf(data=shp2[shp2$SES.PD_spot==1, ], fill="#6575B1", col=NA, lwd=0, show.legend = F, alpha=al) + 
+  # geom_sf(data=thicc_lines[thicc_lines$SES.PD_spot==1, ], col=alpha("#6575B1",0.3), show.legend=F, lwd=2) +
+  # # SR layer
+  # geom_sf(data=shp2[shp2$SR_spot==1, ], fill="#6575B1", col=NA, lwd=0, show.legend = F, alpha=al) + 
+  # geom_sf(data=thicc_lines[thicc_lines$SR_spot==1, ], col="#6575B1", show.legend=F, lwd=2) +
+  # # style settings
+   scale_fill_manual(values = c("grey95", "#6575B1"))+
+  # scale_color_manual(values = c("grey90", "#6575B1"))+
+  ggtitle("Sum all hotspots")+
+   # add Myer layer
+   geom_sf(data=m[m$Type=="hotspot area",], fill="#75B165", color=NA, show.legend=F, alpha=.5)+
+   geom_sf(data=m[m$NAME=="Polynesia-Micronesia" & m$Type=="outer limit",], fill="#75B165", alpha=.5, color=NA, show.legend=F)
 
 
 
@@ -1136,8 +1257,8 @@ thicc_lines <- thicc_lines[thicc_lines$hfp_spot!=0,]
 ggplot(shp)+
   geom_sf(aes(fill=factor(hfp_spot)),lwd=0, col=NA) + 
   geom_sf(data=thicc_lines, aes(col=factor(hfp_spot)), show.legend=F, lwd=2)+
-  scale_fill_manual(values = c("blue", "grey80", "red"))+
-  scale_color_manual(values = c("blue", "grey80", "red"))+
+  scale_fill_manual(values = c("blue", "grey90", "red"))+
+  scale_color_manual(values = c("blue", "grey90", "red"))+
   theme(panel.border = element_blank())+
   ggtitle("Observed HFP Hotspots and Coldspots")
 ggsave("figures/PD_hot_cold.png", width=7, height=4, units = "in", dpi = 600, bg = "white")
