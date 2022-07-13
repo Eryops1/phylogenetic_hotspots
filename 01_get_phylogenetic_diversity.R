@@ -485,12 +485,12 @@ WE <- weighted_endemism(submat) # one is enough
 
 # Assemble df + shapefile ------------------------------------------------
 
-rowshuffle.df <- readRDS("rowshuffle.rds")
+#rowshuffle.df <- readRDS("rowshuffle.rds")
 tipshuffle.df <- readRDS("tipshuffle.rds")
-# wuick test
-plot(rowshuffle.df$PD_obs, tipshuffle.df$PD_obs)
-plot(rowshuffle.df$SES.PD, tipshuffle.df$SES.PD)
-names(rowshuffle.df)[4:8] <- paste0(names(rowshuffle.df)[4:8], "_RW")
+## quick test
+#plot(rowshuffle.df$PD_obs, tipshuffle.df$PD_obs)
+#plot(rowshuffle.df$SES.PD, tipshuffle.df$SES.PD)
+#names(rowshuffle.df)[4:8] <- paste0(names(rowshuffle.df)[4:8], "_RW")
 
 mpd <- readRDS("mpd.rds")
 mpd <- rowMeans(mpd)
