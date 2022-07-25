@@ -502,10 +502,9 @@ s <- st_read("../DATA/shapefile_bot_countries/level3_fixed.gpkg")
 s$LEVEL3_COD <- s$LEVEL_3_CO
 s <- s[!s$LEVEL3_COD=="BOU",]
 s <- merge(s, tipshuffle.df, by="LEVEL3_COD", all.x=TRUE)
-s <- merge(s, rowshuffle.df[,c(1,4:8)], by="LEVEL3_COD", all.x=TRUE)
-plot(s$richness, s$SES.PD_RW) # same same
+#s <- merge(s, rowshuffle.df[,c(1,4:8)], by="LEVEL3_COD", all.x=TRUE)
 
-# penalize SES.PD for richness
+# penalize SES.PD for richness?
 plot(s$richness, s$SES.PD)
 plot(s$richness, s$SES.PD/sqrt(s$richness))
 
