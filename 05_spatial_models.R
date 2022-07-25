@@ -35,6 +35,7 @@ tmp <- tmp[,-grep("centroids|PD_obs|PE_sd|PE|WE|mdr", names(tmp))]
 
 
 
+
 # SpatialRF ---------------------------------------------------------------
 
 library(spatialRF)
@@ -390,20 +391,19 @@ spatialRF::plot_response_curves(
 spatialRF::print_performance(model.spatial.repeat)
 
 # Full model
-# model.full <- rf_spatial(
-#   data = st_drop_geometry(shp2),
-#   dependent.variable.name = dependent.variable.name,
-#   predictor.variable.names = predictor.variable.names,
-#   distance.matrix = dm,
-#   distance.thresholds = distance.thresholds,
-#   xy = xy
-# ) %>%
-#   rf_tuning() %>%
-#   rf_evaluate() %>%
-#   rf_repeat()
+model.full <- rf_spatial(
+  data = st_drop_geometry(shp2),
+  dependent.variable.name = dependent.variable.name,
+  predictor.variable.names = predictor.variable.names,
+  distance.matrix = dm,
+  distance.thresholds = distance.thresholds,
+  xy = xy
+) %>%
+  rf_tuning() %>%
+  rf_evaluate() %>%
+  rf_repeat()
 
 
-# compare spatial and non spatial models
 comparison <- spatialRF::rf_compare(
   models = list(
     `Non-spatial` = model.non.spatial,
@@ -415,144 +415,6 @@ comparison <- spatialRF::rf_compare(
   metrics = "r.squared",
   seed = random.seed
 )
-
-x <- comparison$comparison.df %>%
-  dplyr::group_by(model, metric) %>%
-  dplyr::summarise(value = round(median(value), 3)) %>%
-  dplyr::arrange(metric) %>%
-  as.data.frame()
-colnames(x) <- c("Model", "Metric", "Median")
-kableExtra::kbl(
-  x,
-  format = "html"
-) %>%
-  kableExtra::kable_paper("hover", full_width = F)
-
-
-# Get spatial predictors for other models--------------------------------
-#single distance (0km by default)
-mems <- spatialRF::mem(distance.matrix = dm)
-
-#several distances
-mems <- spatialRF::mem_multithreshold(
-  distance.matrix = dm,
-  distance.thresholds = distance.thresholds
-)
-
-# But not all MEMs are made equal, and you will need to rank them by their
-# Moran’s I. The function rank_spatial_predictors() will help you do so.
-
-mem.rank <- spatialRF::rank_spatial_predictors(
-  distance.matrix = dm,
-  spatial.predictors.df = mems,
-  ranking.method = "moran"
-)
-#The output of rank_spatial_predictors() is a list with three slots: “method”, a
-#character string with the name of the ranking method; “criteria”, an ordered
-#data frame with the criteria used to rank the spatial predictors; and
-#“ranking”, a character vector with the names of the spatial predictors in the
-#order of their ranking (it is just the first column of the “criteria” data
-#frame). We can use this “ranking” object to reorder or mems data frame.
-
-mems <- mems[, mem.rank$ranking]
-
-# From here, spatial predictors can be included in any model one by one, in the
-# order of the ranking, until the spatial autocorrelation of the residuals
-# becomes neutral, if possible. A little example with a linear model follows.
-
-#model definition
-predictor.variable.names <- colnames(shp2)[16:48]
-predictors <- predictor.variable.names
-
-model.formula <- as.formula(
-  paste(
-    dependent.variable.name,
-    " ~ ",
-    paste(
-      predictors,
-      collapse = " + "
-    )
-  )
-)
-
-#scaling the data
-#model.data <- scale(st_drop_geometry(shp2)) %>%
-#  as.data.frame()
-
-#fitting the model
-m <- lm(model.formula, data = shp2)
-
-#Moran's I test of the residuals
-moran.test <- spatialRF::moran(
-  x = residuals(m),
-  distance.matrix = dm,
-  verbose = FALSE
-)
-print(moran.test$plot)
-
-
-# GBM -------------------------------------------------------------------
-library(caret)
-library(gbm)
-library(parallel)
-# parameter tuning using caret
-gbmControl <- trainControl(method = "repeatedcv", number = 10,
-                           repeats = 3, savePredictions = "final",
-                           returnResamp ="final")
-
-gbmGrid <-  expand.grid(interaction.depth = c(1, 2, 3),
-                        n.trees = (1:10)*50,
-                        shrinkage = c(0.1, 0.01, 0.001),
-                        n.minobsinnode = c(5, 10, 15))
-
-
-# define function
-## formula
-dat_no.na <- st_drop_geometry(shp2)
-n <- names(dat_no.na[,-grep("LEVEL", names(dat_no.na))])
-do_not_include <- c("SES.PD", "centroids", "y", "x")
-f_ses.pd <- as.formula(paste("SES.PD ~", paste(n[!n %in% do_not_include], collapse = " + ")))
-
-run.gbm <- function(i, seeds, data, trControl=gbmControl,
-                    tuneGrid=gbmGrid, form=form){
-  set.seed(s[i])
-  if(!i%%1)cat(i,"\r")
-  temp <- train(form, data, method = "gbm",
-                trControl = gbmControl, verbose=FALSE,
-                tuneGrid = gbmGrid)
-  return(temp)
-}
-
-n_cores=1
-s <- seq(500,507,1) # models are rather slow with that many variables, ca. 5 minutes per model
-system.time(
-  PD_list <- mclapply(1:length(s), run.gbm, seeds = s,
-                      data = dat_no.na, mc.cores=n_cores, form=f_ses.pd)
-)
-
-# this throws errors currently, no fucking idea why.... single rungs outside parallel are fine
-
-#pd_list <- unlist(PD_list, recursive = F)
-pdl <- lapply(PD_list, varImp)
-pdm <- as.data.frame(sapply(pdl, "[", "importance"))
-su <- rowSums(pdm)
-pdm$pred = row.names(pdm) 
-pddf <- reshape2::melt(pdm, id.name= "pred", value.name = "varImp")
-# sort factors
-pddf$pred <- factor(pddf$pred)
-pddf$pred <- factor(pddf$pred, levels=names(sort(su, decreasing = F)))
-
-ggplot(pddf, aes(x=pred, y=varImp))+
-  geom_boxplot()+
-  ylab("Variable importance")+
-  #  facet_wrap(~Var2, scales = "free")+
-  #  theme(axis.text.x = element_text(size=6, angle = 45, hjust=1),
-  #        strip.background = element_blank())+
-  theme(axis.title.y = element_blank(), axis.text.y = element_text(size=9))+
-  coord_flip()
-ggsave("figures/varImp_SES_PD_gbm10_runs.png", width=7, height=10, units = "in", dpi = 600)
-
-
 
 # GAM ---------------------------------------------------------------------
 
@@ -591,3 +453,12 @@ gam_mrf <- gam(SES.PD_ts ~ s(LEVEL3_COD, bs = 'mrf', xt = list(nb = nb)) + # def
                family = betar,  # fit a beta regression
                control = ctrl) 
 summary(gam_mrf)
+
+
+l1 <- lm(data=shp2, log(richness)~SES.PD*SES.PE)
+summary(l1)
+b <- mgcv::gam(data=shp2, log(richness)~s(SES.PD)+s(SES.PE))
+summary(b)
+plot(b,pages=1,residuals=TRUE)  ## show partial residuals
+mgcv::gam.check(b)
+mgcv::vis.gam(b,theta=30,phi=30,ticktype="detailed")
