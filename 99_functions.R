@@ -144,3 +144,9 @@ PE_ses <-function (x, phy, model = "tipshuffle",
 }
 environment(PE_ses) <- asNamespace('phyloregion')
 
+
+normalized = function(x)(x-min(x, na.rm=T))/(max(x, na.rm=T)-min(x, na.rm=T))
+
+
+
+
