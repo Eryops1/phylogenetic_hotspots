@@ -3,18 +3,17 @@ wd <- dirname(rstudioapi::getSourceEditorContext()$path)
 setwd(wd)
 rm(list = setdiff(ls(), lsf.str()))  
 gc()
-library(phyloregion) # PD calculations
-library(raster)
 library(sf)
 library(ggplot2)
-theme_set(theme_bw())
+theme_set(theme_bw()+theme(text=element_text(size=8), panel.grid=element_blank()))
 library(cowplot)
-library(rgdal)
+#library(rgdal)
 library(beepr)
 library(biscale)
-library(lee)
+library(spdep)
 library(scico)
 library(ggpattern)
+library(data.table)
 if(!dir.exists("figures"))dir.create("figures")
 source("99_functions.R")
 
@@ -35,81 +34,44 @@ shp <- shp[,-grep("obs_p|obs_rank|reps|LEVEL2|LEVEL1|LEVEL_3_CO|ID|\\.3|_rw|CONT
 names(shp)<- gsub("\\.1", "_mean", names(shp))
 names(shp)<- gsub("\\.2", "_sd", names(shp))
 
-# remove BOU that has no data
-shp <- shp[!shp$LEVEL3_COD=="BOU",]
-
-
-# Explorative plots -------------------------------------------------------
-
-# plot(st_drop_geometry(shp)[,c(1,4:12,13:23)])
-# plot(st_drop_geometry(shp)[,c(1,4:12,24:35)])
-# plot(st_drop_geometry(shp)[,c(1,4:12,36:57)])
+#st_write(shp, "fin_shape_for_gis_checks.gpkg")
 
 
 
-# Maps --------------------------------------------------------------------
+# Maps SR, SES.PD,  WE, SES.PE ------------------------------------------------
 
-
-# format to sf object for plotting
-sfixed <- read_sf("../DATA/shapefile_bot_countries/level3_fixed.gpkg")
-sfixed <- sfixed[!sfixed$LEVEL_3_CO=="BOU",]
-# move data over to fixed shapefile, can be removed later when fix is completely
-# established in earlier pipeline
-shp <- merge(sfixed, st_drop_geometry(shp))
-
-
-# transform to Behrmann projection
+# transform projection
 shp <- st_transform(shp, my_projection)
 
-min.area <- 1.5e+9
-class(min.area)
+min.area <- 6e+9
 thicc_lines <- shp[which(shp$area<min.area),]
+
+
 lcol <- min(thicc_lines$PD_obs)/max(shp$PD_obs)
 ucol <- max(thicc_lines$PD_obs)/max(shp$PD_obs)
 (pd_map <- ggplot(shp) + 
-    geom_sf(aes(fill=PD_obs),lwd=0, col=NA) + 
-    geom_sf(data=thicc_lines, lwd=1.5, aes(col=PD_obs), show.legend=F)+
-    scale_colour_viridis_c("PD", option = "plasma", trans = "sqrt", 
+    geom_sf(data=shp, aes(fill=PD_obs),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1, aes(col=PD_obs), show.legend=F)+
+    scale_colour_scico("PD", palette = "batlow", trans = "sqrt", 
                             begin = lcol, end = sqrt(ucol))+
-    scale_fill_viridis_c("PD", option = "plasma", trans="sqrt")+ #, 
-    theme(legend.position = c(0.18, 0.3),
+    scale_fill_scico("PD", palette = "batlow", trans="sqrt")+ #, 
+    theme(legend.position = c(0.22, 0.3),
           legend.key.height = unit(6,"mm"),
           legend.background = element_blank(),
           legend.key = element_blank(),
           panel.background = element_blank(),
           panel.border = element_blank(),
           text = element_text(size = 10))+
-    xlab(" ")+
-    ggtitle("Raw PD Faith")
-)
-
-
-(pd_ses_map <- ggplot(na.omit(shp)) + 
-    geom_sf(aes(fill=SES.PD),lwd=0, col=NA) + 
-    geom_sf(data=na.omit(thicc_lines), lwd=1.5, aes(col=SES.PD), show.legend=F)+
-    scale_colour_viridis_c("SES.PD", option = "plasma")+
-    scale_fill_viridis_c("SES.PD", option = "plasma")+ #, 
-    theme(legend.position = c(0.20, 0.3),
-          legend.key.height = unit(6,"mm"),
-          legend.background = element_blank(),
-          legend.key = element_blank(),
-          panel.background = element_blank(),
-          panel.border = element_blank(),
-          text = element_text(size = 10),
-    )+
     xlab(" ")
 )
-
-
-thicc_lines <- shp2[which(shp2$area<min.area),]
-lcol <- min(thicc_lines$PE_obs)/max(shp2$PE_obs)
-ucol <- max(thicc_lines$PE_obs)/max(shp2$PE_obs)
-(pe_map <- ggplot(shp2) + 
+lcol <- min(thicc_lines$PE_obs)/max(shp$PE_obs)
+ucol <- max(thicc_lines$PE_obs)/max(shp$PE_obs)
+(pe_map <- ggplot(shp) + 
     geom_sf(aes(fill=PE_obs),lwd=0, col=NA) + 
-    geom_sf(data=thicc_lines, lwd=1.5, aes(col=PE_obs), show.legend=F)+
-    scale_colour_viridis_c("PE", option = "plasma", trans="sqrt",
+    geom_sf(data=thicc_lines, lwd=1, aes(col=PE_obs), show.legend=F)+
+    scale_colour_scico("PE", palette="batlow", trans="sqrt",
                            begin = lcol, end = ucol)+
-    scale_fill_viridis_c("PE", option = "plasma",trans="sqrt")+ #, 
+    scale_fill_scico("PE", palette="batlow",trans="sqrt")+ #, 
     theme(legend.position = c(0.18, 0.3),
           legend.key.height = unit(6,"mm"),
           legend.background = element_blank(),
@@ -120,18 +82,61 @@ ucol <- max(thicc_lines$PE_obs)/max(shp2$PE_obs)
     )+
     xlab(" ")
 )
-shp2 <- na.omit(shp)
+# Simple SR (excluding Antarctica)
+lcol <- min(thicc_lines$richness)/max(shp$richness)
+ucol <- max(thicc_lines$richness)/max(shp$richness)
+(sr_map <- ggplot(shp[!shp$LEVEL3_COD=="ANT",]) + 
+    geom_sf(aes(fill=richness),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1, aes(col=richness), show.legend=F)+
+    scale_colour_scico("SR", palette="batlow", trans = "sqrt", 
+                           begin = lcol, end = sqrt(ucol))+
+    scale_fill_scico("SR", palette="batlow", trans = "sqrt")+ #, 
+    theme_void()+
+    theme(legend.position = c(0.22, 0.3),
+          legend.key.height = unit(6,"mm"),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          text = element_text(size = 10)
+    )
+)
+
+
+shp2 <- shp[!is.na(shp$SES.PD),]
 thicc_lines <- shp2[which(shp2$area<min.area),]
-# negative numbers fix. range of number spans negative to positive, so the color range needs to be adjusted
-lcol <- min(thicc_lines$SES.PE+abs(min(shp2$SES.PE)))/diff(range(shp2$SES.PE)) 
-ucol <- max(thicc_lines$SES.PE+abs(min(shp2$SES.PE)))/diff(range(shp2$SES.PE))
-(pe_ses_map <- ggplot(shp2) + 
-    geom_sf(aes(fill=SES.PE),lwd=0, col=NA) + 
-    geom_sf(data=thicc_lines, lwd=1.5, aes(col=SES.PE), show.legend=F)+
-    scale_colour_viridis_c("SES.PE", option = "plasma",
-                           begin = lcol, end = ucol)+
-    scale_fill_viridis_c("SES.PE", option = "plasma")+ #, 
-    theme(legend.position = c(0.20, 0.3),
+
+# simple WE
+lcol <- min(thicc_lines$WE)/max(shp$WE)
+ucol <- max(thicc_lines$WE)/max(shp$WE)
+(we_map <- ggplot(shp2) + 
+    geom_sf(aes(fill=WE),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1, aes(col=WE), show.legend=F)+
+    scale_colour_scico("WE", palette="batlow", trans = "sqrt", 
+                           begin = lcol, end = sqrt(ucol))+
+    scale_fill_scico("WE", palette="batlow", trans = "sqrt")+ #, 
+    theme_void()+
+    theme(legend.position = c(0.22, 0.3),
+          legend.key.height = unit(6,"mm"),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          text = element_text(size = 10)
+    )+
+    xlab(" ")
+)
+
+
+lcol <- 1-min(thicc_lines$SES.PD)/(min(shp2$SES.PD)-max(shp2$SES.PD))
+ucol <- max(thicc_lines$SES.PD)/max(shp2$SES.PD)
+(pd_ses_map <- ggplot(shp2) + 
+    geom_sf(aes(fill=SES.PD),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1, aes(col=SES.PD), show.legend=F)+
+    scale_colour_scico("SES.PD", palette="batlow", begin=lcol, end=ucol)+
+    scale_fill_scico("SES.PD", palette="batlow")+  
+    theme_void()+
+    theme(legend.position = c(0.22, 0.3),
           legend.key.height = unit(6,"mm"),
           legend.background = element_blank(),
           legend.key = element_blank(),
@@ -142,48 +147,43 @@ ucol <- max(thicc_lines$SES.PE+abs(min(shp2$SES.PE)))/diff(range(shp2$SES.PE))
     xlab(" ")
 )
 
-# Simple SR
-lcol <- min(thicc_lines$richness)/max(shp$richness)
-ucol <- max(thicc_lines$richness)/max(shp$richness)
-(sr_map <- ggplot(shp2) + 
-    geom_sf(aes(fill=richness),lwd=0, col=NA) + 
-    geom_sf(data=thicc_lines, lwd=1.5, aes(col=richness), show.legend=F)+
-    scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
-                            begin = lcol, end = sqrt(ucol))+
-    scale_fill_viridis_c("SR", option = "plasma", trans = "sqrt")+ #, 
-    theme(legend.position = c(0.2, 0.3),
+lcol <- min(thicc_lines$SES.PE+abs(min(shp2$SES.PE)))/diff(range(shp2$SES.PE)) 
+ucol <- max(thicc_lines$SES.PE)/max(shp2$SES.PE)
+(pe_ses_map <- ggplot(shp2) + 
+    geom_sf(aes(fill=SES.PE),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1, aes(col=SES.PE), show.legend=F)+
+    scale_colour_scico("SES.PE", palette="batlow",
+                           begin = lcol, end = ucol)+
+    scale_fill_scico("SES.PE", palette="batlow")+ 
+    theme_void()+
+    theme(legend.position = c(0.22, 0.3),
           legend.key.height = unit(6,"mm"),
           legend.background = element_blank(),
           legend.key = element_blank(),
           panel.background = element_blank(),
           panel.border = element_blank(),
-          text = element_text(size = 10)
-    )+
-    xlab(" ")
-)
- # simple WE
-lcol <- min(thicc_lines$WE)/max(shp$WE)
-ucol <- max(thicc_lines$WE)/max(shp$WE)
-(we_map <- ggplot(shp2) + 
-    geom_sf(aes(fill=WE),lwd=0, col=NA) + 
-    geom_sf(data=thicc_lines, lwd=1.5, aes(col=WE), show.legend=F)+
-    scale_colour_viridis_c("WE", option = "plasma", trans = "sqrt", 
-                           begin = lcol, end = sqrt(ucol))+
-    scale_fill_viridis_c("WE", option = "plasma", trans = "sqrt")+ #, 
-    theme(legend.position = c(0.2, 0.3),
-          legend.key.height = unit(6,"mm"),
-          legend.background = element_blank(),
-          legend.key = element_blank(),
-          panel.background = element_blank(),
-          panel.border = element_blank(),
-          text = element_text(size = 10)
+          text = element_text(size = 10),
     )+
     xlab(" ")
 )
 
 
-plot_grid(sr_map, pd_ses_map, we_map, pe_ses_map, nrow = 2)
-ggsave("figures/maps.png", width=14, height=9.77, units = "in", dpi = 600, bg = "white")
+
+plot_grid(sr_map, we_map, pd_ses_map, pe_ses_map, ncol = 2, 
+          labels=c("A","B","C","D"), label_fontface=1)
+ggsave("figures/maps.png", width=12.5, height=7, units = "in", dpi = 600, bg = "white")
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -215,18 +215,18 @@ sm <- 4
 bonbon_PD <-
   ggplot(df2[grep("PD", df2$name),], aes(name, value, color = richness, group=LEVEL_NAME))+
   geom_bump(size = 1, position = "identity", smooth=sm) +
-  scale_color_viridis_c("Species richness", trans="sqrt", alpha = alevel, option = "plasma", guide = "none")+
+  scale_color_scico("Species richness", trans="sqrt", alpha = alevel, palette="batlow", guide = "none")+
   scale_x_discrete("", expand = c(0.05,0.05))+
   scale_y_discrete("rank")+
   theme_minimal()
 
 bonbon_PE <- ggplot(df2[grep("PE", df2$name),], aes(name, value, color = richness, group=LEVEL_NAME))+
   geom_bump(size = 1, position = "identity", smooth=sm) +
-  scale_color_viridis_c("Species richness", trans="sqrt", alpha = alevel, option = "plasma", guide = "none")+
+  scale_color_scico("Species richness", trans="sqrt", alpha = alevel, palette="batlow", guide = "none")+
   scale_x_discrete("", expand = c(0.05,0.05))+
   scale_y_discrete("rank")+
   geom_point(size = 0, aes(fill=richness)) +
-  scale_fill_viridis_c("Species richness", trans="sqrt", alpha = 1, option = "plasma")+
+  scale_fill_scico("Species richness", trans="sqrt", alpha = 1, palette="batlow")+
   theme_minimal()
 
 plot_grid(bonbon_PD, bonbon_PE, ncol=2, rel_widths = c(.41,.59))  
@@ -236,146 +236,168 @@ ggsave("figures/standardization_effects.png", width=8, height=4, units = "in", d
 pd_rank_changes <- sum(abs(tapply(df2$value[grep("PD", df2$name)], df2$LEVEL_NAME[grep("PD", df2$name)], diff)))
 pe_rank_changes <- sum(abs(tapply(df2$value[grep("PE", df2$name)], df2$LEVEL_NAME[grep("PE", df2$name)], diff)))
 pd_rank_changes/length(unique(df2$LEVEL_NAME)); pe_rank_changes/length(unique(df2$LEVEL_NAME))
-       
+## --> rank changes more pronounced in PD than in PE   
 
+df$PD_changes <- df$SES.PD_rank-df$PD_rank
+df$PE_changes <- df$SES.PE_rank-df$PE_rank
+df$hs <- NA
+df$hs[df$LEVEL_NAME %in% c("Borneo", "China South-Central", "China Southeast", "Cape Provinces", 
+"Queensland", "Thailand", "Western Australia", "East Himalaya", "Guatemala", "India", "Malaya", 
+"Mexico Gulf", "Myanmar", "Philippines", "Sumatera", "Vietnam")] <-"hs" 
+ggplot(df, aes(x=richness, label=LEVEL_NAME))+
+  geom_point(aes(y=PD_changes), col="#52548D", alpha=.3)+
+#  geom_label(data=df[df$hs=="hs",], aes(x=richness, y=PD_changes), size=3, label.size=0)+
+  geom_point(aes(y=PE_changes), col="#EFB984", alpha=.3)+
+#  geom_label(data=df[df$hs=="hs",], aes(x=richness, y=PE_changes), size=3, label.size=0)
+  geom_smooth(aes(y=PD_changes), col="#52548D")+
+  geom_smooth(aes(y=PE_changes), col="#EFB984")+
+  scale_x_continuous(trans="sqrt")+coord_cartesian(expand=F, xlim=c(30,23000))+
+  scale_y_continuous("Rank changes")+
+  geom_hline(yintercept=0, size=0.1)
+ggsave("figures/rank_changes.png", width=3, height=3, units = "in", dpi = 300, bg = "white")
 
 # SES.PD vs PD_obs colored for SR
 ggplot(shp2, aes(x=PD_obs, y=SES.PD, size=3))+
   geom_point(aes(color=richness))+
   scale_size(guide="none")+
-  scale_color_viridis_c(trans="sqrt")
+  scale_color_scico(trans="sqrt")
 ggsave("figures/ses_PD_vs_PD_obs.png", width=5, height=4, units = "in", dpi = 600, bg = "white")
 
-shp2$SES.PE.norm <- normalized(shp2$SES.PE)
-shp2$PE_obs.norm <- normalized(shp2$PE_obs)
 
+### compare to brody sandels rarefaction approach ####
+rar  <- readRDS("brody_rarefaction.rds")
+rar.df <- data.frame(pd_obs_rar = tapply(rar$PD_obs, rar$grids, median),
+                     zscore_rar = tapply(rar$zscore, rar$grids, median),
+                     zscore_sd_rar = tapply(rar$zscore, rar$grids, sd),
+                     zscore_rand_rar = tapply(rar$pd_rand_mean, rar$grids, median))
+rar.df$LEVEL3_COD <- row.names(rar.df)
+shp2 <- merge(shp2, rar.df, all.x=T)
+
+plot(shp2$PD_obs, shp2$pd_obs_rar)
+plot(shp2$SES.PD, shp2$zscore_rar)
+cor.test(shp2$SES.PD, shp2$zscore_rar, method="s")
+
+# sesPD_rarefaction
 thicc_lines <- shp2[which(shp2$area<min.area),]
-lcol <- min(thicc_lines$SES.PE.norm)/max(shp2$SES.PE.norm)
-ucol <- max(thicc_lines$SES.PE.norm)/max(shp2$SES.PE.norm)
-(pe_standardization_effects_map <- ggplot(shp2) + 
-    geom_sf(aes(fill=PE_obs.norm-SES.PE.norm)) + 
-    geom_sf(data=thicc_lines, lwd=1.5, aes(col=PE_obs.norm-SES.PE.norm), show.legend=F)+
-    scale_color_gradient2("stand. differences",low = "red", mid = "white", high = "blue")+
-    scale_fill_gradient2("stand. differences",low = "red", mid = "white", high = "blue")+
-    ggtitle("PE[0,1] - SES.PE[0,1]. Blue=SES is smaller, red=SES is bigger than raw values")
+(pd_ses_rarefaction_map <- ggplot(shp2) + 
+    geom_sf(aes(fill=zscore_rar),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1, aes(col=zscore_rar), show.legend=F)+
+    scale_colour_scico("zscore_rar", palette="batlow")+
+    scale_fill_scico("zscore_rar", palette="batlow")+  
+    theme_void()+
+    theme(legend.position = c(0.22, 0.3),
+          legend.key.height = unit(6,"mm"),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          text = element_text(size = 10),
+    )+
+    xlab(" ")+
+    ggtitle("I dont think its reasonable to subsample 23k to 41, no matter how many times?")
 )
-plot_grid(pd_standardization_effects_map, pe_standardization_effects_map, nrow=2)
 
 
+#botta-dukat: I recommend checking symmetry of
+#null-distribution before calculating the SES value. If the distribution is
+#skewed, I recommend either log-transformation of the test statistic, or using
+#probit-transformed p-value as effect size measure.
 
+hist(shp2$pd_rand_mean)
+library(psych)
+describe(shp2$pd_rand_mean)
+# null distribution is skewed. transform:
+describe(log(shp2$pd_rand_mean))
+describe(sqrt(shp2$pd_rand_mean)) # works
 
+# load results from sqrt transformed stuff
+sesPD_norm <- readRDS("sesPD_norm.rds")
+norm.df <- data.frame(pd_obs_norm = sesPD_norm$PD_obs,
+                     zscore_norm = sesPD_norm$zscore, 
+                     LEVEL3_COD=sesPD_norm$grids, 
+                     zscore_rand_norm=sesPD_norm$pd_rand_mean)
+shp2 <- merge(shp2, norm.df, all.x=T)
 
-# Choropleth maps -------------------------------------------------
-## get overlap of PD and PE, and both with SR
-dim <- 4
-shp2$bi_class <- bi_class(shp2, x = richness, y = WE, style = "jenks", dim = dim)$bi_class
-shp2$bi_class_ses <- bi_class(shp2, x = SES.PD, y = SES.PE, style = "jenks", dim = dim)$bi_class
+plot(shp2$PD_obs, shp2$pd_obs_norm)
+plot(shp2$SES.PD, shp2$zscore_norm)
+abline(a=0,b=1)
+cor.test(shp2$SES.PD, shp2$zscore_norm, method="s")
+
+plot(shp2$richness, shp2$SES.PD, ylim=c(-90,5))
+points(shp2$richness, shp2$zscore_norm, col="red")
+plot(shp2$richness, shp2$zscore_rar, col="blue")
+
 thicc_lines <- shp2[which(shp2$area<min.area),]
+(pd_ses_norm_map <- ggplot(shp2) + 
+    geom_sf(aes(fill=zscore_norm),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1, aes(col=zscore_norm), show.legend=F)+
+    scale_colour_scico("zscore_norm", palette="batlow")+
+    scale_fill_scico("zscore_norm", palette="batlow")+  
+    theme_void()+
+    theme(legend.position = c(0.22, 0.3),
+          legend.key.height = unit(6,"mm"),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          text = element_text(size = 10),
+    )+
+    xlab(" ")
+)
 
-chloropl1 <- ggplot() +
-  geom_sf(na.omit(shp2), mapping = aes(fill = bi_class_ses), color = NA, size = 0.1, show.legend = FALSE) +
-  bi_scale_fill(pal = "BlueGold", dim=dim, na.value="white") +
-  geom_sf(data=thicc_lines, lwd=1.5, aes(col=bi_class_ses), show.legend=F)+
-  bi_scale_color(pal = "BlueGold", dim=dim, na.value="white") +
-  bi_theme()+ theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm"))+
-  coord_sf(expand = F)# t,r,b,l bi_theme()+ 
-legend <- bi_legend(pal = "BlueGold", dim=dim, xlab="sesPD", ylab="sesPE ", size=8,
-                    breaks=bi_class_breaks(shp2, x=SES.PD, y=SES.PE, style="jenks", dim=dim))+
-  theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
-(pd_pe_map <- ggdraw() + draw_plot(chloropl1, 0, 0, 1, 1) + draw_plot(legend, 0.05, 0.25, 0.3, 0.3))
+hist(shp2$pd_rand_mean)
+hist(shp2$pd_obs_rar)
+
+# does the ratio of sd to PD_rand_mean change with SR??
+names(shp2)
+ggplot(shp2)+
+  geom_point(aes(x=richness, y=pd_rand_sd))
+ggplot(shp2)+
+  geom_point(aes(x=richness, y=pd_rand_mean))
+
+# ok, but what if the distance between PD_obs and PD_rand_mean also scales with richness?
+ggplot(shp2)+
+  geom_point(aes(x=richness, y=PD_obs - pd_rand_mean))
+ggplot(shp2)+
+  geom_point(aes(x=richness, y=SES.PD))
+
+ggplot(shp2)+
+  geom_point(aes(x=richness, y=pd_rand_mean))+
+  scale_x_continuous(trans="sqrt")+
+  geom_point(aes(x=richness, y=PD_obs))
 
 
-chloropl2 <- ggplot() +
-    geom_sf(shp2, mapping = aes(fill = bi_class), color = NA, size = 0.1, show.legend = FALSE) +
-    bi_scale_fill(pal = "BlueGold", dim = 4, na.value="white") +
-    geom_sf(data=thicc_lines, lwd=1.5, aes(col=bi_class), show.legend=F)+
-    bi_scale_color(pal = "BlueGold", dim = 4, na.value="white") +
-    bi_theme()+ theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm"))+
-    coord_sf(expand = F)# t,r,b,l bi_theme()+ 
-legend <- bi_legend(pal = "BlueGold", dim=dim, xlab="SR", ylab="WE ", size=8,
-                      breaks=bi_class_breaks(shp2, x=richness, y=WE, style = "jenks", dim = dim))+
-    theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
-(sr_we_map <- ggdraw() + draw_plot(chloropl2, 0, 0, 1, 1) + draw_plot(legend, 0.05, 0.25, 0.3, 0.3))
-
-plot_grid(pd_pe_map, sr_we_map, ncol=2)
-ggsave("figures/choropleth_map.png", width=17, height=9.77, units = "in", dpi = 600, bg = "white")
-
-
-## Threat boxplots for groups ------------------------------------------
-# threats: HFP, future clim change, deforestation
-
-# boxplot for deforest vs biclass groups -a more quantitative plot
-coropleth_palette <- read.csv("figures/coropleth_palette.txt", header = F)$V1 # actual order
-
-(biclass_vs_deforest <- ggplot(shp2)+
-  geom_boxplot(aes(x=bi_class_ses, y=deforest_mean), varwidth = T,  show.legend=F)+ #, fill=bi_class_ses
-  #scale_fill_manual(values=coropleth_palette)+
-  xlab("SES.PD-SES.PE group"))
-# it does not look like there is a strong pattern in deforestation. might be single hotspots in it though. gotta inspect visually. check for hfp and future climate change as well:
-(biclass_vs_hfp <- ggplot(shp2)+
-    geom_boxplot(aes(x=bi_class_ses, y=hfp_mean), varwidth = T,  show.legend=F)+ 
-    xlab("SES.PD-SES.PE group"))
-(biclass_vs_fut_prec <- ggplot(shp2)+
-    geom_boxplot(aes(x=bi_class_ses, y=pre_change), varwidth = T,  show.legend=F)+
-    xlab("SES.PD-SES.PE group"))
-(biclass_vs_fut_mat <- ggplot(shp2)+
-    geom_boxplot(aes(x=bi_class_ses, y=mat_change), varwidth = T,  show.legend=F)+
-    xlab("SES.PD-SES.PE group"))
-plot_grid(biclass_vs_deforest, biclass_vs_hfp, biclass_vs_fut_prec, biclass_vs_fut_mat, ncol=2)
-ggsave("figures/boxplot_PD_PE_threats.png", width=7, height=7, units = "in", dpi = 600, bg = "white")
-
-## continuous plot
-y <- c("deforest_mean", "hfp_mean", "pre_change", "mat_change")
-for(i in 1:4){
-  response <- y[i] 
-  g <- ggplot(shp2, aes_string(x="SES.PD", y=response))+
-    geom_point()+
-    geom_smooth()
-  assign(response, g) #generate an object for each plot
-}
-for(i in 1:4){
-  response <- y[i] 
-  g <- ggplot(shp2, aes_string(x="SES.PE", y=response))+
-    geom_point()+
-    geom_smooth()
-  assign(paste0(response, "_PE"),g) #generate an object for each plot
-}
-plot_grid(deforest_mean, hfp_mean, pre_change, mat_change, 
-          deforest_mean_PE, hfp_mean_PE, pre_change_PE, mat_change_PE, ncol=4)
+# shp2$SES.PD.norm <- normalized(shp2$SES.PD)
+# shp2$PD_obs.norm <- normalized(shp2$PD_obs)
+# 
+# thicc_lines <- shp2[which(shp2$area<min.area),]
+# lcol <- min(thicc_lines$SES.PD.norm)/max(shp2$SES.PE.norm)
+# ucol <- max(thicc_lines$SES.PD.norm)/max(shp2$SES.PE.norm)
+# (pd_standardization_effects_map <- ggplot(shp2) + 
+#     geom_sf(aes(fill=PD_obs.norm-SES.PD.norm)) + 
+#     geom_sf(data=thicc_lines, lwd=1.5, aes(col=PD_obs.norm-SES.PD.norm), show.legend=F)+
+#     scale_color_gradient2("stand. differences",low = "red", mid = "white", high = "blue")+
+#     scale_fill_gradient2("stand. differences",low = "red", mid = "white", high = "blue")+
+#     theme_void()+
+#     ggtitle("PD[0,1] - SES.PD[0,1]. Blue=SES is smaller, red=SES is bigger than raw values")
+# )
 
 
 
-## adding Myer hotspots -------------------------------------
-ha <- st_read("hotspot_area.gpkg")
-pm <- st_read("Poly-Micronesia.gpkg")
-gc()
-
-# ha_united <- st_union(ha)
-# st_write(ha_united, "hotspot_area_united.gpkg")
-ha_united <- st_read("hotspot_area_united.gpkg")
-
-# change projection + solve dateline issue
-ha_united <- st_wrap_dateline(ha_united, options = c("WRAPDATELINE=YES", "DATELINEOFFSET=180"))
-pm <- st_wrap_dateline(pm, options = c("WRAPDATELINE=YES", "DATELINEOFFSET=180"))
-ha_united <- st_transform(ha_united, my_projection)
-pm <- st_transform(pm, my_projection)
 
 
-# plotting with triangle pattern takes a minute, be patient!
-chloropl3 <- chloropl1+
-    geom_sf_pattern(data=ha_united, pattern = 'wave', pattern_type="triangle", fill="grey30",
-                    colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.005, pattern_spacing=0.02)+
-    geom_sf_pattern(data=pm, pattern = 'wave', pattern_type="triangle",  fill="grey30",
-                    colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.01, pattern_spacing=0.02)+
-  theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F)
-legend <- bi_legend(pal = "BlueGold", dim=dim, xlab="sesPD", ylab="sesPE ", size=8,
-                    breaks=bi_class_breaks(shp2, x=SES.PD, y=SES.PE, style="jenks", dim=dim))+
-  theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
-pd_pe_myer <- ggdraw() + draw_plot(chloropl3, 0, 0, 1, 1) + draw_plot(legend, 0.05, 0.1, 0.35, 0.35)
-ggsave("figures/PD_PE_Myer.png", width=10, height=5.74, units = "in", dpi = 600, bg = "white")
 
 
-## Myer hotspot proportions ------------------------------------
+
+
+
+
+
+
+
+
+
+# Myer hotspot proportions ------------------------------------
 
 h <- st_read("hotspots_fixed.gpkg")
 h <- st_wrap_dateline(h, options = c("WRAPDATELINE=YES", "DATELINEOFFSET=180"))
@@ -397,42 +419,63 @@ for(i in 1:length(s)){
 }
 
 shp2$hotspot_coverage <- a
-saveRDS(shp2, "including_hotspot_coverage.rds")
+# saveRDS(shp2, "including_hotspot_coverage.rds")
 shp2 <- readRDS("including_hotspot_coverage.rds")
 
+# how many myers hotspots covered?
+tmp <- shp2[shp2$PD_hotspot=="3-3" |shp2$PE_hotspot %in% c("4-3", "3-4", "4-4"), ]
+s <- as(st_geometry(tmp), "Spatial")
 
-ggplot(shp2) + 
-  geom_sf(aes(fill=hotspot_coverage, col=hotspot_coverage))+
-  scale_fill_scico("lajolla")+scale_color_scico("lajolla")
+res <- raster::intersect(m3, s) 
+# first = myer hotspot, second=evol hotspot
+myer_number <- gsub(" [0-9]{1,2}", "", names(res))
+evol_number <- gsub("[0-9]{1,2} ", "", names(res))
+unique(h$NAME[as.numeric(myer_number)])
+unique(tmp$LEVEL_NAME[as.numeric(evol_number)])
 
-cor.test(shp2$richness, shp2$hotspot_coverage, method="s") 
-cor.test(shp2$SES.PE, shp2$hotspot_coverage, method="s")
-cor.test(shp2$SES.PD, shp2$hotspot_coverage, method="s")
-cor.test(shp2$area, shp2$hotspot_coverage, method="s")
-cor.test(shp2$WE, shp2$hotspot_coverage, method="s")
 
 library(scico)
+ggplot(shp2) + 
+  geom_sf(aes(col=hotspot_coverage), show.legend=F)+
+  geom_sf(aes(fill=hotspot_coverage), col=NA)+
+  scale_fill_scico("hotspot \ncoverage", palette="batlow", end=0.7)+
+  scale_color_scico(palette="batlow", end=0.7)+
+  theme(legend.position = c(0.18, 0.3),
+        legend.key.height = unit(6,"mm"),
+        legend.background = element_blank(),
+        legend.key = element_blank(),
+        legend.title=element_text(size=9))+
+  coord_sf(expand=F)
+ggsave("figures/hotspot_coverage.png", units="in", dpi=300, width=7, height=4.1)
+
+## correlations with PD,PE,SR,WE ----
+cor.test(shp2$richness, shp2$hotspot_coverage, method="p") 
+cor.test(shp2$SES.PE, shp2$hotspot_coverage, method="p")
+cor.test(shp2$SES.PD, shp2$hotspot_coverage, method="p")
+cor.test(shp2$area, shp2$hotspot_coverage, method="s")
+cor.test(shp2$WE, shp2$hotspot_coverage, method="p")
+
 plot_grid(
 ggplot(shp2, aes(x=hotspot_coverage, y=richness))+
   geom_density_2d()+
   geom_smooth()+
-  annotate("text", x=0.9,y=7500, label="rho=0.3"),
+  annotate("text", x=0.9,y=7500, label="rho=ns"),
 ggplot(shp2, aes(x=hotspot_coverage, y=WE))+
   geom_density_2d_filled(show.legend=F)+
   scale_fill_scico_d(palette="lajolla")+
   geom_smooth() + coord_cartesian(ylim=c(0,3500))+
-  annotate("text", x=0.9,y=3000, label="rho=0.42"),
+  annotate("text", x=0.9,y=3000, label="rho=0.17"),
 ggplot(shp2, aes(x=hotspot_coverage, y=SES.PD))+
   geom_rug()+
   geom_smooth()+
-  annotate("text", x=0.9,y=-10, label="rho=ns"),
+  annotate("text", x=0.9,y=-10, label="rho=0.26"),
 ggplot(shp2, aes(x=hotspot_coverage, y=SES.PE))+
   geom_point(aes(col=SES.PE), show.legend=F)+  scale_color_scico(palette="lajolla")+
   geom_smooth()+
-  annotate("text", x=0.9,y=25, label="rho=0.28"), 
+  annotate("text", x=0.9,y=25, label="rho=0.34"), 
 nrow=2)
 
-# spatially explicit correlation
+## Lee's L ----
 tmp <- shp2[,grep("LEVEL|hotspot_coverage|SES.PE$|SES.PD$|WE|richness", names(shp2))]
 nb <- spdep::poly2nb(tmp, row.names = tmp$LEVEL3_COD)
 col.W <- spdep::nb2listw(nb, style="W", zero.policy = TRUE)
@@ -448,20 +491,61 @@ leeHS.df$twoSD <- 2*sqrt(leeHS.df$var)
 ggplot(leeHS.df, aes(y=expect, x=row.names(leeHS.df)))+
   geom_linerange(aes(ymin=expect-twoSD, ymax=expect+twoSD), col="grey70")+
   geom_point(aes(y=Lee, x=row.names(leeHS.df), col=factor(pvalue<0.05)), show.legend = F)+
-  scale_color_manual("p<0.05",values=c("grey20", "red"))+
+  scale_color_manual("p<0.05",values=c("#e4974a"))+
   ylab("Lee's L with hotspot coverage")+
   xlab("")+  coord_flip()
 ggsave("figures/LeesL_HS_coverage_and_PD_vars.png", width=3, height=2, units = "in", dpi = 300)
 
+save.image("workspace_point1.RData")
 
 
 
-## Hotspots with PE and PD separately-------------------------------
 
-# get groups
+
+
+
+
+
+
+
+
+
+
+# Choropleth threats + PE / PD -------------------------------
+load("workspace_point1.RData")
+
+#### plot setup ----
+my_pal1 <- c("#d3d3d3", "#a8aec3", "#7f88b2", "#5665a3", 
+             "#d3bc9a", "#a89b8e", "#7f7a82", "#565a77", 
+             "#d3a45e", "#a88756", "#7f6a4f", "#564e48", 
+             "#d38819", "#a87017", "#7f5816", "#564114")
+my_pal1 <- c(
+  "1-1" = as.character(my_pal1[1]), # low x, low y, etc.....
+  "2-1" = as.character(my_pal1[2]), 
+  "3-1" = as.character(my_pal1[3]), 
+  "4-1" = as.character(my_pal1[4]),
+  "1-2" = as.character(my_pal1[5]),
+  "2-2" = as.character(my_pal1[6]),
+  "3-2" = as.character(my_pal1[7]),
+  "4-2" = as.character(my_pal1[8]), 
+  "1-3" = as.character(my_pal1[9]), 
+  "2-3" = as.character(my_pal1[10]), 
+  "3-3" = as.character(my_pal1[11]), 
+  "4-3" = as.character(my_pal1[12]), 
+  "1-4" = as.character(my_pal1[13]), 
+  "2-4" = as.character(my_pal1[14]), 
+  "3-4" = as.character(my_pal1[15]), 
+  "4-4" = as.character(my_pal1[16]))
+my_pal <- my_pal1
+
+
+
+#### bi_classes ----
 dim <- 4
-shp2$bi_class_PE_deforest <- bi_class(shp2, x = deforest_mean, y = SES.PE, style = "jenks", dim = 4)$bi_class
-shp2$bi_class_PD_deforest <- bi_class(shp2, x = deforest_mean, y = SES.PD, style = "jenks", dim = 4)$bi_class
+# PE_deforest_bi <- bi_wrap(dat=shp2, x=deforestation2, y=SES.PE, style="jenks", dim=4)
+
+shp2$bi_class_PE_deforest <- bi_class(shp2, x = deforestation2, y = SES.PE, style = "jenks", dim = 4)$bi_class
+shp2$bi_class_PD_deforest <- bi_class(shp2, x = deforestation2, y = SES.PD, style = "jenks", dim = 4)$bi_class
 shp2$bi_class_PE_hfp <- bi_class(shp2, x = hfp_mean, y = SES.PE, style = "jenks", dim = 4)$bi_class
 shp2$bi_class_PD_hfp <- bi_class(shp2, x = hfp_mean, y = SES.PD, style = "jenks", dim = 4)$bi_class
 # pre_change fix: that one neg value fucks up clusters, move closer to the rest
@@ -472,196 +556,217 @@ shp2$bi_class_PE_mat_change <- bi_class(shp2, x=mat_change, y=SES.PE, style="jen
 shp2$bi_class_PD_mat_change <- bi_class(shp2, x=mat_change, y=SES.PD, style="jenks", dim=4)$bi_class
 thicc_lines <- shp2[which(shp2$area<min.area),]
 
-PE_deforest <- ggplot() +
-    geom_sf(shp2, mapping = aes(fill = bi_class_PE_deforest), color = NA, size = 0.1, show.legend = FALSE) +
-    bi_scale_fill(pal = "BlueGold", dim=dim, na.value="white") +
-    geom_sf(data=thicc_lines, lwd=1.5, aes(col=bi_class_PE_deforest), show.legend=F)+
-    bi_scale_color(pal = "BlueGold", dim=dim, na.value="white") +
-    bi_theme()+
-    # geom_sf_pattern(data=ha_united, pattern = 'wave', pattern_type="triangle", fill="grey30",
-    #                 colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.005, pattern_spacing=0.02)+
-    # geom_sf_pattern(data=pm, pattern = 'wave', pattern_type="triangle",  fill="grey30",
-    #                 colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.01, pattern_spacing=0.02)+
-    theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F)
-  legend <- bi_legend(pal = "BlueGold", dim=dim, xlab="deforestation", ylab="sesPE ", size=8,
-                    breaks=bi_class_breaks(shp2, x=deforest_mean, y=SES.PE, style="jenks", dim=dim))+
-    theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
-  ses_pe_deforest_map <- ggdraw() + draw_plot(PE_deforest, 0, 0, 1, 1) + draw_plot(legend, 0.05, 0.1, 0.35, 0.35)
-ggsave("figures/choropleth_PE_deforest.png", width=10, height=5.74, units = "in", dpi = 600, bg = "white")
 
+#### facet wrap ----
+df <- shp2[, grepl("bi_class|SES\\.PD$|SES\\.PE$|area$", names(shp2))]
+df <- df[,!grepl("bi_class$|bi_class_ses$", names(df))]  # remove unwanted columns
+df.mlt <- tidyr::pivot_longer(df, cols=grep("bi_class", names(df)), names_to="group")
+thicc.mlt <- df.mlt[which(df.mlt$area<min.area),]
 
-PD_deforest <- ggplot() +
-    geom_sf(shp2, mapping = aes(fill = bi_class_PD_deforest), color = NA, size = 0.1, show.legend = FALSE) +
-    bi_scale_fill(pal = "BlueGold", dim = dim, na.value="white") +
-    geom_sf(data=thicc_lines, lwd=1.5, aes(col=bi_class_PD_deforest), show.legend=F)+
-    bi_scale_color(pal = "BlueGold", dim = dim, na.value="white") +
-    bi_theme()+ theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F) 
-legend <- bi_legend(pal = "BlueGold", dim=dim, xlab="deforestation", ylab="SES.PD ", size=8, 
-                    breaks=bi_class_breaks(shp2, x=deforest_mean, y=SES.PD, style="jenks", dim=dim))+
-  theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
-ses_pd_deforest_map <- ggdraw() + draw_plot(PD_deforest, 0, 0, 1, 1) + draw_plot(legend, 0.05, 0.1, 0.35, 0.35)
-ggsave("figures/choropleth_PD_deforest.png", width=10, height=5.74, units = "in", dpi = 600, bg = "white")
+fw <- ggplot() +
+  geom_sf(df.mlt, mapping = aes(fill=value), color = NA, size = 0.1, show.legend = FALSE) +
+  bi_scale_fill(pal=my_pal, dim=dim, na.value="white") +
+  geom_sf(data=thicc.mlt, lwd=1, aes(col=value), show.legend=F)+
+  bi_scale_color(pal=my_pal, dim=dim, na.value="white")+
+  coord_sf(expand=F)+
+  facet_wrap(~group, ncol=2)+
+  theme(strip.background=element_blank())
 
+#### legends ----
+legs <- unique(df.mlt$group)
+legs.names <- unique(df.mlt$group)
+na <- gsub("bi_class_", "", legs)
+na.x <- gsub("^.*?_", "", na)
+na.y <- paste0("SES.", gsub("_.*", "", na))
+for(i in 1:8){
+  tmp <- bi_legend(pal=my_pal, dim=dim, xlab=na.x[i], ylab=na.y[i], size=5)+
+    theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text = element_blank(), legend.background=element_blank())+
+    annotate("text", x=rep(1:4,each=4), y=rep(1:4,4), 
+             label=class_col(df.mlt$value[df.mlt$group==legs[i]]), col="white", size=2, alpha=.7)
+  assign(legs.names[i], tmp)
+}
 
+## maps ----
+ggdraw() + draw_plot(fw, 0, 0, 1, 1) + draw_plot(bi_class_PD_deforest, 0.095, .75, .09, .09)+
+  draw_plot(bi_class_PD_mat_change, 0.095, .51, .09, .09) + 
+  draw_plot(bi_class_PE_deforest, 0.095, .265, .09, .09) + 
+  draw_plot(bi_class_PE_mat_change, 0.095, .02, .09, .09) + 
+  draw_plot(bi_class_PD_hfp, 0.565, .75, .09, .09) + 
+  draw_plot(bi_class_PD_pre_change, 0.565, .51, .09, .09) + 
+  draw_plot(bi_class_PE_hfp, 0.565, .265, .09, .09) +
+  draw_plot(bi_class_PE_pre_change, 0.565, .02, .09, .09) 
 
-### Human footprint index
-hfp_pe <- ggplot() +
-  geom_sf(shp2, mapping = aes(fill = bi_class_PE_hfp), color = NA, size = 0.1, show.legend = FALSE) +
-  bi_scale_fill(pal = "BlueGold", dim = dim, na.value="white") +
-  geom_sf(data=thicc_lines, lwd=1.5, aes(col=bi_class_PE_hfp), show.legend=F)+
-  bi_scale_color(pal = "BlueGold", dim = dim, na.value="white") +
-  bi_theme()+ theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F)
-legend <- bi_legend(pal = "BlueGold", dim=dim, xlab="HFP", ylab="SES.PE ", size=8, 
-   breaks=bi_class_breaks(shp2, x=hfp_mean, y=SES.PE, style="jenks", dim=dim))+
-  theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
-ggdraw() + draw_plot(hfp_pe, 0, 0, 1, 1) + draw_plot(legend, 0.05, 0.25, 0.3, 0.3)
-ggsave("figures/choropleth_PE_hfp.png", width=10, height=5.74, units="in", dpi=300, bg="white")
+ggsave("figures/facet_maps.png", height=8, width=6.3, unit="in", dpi=300)
 
-hfp_pd <- ggplot() +
-  geom_sf(shp2, mapping = aes(fill = bi_class_PD_hfp), color = NA, size = 0.1, show.legend = FALSE) +
-  bi_scale_fill(pal = "BlueGold", dim = dim, na.value="white") +
-  geom_sf(data=thicc_lines, lwd=1.5, aes(col=bi_class_PD_hfp), show.legend=F)+
-  bi_scale_color(pal = "BlueGold", dim = dim, na.value="white") +
-  bi_theme()+ theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F)
-legend <- bi_legend(pal = "BlueGold", dim=dim, xlab="HFP", ylab="SES.PD ", size=8, 
-                    breaks=bi_class_breaks(shp2, x=hfp_mean, y=SES.PD, style="jenks", dim=dim))+
-  theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
-ggdraw() + draw_plot(hfp_pd, 0, 0, 1, 1) + draw_plot(legend, 0.05, 0.25, 0.3, 0.3)
-ggsave("figures/choropleth_PD_hfp.png", width=10, height=5.74, units="in", dpi=300, bg="white")
-
-### Future climate
-prechange_pe <- ggplot() +
-  geom_sf(shp2, mapping = aes(fill = bi_class_PE_pre_change), color = NA, size = 0.1, show.legend = FALSE) +
-  bi_scale_fill(pal = "BlueGold", dim = dim, na.value="white") +
-  geom_sf(data=thicc_lines, lwd=1.5, aes(col=bi_class_PE_pre_change), show.legend=F)+
-  bi_scale_color(pal = "BlueGold", dim = dim, na.value="white") +
-  bi_theme()+ theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F)
-legend <- bi_legend(pal = "BlueGold", dim=dim, xlab="pre_change", ylab="SES.PE ", size=8, 
-                    breaks=bi_class_breaks(shp2, x=pre_change, y=SES.PE, style="jenks", dim=dim))+
-  theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
-ggdraw() + draw_plot(prechange_pe, 0, 0, 1, 1) + draw_plot(legend, 0.05, 0.25, 0.3, 0.3)
-ggsave("figures/choropleth_PE_prechange.png", width=10, height=5.74, units="in", dpi=300, bg="white")
-
-prechange_pd <- ggplot() +
-  geom_sf(shp2, mapping = aes(fill = bi_class_PD_pre_change), color = NA, size = 0.1, show.legend = FALSE) +
-  bi_scale_fill(pal = "BlueGold", dim = dim, na.value="white") +
-  geom_sf(data=thicc_lines, lwd=1.5, aes(col=bi_class_PD_pre_change), show.legend=F)+
-  bi_scale_color(pal = "BlueGold", dim = dim, na.value="white") +
-  bi_theme()+ theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F)
-legend <- bi_legend(pal = "BlueGold", dim=dim, xlab="pre_change", ylab="SES.PD ", size=8, 
-                    breaks=bi_class_breaks(shp2, x=pre_change, y=SES.PD, style="jenks", dim=dim))+
-  theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
-ggdraw() + draw_plot(prechange_pd, 0, 0, 1, 1) + draw_plot(legend, 0.05, 0.25, 0.3, 0.3)
-ggsave("figures/choropleth_PD_prechange.png", width=10, height=5.74, units="in", dpi=300, bg="white")
-
-matchange_pe <- ggplot() +
-  geom_sf(shp2, mapping = aes(fill = bi_class_PE_mat_change), color = NA, size = 0.1, show.legend = FALSE) +
-  bi_scale_fill(pal = "BlueGold", dim = dim, na.value="white") +
-  geom_sf(data=thicc_lines, lwd=1.5, aes(col=bi_class_PE_mat_change), show.legend=F)+
-  bi_scale_color(pal = "BlueGold", dim = dim, na.value="white") +
-  bi_theme()+ theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F)
-legend <- bi_legend(pal = "BlueGold", dim=dim, xlab="mat_change", ylab="SES.PE ", size=8, 
-                    breaks=bi_class_breaks(shp2, x=mat_change, y=SES.PE, style="jenks", dim=dim))+
-  theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
-ggdraw() + draw_plot(matchange_pe, 0, 0, 1, 1) + draw_plot(legend, 0.05, 0.25, 0.3, 0.3)
-ggsave("figures/choropleth_PE_matchange.png", width=10, height=5.74, units="in", dpi=300, bg="white")
-
-matchange_pd <- ggplot() +
-  geom_sf(shp2, mapping = aes(fill = bi_class_PD_mat_change), color = NA, size = 0.1, show.legend = FALSE) +
-  bi_scale_fill(pal = "BlueGold", dim = dim, na.value="white") +
-  geom_sf(data=thicc_lines, lwd=1.5, aes(col=bi_class_PD_mat_change), show.legend=F)+
-  bi_scale_color(pal = "BlueGold", dim = dim, na.value="white") +
-  bi_theme()+ theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F)
-legend <- bi_legend(pal = "BlueGold", dim=dim, xlab="mat_change", ylab="SES.PD ", size=8, 
-                    breaks=bi_class_breaks(shp2, x=mat_change, y=SES.PD, style="jenks", dim=dim))+
-  theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
-ggdraw() + draw_plot(matchange_pd, 0, 0, 1, 1) + draw_plot(legend, 0.05, 0.25, 0.3, 0.3)
-ggsave("figures/choropleth_PD_matchange.png", width=10, height=5.74, units="in", dpi=300, bg="white")
+save.image("workspace_point2.RData")
 
 
 
-# Our hotspot definition ---------------------------
+
+
+
+
+
+
+
+
+
+# Our hotspots  ---------------------------
+load("workspace_point2.RData")
+
 dim <- 4
-shp2$PE_hotspot <- bi_class(shp2, x = richness, y = SES.PE, style = "jenks", dim = dim)$bi_class
+shp2$PE_hotspot <- bi_class(shp2, x = WE, y = SES.PE, style = "jenks", dim = dim)$bi_class
 shp2$PD_hotspot <- bi_class(shp2, x = richness, y = SES.PD, style = "jenks", dim = dim)$bi_class
 thicc_lines <- shp2[which(shp2$area<min.area),]
 
-PE_hotspot <- ggplot() +
-  geom_sf(shp2, mapping = aes(fill = PE_hotspot), color = NA, size = 0.1, show.legend = FALSE) +
-  bi_scale_fill(pal = "BlueGold", dim=dim, na.value="white") +
-  geom_sf(data=thicc_lines, lwd=1.5, aes(col=PE_hotspot), show.legend=F)+
-  bi_scale_color(pal = "BlueGold", dim=dim, na.value="white") +
-  bi_theme()+
-  # geom_sf_pattern(data=ha_united, pattern = 'wave', pattern_type="triangle", fill="grey30",
-  #                 colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.005, pattern_spacing=0.02)+
-  # geom_sf_pattern(data=pm, pattern = 'wave', pattern_type="triangle",  fill="grey30",
-  #                 colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.01, pattern_spacing=0.02)+
-  theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F)
-legend <- bi_legend(pal = "BlueGold", dim=dim, xlab="SR", ylab="sesPE ", size=8,
-                    breaks=bi_class_breaks(shp2, x=richness, y=SES.PE, style="jenks", dim=dim))+
-  theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
+df <- shp2[, grepl("PE_hotspot|PD_hotspot|SES\\.PD$|SES\\.PE$|area$", names(shp2))]
+df.mlt <- tidyr::pivot_longer(df, cols=grep("hotspot", names(df)), names_to="group")
+thicc.mlt <- df.mlt[which(df.mlt$area<min.area),]
 
-# manipulate hotspot color - doesnt work yet
-# obj <- bi_pal("BlueGold", dim=dim)
-# PE_hotspot$layers[[1]]$data$bi_fill[2]<- "#ffffff"
+hs <- ggplot() +
+  geom_sf(df.mlt, mapping = aes(fill=value), color = NA, size = 0.1, show.legend = FALSE) +
+  bi_scale_fill(pal=my_pal, dim=dim, na.value="white") +
+  geom_sf(data=thicc.mlt, lwd=1, aes(col=value), show.legend=F)+
+  bi_scale_color(pal=my_pal, dim=dim, na.value="white")+
+  coord_sf(expand=F)+
+  facet_wrap(~group, ncol=2)+
+  theme(strip.background=element_blank())+
+  
 
-PE_hotspot_map <- ggdraw() + draw_plot(PE_hotspot, 0, 0, 1, 1) + draw_plot(legend, 0.05, 0.1, 0.35, 0.35)
-ggsave("figures/choropleth_PE_richness.png", width=10, height=5.74, units = "in", dpi = 600, bg = "white")
+#### create legends ----
+legs <- unique(df.mlt$group)
+legs.names <- unique(df.mlt$group)
+na.x <- c("WE", "SR")
+na.y <- c("SES.PE", "SES.PD")
+for(i in 1:length(legs)){
+  tmp <- bi_legend(pal=my_pal, dim=dim, xlab=na.x[i], ylab=na.y[i], size=5)+
+    theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text = element_blank(), legend.background=element_blank())+
+    annotate("text", x=rep(1:4,each=4), y=rep(1:4,4), 
+             label=class_col(df.mlt$value[df.mlt$group==legs[i]]), col="white", size=2, alpha=.7)
+  assign(legs.names[i], tmp)
+}
 
-PD_hotspot <- ggplot() +
-  geom_sf(shp2, mapping = aes(fill = PD_hotspot), color = NA, size = 0.1, show.legend = FALSE) +
-  bi_scale_fill(pal = "BlueGold", dim=dim, na.value="white") +
-  geom_sf(data=thicc_lines, lwd=1.5, aes(col=PD_hotspot), show.legend=F)+
-  bi_scale_color(pal = "BlueGold", dim=dim, na.value="white") +
-  bi_theme()+
-  # geom_sf_pattern(data=ha_united, pattern = 'wave', pattern_type="triangle", fill="grey30",
-  #                 colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.005, pattern_spacing=0.02)+
-  # geom_sf_pattern(data=pm, pattern = 'wave', pattern_type="triangle",  fill="grey30",
-  #                 colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.01, pattern_spacing=0.02)+
-  theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F)
-legend <- bi_legend(pal = "BlueGold", dim=dim, xlab="SR", ylab="sesPD ", size=8,
-                    breaks=bi_class_breaks(shp2, x=richness, y=SES.PD, style="jenks", dim=dim))+
-  theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
-PD_hotspot_map <- ggdraw() + draw_plot(PD_hotspot, 0, 0, 1, 1) + draw_plot(legend, 0.05, 0.1, 0.35, 0.35)
-ggsave("figures/choropleth_PD_richness.png", width=10, height=5.74, units = "in", dpi = 600, bg = "white")
+## draw maps ----
+ggdraw() + draw_plot(hs, 0, 0, 1, 1) + 
+  draw_plot(PD_hotspot, 0.095, .385, .09, .09)+
+  draw_plot(PE_hotspot, 0.565, .385, .09, .09)+
+  draw_figure_label("A", "top.left")+
+  draw_figure_label("B", "top")
+  
+ggsave(paste0("figures/choropleth_hotspots.png"), height=4, width=6.3, unit="in", dpi=300)
 
 
-table(shp2$PE_hotspot)
+
+## TABLE 1 -------------------------------------------------
 table(shp2$PD_hotspot)
+table(shp2$PE_hotspot)
+
+table(shp2$hotspot_coverage>0)
+
+pdspots <- "3-3"
+pespots <- c("3-4", "4-3", "4-4")
+table(shp2$PD_hotspot==pdspots, shp2$hotspot_coverage>0)
+table(shp2$PE_hotspot%in%pespots, shp2$hotspot_coverage>0)
+
+tabs <- st_drop_geometry(shp2)
+
+tabs[tabs$PD_hotspot==pdspots,c("LEVEL_NAME", "hotspot_coverage")]
+tabs[tabs$PE_hotspot%in%pespots,c("LEVEL_NAME", "hotspot_coverage")]
+tmp <- apply(tabs[,c("deforestation2", "hfp_mean", "mat_change", "pre_change")], 2, function(x){rank(x)/length(x)})
+colnames(tmp) <- paste0(colnames(tmp), "_rank")
+tabs <- cbind(tabs, tmp)
+
+(tab1 <- tabs[tabs$PD_hotspot==pdspots|tabs$PE_hotspot%in%pespots,c("LEVEL_NAME", "richness", "deforestation2",
+                                "hfp_mean", "mat_change", "pre_change",
+                                "hotspot_coverage")])
+tab1[,-1] <- round(tab1[,-1], 2)
+tab1 <- tab1[order(tab1$LEVEL_NAME),]
+knitr::kable(tab1, digits=2, format="simple", row.names=F)
+knitr::kable(tab1, digits=2, format="html", row.names=F) %>% kableExtra::kable_styling("hover")
+library(DT)
+datatable(tab1)
+
+## get piecharts for biomes
+biomes <- readRDS("../DATA/PDiv/biomes_olson_ALL.rds")
+biome_names <- c("(Sub)Tropical moist broadleaf forests", 
+                 "(Sub)Tropical dry broadleaf forests", 
+                 "(Sub)Tropical coniferous forests",
+                 "Temperate broadleaf and mixed forests",
+                 "Temperate coniferous forests", "Boreal_forests/taiga",
+                 "(Sub)Tropical grasslands, savannas, shrublands",
+                 "Temperate grasslands, savannas, shrublands",
+                 "Flooded_grasslands and savannas",
+                 "Montane grasslands and shrublands", "Tundra",
+                 "Mediterranean forests, woodlands, scrub",
+                 "Deserts and xeric shrublands", "Mangroves", "Lakes", "Rock and ice")
+
+names(biomes)[grepl("^X", names(biomes))] <- biome_names
+
+# remove everything less than 3%
+for(i in 1:nrow(biomes)){
+  tmp <- biomes[i,-1]
+  tmp[which(tmp<0.03)] <- 0
+  biomes[i,-1] <- tmp
+}
+
+rowSums(biomes[,-1], na.rm=T)
+# scale to 100% to account for minor boundary inaccuracies
+biomes[,-1] <- t(apply(biomes[,-1], 1, function(x){x/sum(x, na.rm=T)}) )
+rowSums(biomes[,-1], na.rm=T)
+
+hab.df <- tabs[tabs$PD_hotspot%in%pdspots | shp2$PE_hotspot%in%pespots, c("LEVEL_NAME", "LEVEL3_COD")]
+hab.df <- merge(hab.df, biomes, all.x=TRUE, by.x="LEVEL3_COD", by.y="country")
+hab.mlt <- melt(setDT(hab.df))
+hab.mlt <- hab.mlt[order(LEVEL_NAME, value),]
+hab.mlt$sort <- rep(16:1, length(unique(hab.mlt$LEVEL_NAME)))
+# remove empty biomes
+hab.mlt <- hab.mlt[hab.mlt$value!=0,]
+
+#hab.mlt <- hab.mlt[hab.mlt$sort<=3,]
+hab.mlt <- droplevels(hab.mlt)
+hab.mlt <- as.data.frame(hab.mlt)
+
+# ggplot(hab.mlt, aes(x="", y=value, fill=variable)) +
+#   geom_bar(stat="identity", width=.1) +
+#   coord_polar("y", start=0)+
+#   scale_fill_scico_d("biome", palette="batlow", begin=.1, end=.6, alpha=.7)+
+#   facet_wrap(~LEVEL_NAME)+
+#   theme_void() + theme(strip.background=element_blank())+
+# 
+# scico_palette_show("batlow")
+
+# treemap
+library(treemapify)
+ggplot(hab.mlt, aes(area=value, fill=variable)) +
+  geom_treemap()+
+  scale_fill_scico_d("biome", palette="batlow", begin=0, end=1, alpha=.7)+
+  facet_wrap(~LEVEL_NAME, ncol=1, strip.position="left")+
+  theme_void() + theme(strip.background=element_blank(), strip.text.y.left=element_text(angle=0, hjust=1))
+ggsave()  
 
 
-## Our hotspots with Myer ------------
-PD_hotspot_bi <- ggplot() +
-  geom_sf(shp2, mapping = aes(fill = PD_hotspot=="3-3"), color = "grey80", size = 0.1, show.legend = FALSE) +
-  geom_sf(data=thicc_lines, lwd=1.5, col="grey95", show.legend=F)+
-  scale_fill_manual(values=c(NA, "red"), na.value="grey95")+
-  geom_sf_pattern(data=ha_united, pattern = 'stripe', fill="grey30",
-                 colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.005, pattern_spacing=0.02)+
-  geom_sf_pattern(data=pm, pattern = 'stripe', fill="grey30",
-                  colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.01, pattern_spacing=0.02)+
-  theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F) + theme_void()
-PD_hotspot_map <- ggdraw() + draw_plot(PD_hotspot_bi, 0, 0, 1, 1)
-ggsave("figures/choropleth_PD_richness_bi.png", width=10, height=5.74, units = "in", dpi = 600, bg = "white")
 
-PE_hotspot_bi <- ggplot() +
-  geom_sf(shp2, mapping = aes(fill = PE_hotspot%in%c("4-3", "3-4")), color = NA, size = 0.1, show.legend = FALSE) +
-  geom_sf(data=thicc_lines, lwd=1.5, col="grey95", show.legend=F)+
-  scale_fill_manual(values=c(NA, "red"), na.value="grey95")+
-  geom_sf_pattern(data=ha_united, pattern = 'stripe', fill="grey30",
-                  colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.005, pattern_spacing=0.02)+
-  geom_sf_pattern(data=pm, pattern = 'stripe', fill="grey30",
-                  colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.01, pattern_spacing=0.02)+
-  theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F) + theme_void()
-PE_hotspot_map <- ggdraw() + draw_plot(PE_hotspot_bi, 0, 0, 1, 1)
-ggsave("figures/choropleth_PE_richness_bi.png", width=10, height=5.74, units = "in", dpi = 600, bg = "white")
+
+
+save.image("workspace_point3.RData")
 
 
 
 
 
-# LeesL threats + hotspots -----------------------------------------------------
 
-thr <- shp2[,grep("LEVEL|SES|hfp_mean|deforest_mean|^pre_change|^mat_change", names(shp2))]
+
+
+
+
+
+
+
+
+# Threats + hotspots -----------------------------------------------------
+load("workspace_point3.RData")
+
+thr <- shp2[,grep("LEVEL|SES|hfp_mean|deforestation2|^pre_change|^mat_change", names(shp2))]
 nb <- spdep::poly2nb(thr, row.names = thr$LEVEL3_COD)
 col.W <- spdep::nb2listw(nb, style="W", zero.policy = TRUE)
 thr <- st_drop_geometry(thr)
@@ -683,33 +788,48 @@ row.names(tesPE.df) <- c("Lee", "expect", "var", "pvalue")
 tesPE.df <- as.data.frame(t(tesPE.df))
 tesPE.df$twoSD <- 2*sqrt(tesPE.df$var)
 
+tesPD.df$response <- "SES.PD"; tesPE.df$response <- "SES.PE";
+tes <- rbind(tesPD.df, tesPE.df)
+tes$x <- gsub("1", "", row.names(tes))
+
 # plots
-leePD <- ggplot(tesPD.df, aes(y=expect, x=row.names(tesPD.df)))+
+ggplot(tes, aes(y=expect, x=x))+
   geom_linerange(aes(ymin=expect-twoSD, ymax=expect+twoSD), col="grey70")+
-  geom_point(aes(y=Lee, x=row.names(tesPD.df), col=factor(pvalue<0.05)), show.legend = F)+
-  scale_color_manual("p<0.05",values=c("grey20", "red"))+
-  ylab("Lee's L with SES.PD")+
-  xlab("")+  coord_flip()
+  geom_point(aes(y=Lee, x=x, col=factor(pvalue<0.05)), show.legend = F)+
+  scale_color_scico_d("p<0.05", end=.8)+
+  ylab("Lee's L")+
+  xlab("")+  coord_flip() + facet_wrap(~response) + theme(strip.background=element_blank())
 
-leePE <- ggplot(tesPE.df, aes(y=expect, x=row.names(tesPE.df)))+
-  geom_linerange(aes(ymin=expect-twoSD, ymax=expect+twoSD), col="grey70")+
-  geom_point(aes(y=Lee, x=row.names(tesPE.df), col=factor(pvalue<0.05)), show.legend = F)+
-  scale_color_manual(values=c("grey20", "red"), labels=c("p<0.05", ">0.05"))+
-  ylab("Lee's L with SES.PE")+
-  xlab("")+  coord_flip()#+ theme(legend.position=c(0.2, 0.25), 
-                                 # legend.margin=margin(0,0.1,0.05,0.05,"cm"),
-                                 # legend.text=element_text(size=8),
-                                 # legend.title=element_blank(),
-                                 # legend.background = element_rect(color=1))
-
-plot_grid(leePD, leePE, ncol=1)
-ggsave("figures/LeesL_threats.png", width=3, height=4, units = "in", dpi = 300)
+ggsave("figures/LeesL_threats.png", width=3, height=2, units = "in", dpi = 300)
 #A positive Lee’s L indicates that clusters match for the two variables. A
 #negative value indicates that the clusters have an opposite spatial
 #distribution . A value around zero indicates that the spatialstructures of the
-#two variables do not match. The significance of the values of Lee’s L was
-#evaluated using a Monte Carlo test with 999 randomizations.
+#two variables do not match. 
 
+## one more trivariate map test (Brian)
+# ggplot(shp2) + 
+#   theme_void()+
+#   geom_sf(aes(fill="FFE400", alpha=normalized(SES.PE)),lwd=0, col=NA)+  
+#  geom_sf(aes(fill="FF0090", alpha=normalized(SES.PD)),lwd=0, col=NA)
+# #   geom_sf(aes(fill="00ACE9", alpha=normalized(sub_trop_mbf)),lwd=0, col=NA)+
+# # geom_sf(aes(fill="FF0090", alpha=normalized(SES.PE)),lwd=0, col=NA) 
+
+blend.colors <- function(col) {
+  m <- col2rgb(col, alpha=TRUE)
+  vals <- apply(m, 1, mean)
+  rgb(vals[1], vals[2], vals[3], vals[4], maxColorValue=255)
+}
+col2rgb("green", alpha=0.4)
+blend.colors(c("green", "blue", "red"))
+
+ggplot(shp2) + 
+  theme_void()+
+  geom_sf(aes(alpha=normalized(SES.PD)), fill="blue", lwd=0, col=NA) + 
+  geom_sf(aes(alpha=normalized(SES.PE)), fill="red", lwd=0, col=NA)
+# this is not ideal, the order you plot it makes a difference.... the colors are not merging
+#  geom_sf(aes(alpha=normalized(sub_trop_mbf)), fill="green", lwd=0, col=NA)
+
+##
 
 
 bat <- scico(palette="batlow", n=4, begin=0.1, end=0.7, alpha=0.7)
@@ -718,11 +838,11 @@ plot(rep(1,4), col=bat, pch=21, lwd=30)
 # plot(rep(1,4), col=vir, pch=21, lwd=30)
 deforestation_map <- ggplot(shp2) + 
   theme_void()+
-    geom_sf(aes(fill=deforest_mean),lwd=0, col=NA) + 
-    geom_sf(data=thicc_lines, lwd=1.5, aes(col=deforest_mean), show.legend=F)+
+    geom_sf(aes(fill=deforestation2),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1, aes(col=deforestation2), show.legend=F)+
   scale_color_gradient(low="grey95", high=bat[2])+
   scale_fill_gradient("deforestation", low="grey95", high=bat[2])+
-  theme(legend.position = c(0.18, 0.3),
+  theme(legend.position = c(0.2, 0.3),
         legend.key.height = unit(6,"mm"),
         legend.background = element_blank(),
         legend.key = element_blank(),
@@ -731,11 +851,11 @@ deforestation_map <- ggplot(shp2) +
         legend.text = element_text(size = 8))+
     xlab(" ")+ coord_sf(expand = F)
 deforestation_pd <- deforestation_map + 
-  geom_sf_pattern(data=shp2[shp2$PD_hotspot=="3-3",], pattern = 'stripe', fill="grey30",
+  geom_sf_pattern(data=shp2[shp2$PD_hotspot==pdspots,], pattern = 'stripe', fill="grey30",
                   colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.005, pattern_spacing=0.02)+
   coord_sf(expand = F)
 deforestation_pe <- deforestation_map + 
-  geom_sf_pattern(data=shp2[shp2$PE_hotspot%in%c("4-3", "3-4"),], pattern = 'stripe', fill="grey30",
+  geom_sf_pattern(data=shp2[shp2$PE_hotspot%in%pespots,], pattern = 'stripe', fill="grey30",
                   colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.005, pattern_spacing=0.02)+
   coord_sf(expand = F)
 
@@ -743,10 +863,10 @@ deforestation_pe <- deforestation_map +
 hfp_map <- ggplot(shp2) + 
   theme_void()+
   geom_sf(aes(fill=hfp_mean),lwd=0, col=NA) + 
-  geom_sf(data=thicc_lines, lwd=1.5, aes(col=hfp_mean), show.legend=F)+
+  geom_sf(data=thicc_lines, lwd=1, aes(col=hfp_mean), show.legend=F)+
   scale_color_gradient(low="grey95", high=bat[3])+
   scale_fill_gradient("hfp", low="grey95", high=bat[3])+
-  theme(legend.position = c(0.18, 0.3),
+  theme(legend.position = c(0.2, 0.3),
         legend.key.height = unit(6,"mm"),
         legend.background = element_blank(),
         legend.key = element_blank(),
@@ -755,11 +875,11 @@ hfp_map <- ggplot(shp2) +
         legend.text = element_text(size = 8))+
   xlab(" ")+ coord_sf(expand = F)
 hfp_pd  <- hfp_map + 
-  geom_sf_pattern(data=shp2[shp2$PD_hotspot=="3-3",], pattern = 'stripe', fill="grey30",
+  geom_sf_pattern(data=shp2[shp2$PD_hotspot==pdspots,], pattern = 'stripe', fill="grey30",
                   colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.005, pattern_spacing=0.02)+
   coord_sf(expand = F)
 hfp_pe  <- hfp_map + 
-  geom_sf_pattern(data=shp2[shp2$PE_hotspot%in%c("4-3", "3-4"),], pattern = 'stripe', fill="grey30",
+  geom_sf_pattern(data=shp2[shp2$PE_hotspot%in%pespots,], pattern = 'stripe', fill="grey30",
                   colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.005, pattern_spacing=0.02)+
   coord_sf(expand = F)
 
@@ -767,10 +887,10 @@ hfp_pe  <- hfp_map +
 mat_change_map <- ggplot(shp2) + 
   theme_void()+
   geom_sf(aes(fill=mat_change),lwd=0, col=NA) + 
-  geom_sf(data=thicc_lines, lwd=1.5, aes(col=mat_change), show.legend=F)+
+  geom_sf(data=thicc_lines, lwd=1, aes(col=mat_change), show.legend=F)+
   scale_color_gradient(low="grey95", high=bat[4])+
   scale_fill_gradient("mat_change", low="grey95", high=bat[4])+
-  theme(legend.position = c(0.18, 0.3),
+  theme(legend.position = c(0.2, 0.3),
         legend.key.height = unit(6,"mm"),
         legend.background = element_blank(),
         legend.key = element_blank(),
@@ -779,11 +899,11 @@ mat_change_map <- ggplot(shp2) +
         legend.text = element_text(size = 8))+
   xlab(" ")+ coord_sf(expand = F)
 mat_change_pd <- mat_change_map + 
-  geom_sf_pattern(data=shp2[shp2$PD_hotspot=="3-3",], pattern = 'stripe', fill="grey30",
+  geom_sf_pattern(data=shp2[shp2$PD_hotspot==pdspots,], pattern = 'stripe', fill="grey30",
                   colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.005, pattern_spacing=0.02)+
   coord_sf(expand = F)
 mat_change_pe <- mat_change_map + 
-  geom_sf_pattern(data=shp2[shp2$PE_hotspot%in%c("4-3", "3-4"),], pattern = 'stripe', fill="grey30",
+  geom_sf_pattern(data=shp2[shp2$PE_hotspot%in%pespots,], pattern = 'stripe', fill="grey30",
                   colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.005, pattern_spacing=0.02)+
   coord_sf(expand = F)
 
@@ -791,10 +911,10 @@ mat_change_pe <- mat_change_map +
 pre_change_map <- ggplot(shp2) + 
   theme_void()+
   geom_sf(aes(fill=pre_change),lwd=0, col=NA) + 
-  geom_sf(data=thicc_lines, lwd=1.5, aes(col=pre_change), show.legend=F)+
+  geom_sf(data=thicc_lines, lwd=1, aes(col=pre_change), show.legend=F)+
   scale_color_gradient2(low="brown", high=bat[1])+
   scale_fill_gradient2("pre_change", low="brown", high=bat[1])+
-  theme(legend.position = c(0.18, 0.3),
+  theme(legend.position = c(0.2, 0.3),
         legend.key.height = unit(6,"mm"),
         legend.background = element_blank(),
         legend.key = element_blank(),
@@ -803,11 +923,11 @@ pre_change_map <- ggplot(shp2) +
         legend.text = element_text(size = 8))+
   xlab(" ")+ coord_sf(expand = F)
 pre_change_pd <- pre_change_map + 
-  geom_sf_pattern(data=shp2[shp2$PD_hotspot=="3-3",], pattern = 'stripe', fill="grey30",
+  geom_sf_pattern(data=shp2[shp2$PD_hotspot==pdspots,], pattern = 'stripe', fill="grey30",
                   colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.005, pattern_spacing=0.02)+
   coord_sf(expand = F)
 pre_change_pe <- pre_change_map + 
-  geom_sf_pattern(data=shp2[shp2$PE_hotspot%in%c("4-3", "3-4"),], pattern = 'stripe', fill="grey30",
+  geom_sf_pattern(data=shp2[shp2$PE_hotspot%in%pespots,], pattern = 'stripe', fill="grey30",
                   colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.005, pattern_spacing=0.02)+
   coord_sf(expand = F)
 
@@ -817,57 +937,148 @@ plot_grid(deforestation_pd, hfp_pd, mat_change_pd, pre_change_pd,
 ggsave("figures/threats_with_PD_hotspots.png", width=14, height=18, units = "in", dpi = 300, bg="white")
 
 
+
+
+
 # Our hotspots on the spectrum -----------------------
 ### reshape dataframe for plotting
-plot.df <- st_drop_geometry(shp2[,c("LEVEL_NAME", "deforest_mean", "hfp_mean", 
+plot.df <- st_drop_geometry(shp2[,c("LEVEL_NAME", "deforestation2", "hfp_mean", 
                                     "pre_change", "mat_change", "PD_hotspot", "PE_hotspot")])
-plot.df$PD_hotspot[plot.df$PD_hotspot!="3-3"] <- "n"
-plot.df$PD_hotspot[plot.df$PD_hotspot=="3-3"] <- "y"
-plot.df$PE_hotspot[!plot.df$PE_hotspot%in%c("3-4", "4-3")] <- "n"
-plot.df$PE_hotspot[plot.df$PE_hotspot%in%c("3-4", "4-3")] <- "y"
+plot.df$PD_hotspot[plot.df$PD_hotspot!=pdspots] <- "n"
+plot.df$PD_hotspot[plot.df$PD_hotspot==pdspots] <- "y"
+plot.df$PE_hotspot[!plot.df$PE_hotspot%in%pespots] <- "n"
+plot.df$PE_hotspot[plot.df$PE_hotspot%in%pespots] <- "y"
 plot.df <- reshape::melt(plot.df)
-plot.df$value <- unlist(tapply(plot.df$value, plot.df$variable, normalized))
+#plot.df$value <- unlist(tapply(plot.df$value, plot.df$variable, normalized))
 
-ypos <- rep(rev(seq(0.3,0.75,0.05)), 4)
+ypos <- rep(rev(seq(0.2,0.80,0.04)), 4)
 
-spectrum_PD <- ggplot(plot.df, aes(x=value, y=..scaled..))+
-  geom_density(fill="grey", col=NA)+
-  geom_vline(data=plot.df[plot.df$PD_hotspot=="y",], aes(xintercept=value, col=LEVEL_NAME), 
-             size=1, show.legend=F)+
-  geom_richtext(data=plot.df[plot.df$PD_hotspot=="y",], 
+library(ggtext)
+
+ggplot(plot.df, aes(x=value, y=..scaled..))+
+  geom_density(fill="grey85", col=NA)+
+  geom_vline(data=plot.df[plot.df$PD_hotspot=="y"|plot.df$PE_hotspot=="y",], aes(xintercept=value, col=LEVEL_NAME), 
+             size=.5, show.legend=F)+
+  geom_richtext(data=plot.df[plot.df$PD_hotspot=="y"|plot.df$PE_hotspot=="y",], 
                 aes(x=value, y=ypos[rank(value)], label=LEVEL_NAME, col=LEVEL_NAME),
-                size=2.5, angle=40, hjust=0, label.padding=unit(0,"mm"), 
+                size=2, angle=40, hjust=0, label.padding=unit(0,"mm"), 
                 show.legend=F, label.color=NA)+
-  facet_wrap("variable", scales="free", labeller=as_labeller(c("deforest_mean"="deforestation",
-                                                                  "hfp_mean"="HFP",
-                                                                  "pre_change"="future PRE change",
-                                                                  "mat_change"="future MAT change")))+
-  coord_cartesian(expand=F)+
-  #   # PD hotspot indicators
-  # geom_rug(data=plot.df[plot.df$PD_hotspot=="y",], aes(col=LEVEL_NAME), 
-  #          length=unit(10,"mm"), lwd=2, lty=2)+
-  theme(strip.background=element_blank(), axis.text=element_blank(), axis.ticks=element_blank())
-
-
-spectrum_PE <- ggplot(plot.df, aes(x=value, y=..scaled..))+
-  geom_density(fill="grey", col=NA)+
-  geom_vline(data=plot.df[plot.df$PE_hotspot=="y",], aes(xintercept=value, col=LEVEL_NAME), 
-             size=1, show.legend=F)+
-  geom_richtext(data=plot.df[plot.df$PE_hotspot=="y",], 
-                aes(x=value, y=ypos[rank(value)], label=LEVEL_NAME, col=LEVEL_NAME),
-                size=2.5, angle=40, hjust=0, label.padding=unit(0,"mm"), 
-                show.legend=F, label.color=NA)+
-  facet_wrap("variable", scales="free", labeller=as_labeller(c("deforest_mean"="deforestation",
+  scale_color_scico_d(end=0.9)+
+  scale_y_continuous("Scaled density")+
+  facet_wrap("variable", scales="free", labeller=as_labeller(c("deforestation2"="deforestation",
                                                                "hfp_mean"="HFP",
                                                                "pre_change"="future PRE change",
                                                                "mat_change"="future MAT change")))+
-  coord_cartesian(expand=F)+
-  #   # PD hotspot indicators
-  # geom_rug(data=plot.df[plot.df$PD_hotspot=="y",], aes(col=LEVEL_NAME), 
-  #          length=unit(10,"mm"), lwd=2, lty=2)+
-  theme(strip.background=element_blank(), axis.text=element_blank(), axis.ticks=element_blank())
+  coord_cartesian(expand=T, ylim=c(0.05,1.1))+
+  # mean value indicators
+  theme(strip.background=element_blank(), axis.text.y=element_blank(), 
+        axis.ticks=element_blank(), panel.grid=element_blank())
+ggsave("figures/all_hotspots_on_the_spectrum.pdf", width=7, height=5, units = "in", dpi = 300, bg="white")
+#ggsave("figures/all_hotspots_on_the_spectrum.png", width=8, height=7, units = "in", dpi = 300, bg="white")
 
-plot_grid(spectrum_PD, spectrum_PE, nrow=2, labels=c("PD", "PE"), label_size=10, label_fontface=1)
+# alt visualisation
+plot.df <- plot.df[order(plot.df$variable, plot.df$value),]
+plot.df$x <- rep(1:353, 4)
+plot.df$lab <- plot.df$LEVEL_NAME
+plot.df$lab[which(plot.df$PD_hotspot!="y"|plot.df$PE_hotspot!="y")] <- NA
+plot.df.sub <- plot.df[which(plot.df$PD_hotspot=="y"|plot.df$PE_hotspot=="y"),]
+
+ggplot(plot.df, aes(y=value, x=x))+
+  geom_area(fill="grey85")+
+  geom_bar(data=plot.df.sub, aes(x=x, y=value, fill=LEVEL_NAME, col=LEVEL_NAME), 
+           stat="identity", width=.9, show.legend=F)+
+  facet_wrap(~variable, scales="free")+
+  geom_richtext(data=plot.df.sub, aes(x=x, y=value, label=LEVEL_NAME, col=LEVEL_NAME),
+               size=2, angle=90, hjust=0, label.padding=unit(.1,"mm"),
+               show.legend=F, label.color=NA)+
+  scale_color_scico_d(end=0.9)+scale_fill_scico_d(end=0.9)+
+  scale_y_continuous("Value")+
+  facet_wrap("variable", scales="free", 
+             labeller=as_labeller(c("deforestation2"="deforestation",
+                              "hfp_mean"="HFP", "pre_change"="future PRE change",
+                              "mat_change"="future MAT change")))+
+  coord_cartesian(expand=F, clip="off", xlim=c(0,354))+
+  theme(strip.background=element_blank(), axis.text.x=element_blank(), 
+        axis.ticks=element_blank(), panel.grid=element_blank())+
+  ggtitle("Inverse cumulative distribution function")
+
+#ggsave("figures/all_hotspots_on_the_spectrum_alt_layout.pdf", width=6, height=4, units = "in", dpi = 300, bg="white")
+
+# (spectrum_PD <- ggplot(plot.df, aes(x=value, y=..scaled..))+
+#   geom_density(fill="grey", col=NA)+
+#   # geom_vline(data=data.frame(variable=names(tapply(plot.df$value, plot.df$variable, mean, na.rm=T)), 
+#   #                            median=as.numeric(tapply(plot.df$value, plot.df$variable, mean, na.rm=T))),
+#   #            aes(xintercept=median), col="white")+
+#   geom_vline(data=plot.df[plot.df$PD_hotspot=="y",], aes(xintercept=value, col=LEVEL_NAME), 
+#              size=1, show.legend=F)+
+#   geom_richtext(data=plot.df[plot.df$PD_hotspot=="y",], 
+#                 aes(x=value, y=ypos[rank(value)], label=LEVEL_NAME, col=LEVEL_NAME),
+#                 size=2.5, angle=40, hjust=0, label.padding=unit(0,"mm"), 
+#                 show.legend=F, label.color=NA)+
+#   scale_color_scico_d(end=0.9)+
+#   facet_wrap("variable", scales="free", labeller=as_labeller(c("deforestation2"="deforestation",
+#                                                                   "hfp_mean"="HFP",
+#                                                                   "pre_change"="future PRE change",
+#                                                                   "mat_change"="future MAT change")))+
+#   coord_cartesian(expand=F, ylim=c(0,1.1), xlim=c(0,1.1))+
+#     # mean value indicators
+#   theme(strip.background=element_blank(), axis.text=element_blank(), 
+#         axis.ticks=element_blank(), panel.grid=element_blank()))
+# 
+# ## more facets! ----
+# # library(tidytext)
+# # ggplot(plot.df[order(plot.df$value),], aes(x=seq(nrow(plot.df)), y=value))+
+# #   geom_line(fill="grey")+
+# #   facet_wrap(~variable, scales="free")
+# # 
+# #   geom_vline(data=data.frame(variable=names(tapply(plot.df$value, plot.df$variable, mean, na.rm=T)), 
+# #                              median=as.numeric(tapply(plot.df$value, plot.df$variable, mean, na.rm=T))),
+# #              aes(xintercept=median), col="white")+
+# #   # geom_vline(data=plot.df[plot.df$PD_hotspot=="y",], aes(xintercept=value, col=LEVEL_NAME), 
+# #   #            size=1, show.legend=F)+
+# #   geom_richtext(data=plot.df[plot.df$PD_hotspot=="y",],
+# #                 aes(x=value, y=1, label=LEVEL_NAME, col=LEVEL_NAME),
+# #                 size=2.5, angle=90, hjust=0, label.padding=unit(0,"mm"),
+# #                 show.legend=F, label.color=NA)+
+# #   facet_wrap("variable", scales="free", labeller=as_labeller(c("deforestation2"="deforestation",
+# #                                                                "hfp_mean"="HFP",
+# #                                                                "pre_change"="future PRE change",
+# #                                                                "mat_change"="future MAT change")))+
+# #   geom_rug(data=plot.df[plot.df$PD_hotspot=="y",], aes(col=LEVEL_NAME)8
+# #            length=unit(5,"mm"), lwd=1, show.legend=F)+
+# #     coord_cartesian(expand=F, xlim=c(0,1.05))+
+# #   #coord_flip(expand=F, xlim=c(0,1.1))+
+# #   # mean value indicators
+# #   theme(strip.background=element_blank(), axis.text=element_blank(), 
+# #         axis.ticks=element_blank(), panel.grid=element_blank())
+# 
+# 
+# 
+# 
+# spectrum_PE <- ggplot(plot.df, aes(x=value, y=..scaled..))+
+#   geom_density(fill="grey", col=NA)+
+#   # geom_vline(data=data.frame(variable=names(tapply(plot.df$value, plot.df$variable, mean, na.rm=T)), 
+#   #                            median=as.numeric(tapply(plot.df$value, plot.df$variable, mean, na.rm=T))),
+#   #            aes(xintercept=median), col="white")+
+#   geom_vline(data=plot.df[plot.df$PE_hotspot=="y",], aes(xintercept=value, col=LEVEL_NAME), 
+#              size=1, show.legend=F)+
+#   geom_richtext(data=plot.df[plot.df$PE_hotspot=="y",], 
+#                 aes(x=value, y=ypos[rank(value)], label=LEVEL_NAME, col=LEVEL_NAME),
+#                 size=2.5, angle=40, hjust=0, label.padding=unit(0,"mm"), 
+#                 show.legend=F, label.color=NA)+
+#   facet_wrap("variable", scales="free", labeller=as_labeller(c("deforestation2"="deforestation",
+#                                                                "hfp_mean"="HFP",
+#                                                                "pre_change"="future PRE change",
+#                                                                "mat_change"="future MAT change")))+
+#   scale_color_scico_d(end=0.9)+
+#   coord_cartesian(expand=F, ylim=c(0, 1.1))+
+#   #   # PD hotspot indicators
+#   # geom_rug(data=plot.df[plot.df$PD_hotspot=="y",], aes(col=LEVEL_NAME), 
+#   #          length=unit(10,"mm"), lwd=2, lty=2)+
+#   theme(strip.background=element_blank(), axis.text=element_blank(), 
+#         axis.ticks=element_blank(), panel.grid=element_blank())
+# 
+# plot_grid(spectrum_PD, spectrum_PE, nrow=2, labels=c("PD", "PE"), label_size=10, label_fontface=1)
 ggsave("figures/hotspots_on_the_spectrum.pdf", width=8, height=7, units = "in", dpi = 300, bg="white")
 ggsave("figures/hotspots_on_the_spectrum.png", width=8, height=7, units = "in", dpi = 300, bg="white")
 
@@ -877,16 +1088,158 @@ ggsave("figures/hotspots_on_the_spectrum.png", width=8, height=7, units = "in", 
 
 
 
+# Our hotspots with Myer ------------
+
+## adding Myer hotspots -------------------------------------
+ha <- st_read("hotspot_area.gpkg")
+pm <- st_read("Poly-Micronesia.gpkg")
+gc()
+
+# ha_united <- st_union(ha)
+# st_write(ha_united, "hotspot_area_united.gpkg")
+ha_united <- st_read("hotspot_area_united.gpkg")
+
+# change projection + solve dateline issue
+ha_united <- st_wrap_dateline(ha_united, options = c("WRAPDATELINE=YES", "DATELINEOFFSET=180"))
+pm <- st_wrap_dateline(pm, options = c("WRAPDATELINE=YES", "DATELINEOFFSET=180"))
+ha_united <- st_transform(ha_united, my_projection)
+pm <- st_transform(pm, my_projection)
+
+
+## Ordination of threats ---------
+dat <- st_drop_geometry(shp2[,c("deforestation2", "hfp_mean", "pre_change", "mat_change")])
+dat <- na.omit(dat)
+tmp <- apply(dat, 2, normalized)
+par(mfrow=c(2,2))
+apply(tmp, 2, hist)
+dat$deforestation2 <- sqrt(dat$deforestation2)
+dat$hfp_mean <- sqrt(dat$hfp_mean)
+tmp <- apply(dat, 2, normalized)
+
+pca1 <- prcomp(tmp, center = TRUE, scale. = TRUE)
+summary(pca1)
+biplot(pca1, cex=0.9)
+
+## Kernel PCA (non-linear pca)
+library(kernlab)
+kpca1 <- kpca(~., data = as.data.frame(tmp), kernel = 'rbfdot')
+pcv(kpca1)
+plot(rotated(kpca1),
+     xlab="1st Principal Component",ylab="2nd Principal Component")
+
+
+st_bbox(shp2)
+# (PD_hotspot_bi <- ggplot() +
+#   geom_sf(shp2, mapping = aes(fill=PD_hotspot==pdspots), color="black", size=0.1, show.legend=FALSE) +
+#   geom_sf(data=thicc_lines, lwd=1, col="grey95", show.legend=F)+
+#   scale_fill_manual(values=c(NA, "red"), na.value="white")+
+#   geom_sf(data=ha_united, col=NA, fill="grey", alpha=.7)+
+#   theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + 
+#   coord_sf(expand = F, ylim=c(-6031217, 5558740), xlim=c(-10092430, 12592430)) + theme_void())
+# PD_hotspot_map <- PD_hotspot_bi
+# ggsave("figures/choropleth_PD_richness_bi.png", width=10, height=5.74, units = "in", dpi = 600, bg = "white")
+# 
+# (PE_hotspot_bi <- ggplot() +
+#   geom_sf(shp2, mapping = aes(fill = PE_hotspot%in%pespots), color = "black", size = 0.1, show.legend = FALSE) +
+#   geom_sf(data=thicc_lines, lwd=1, col="grey95", show.legend=F)+
+#   scale_fill_manual(values=c(NA, "red"), na.value="white")+
+#   geom_sf(data=ha_united, col=NA, fill="grey", alpha=.7)+
+#   # geom_sf_pattern(data=ha_united, pattern = 'stripe', fill="grey30",
+#   #                 colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.005, pattern_spacing=0.02)+
+#   # geom_sf_pattern(data=pm, pattern = 'stripe', fill="grey30",
+#   #                 colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.01, pattern_spacing=0.02)+
+#   theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + 
+#   coord_sf(expand = F, ylim=c(-6031217, 5558740), xlim=c(-10092430, 12592430)) + theme_void())
+# PE_hotspot_map <- PE_hotspot_bi
+# ggsave("figures/choropleth_PE_richness_bi.png", width=10, height=5.74, units = "in", dpi = 600, bg = "white")
+# 
+# plot_grid(PD_hotspot_map, PE_hotspot_map, ncol=2, labels=c("A", "B"), label_fontface=1)
+# ggsave("figures/our_hotspots.png", width=12.5, height=3.5, units = "in", dpi = 600, bg = "white")
+# ggsave("figures/our_hotspots.pdf", width=12.5, height=3.5, units = "in", dpi = 600, bg = "white")
+
+# one map to rule them all
+shp2$hotspot_type <- NA
+shp2$hotspot_type[shp2$PD_hotspot==pdspots] <- "PD"
+shp2$hotspot_type[shp2$PE_hotspot%in%pespots] <- "PE"
+shp2$hotspot_type[shp2$PE_hotspot%in%pespots&shp2$PD_hotspot==pdspots] <- "PD & PE"
+
+bc <- c("#52548D", "#C57391", "#EFB984")
+(hotspots_bi <- ggplot() +
+    geom_sf(shp2, mapping = aes(fill=hotspot_type), color=NA, size=0.1) +
+    geom_sf(data=thicc_lines, lwd=1, col="grey95", show.legend=F)+
+    scale_fill_manual("Hotspot\ntype", values=bc, na.value="grey95")+
+    geom_sf(data=ha_united, col=NA, fill="grey", alpha=.6)+
+    theme_void()+ coord_sf(expand = F)+
+    theme(legend.position = c(0.2, 0.3),
+      legend.key.height = unit(5,"mm"),
+      legend.background = element_blank(),
+      legend.key = element_blank(),
+      panel.background = element_blank()))
+ggsave(plot=hotspots_bi, "figures/one_hotspots_map.pdf", width=6.75, height=4, dpi=300, bg="white")  
+
+
+
+
+# Get values for tiny bars
+# remember to not make the new subset the max values, draws a wrong picture (eg
+# Cape povinces having hfp of 100%)
+
+plot.df <- st_drop_geometry(shp2[,c("LEVEL_NAME", "deforestation2", "hfp_mean", 
+                                    "pre_change", "mat_change", "PD_hotspot", "PE_hotspot")])
+plot.df$PD_hotspot[plot.df$PD_hotspot!=pdspots] <- "n"
+plot.df$PD_hotspot[plot.df$PD_hotspot==pdspots] <- "y"
+plot.df$PE_hotspot[!plot.df$PE_hotspot%in%pespots] <- "n"
+plot.df$PE_hotspot[plot.df$PE_hotspot%in%pespots] <- "y"
+plot.hp <- plot.df[plot.df$PD_hotspot=="y" | plot.df$PE_hotspot=="y" ,]
+
+# plot.hp$deforestation2 <- normalized(plot.hp$deforestation2)
+# plot.hp$hfp_mean <- normalized(plot.hp$hfp_mean)
+# plot.hp$mat_change <- normalized(plot.hp$mat_change)
+# plot.hp$pre_change <- normalized(plot.hp$pre_change)
+plot.hp$deforestation2 <- plot.hp$deforestation2/max(shp2$deforestation2, na.rm=T)
+plot.hp$hfp_mean <- plot.hp$hfp_mean/max(shp2$hfp_mean, na.rm=T)
+plot.hp$mat_change <- plot.hp$mat_change/max(shp2$mat_change, na.rm=T)
+plot.hp$pre_change <- plot.hp$pre_change/max(shp2$pre_change, na.rm=T)
+
+# plot a facet for each country showing each variable
+test <- melt(plot.hp)
+#x <- rep(c(1,1,2,2), 16)
+#y <- rep(c(1,2,1,2), 16)
+#test$ycord <- y
+#test$xcord <- x
+# ggplot(test, aes(x=variable, y=1, col=variable, alpha=value))+
+#   geom_point(shape=15, size=12)+
+#   facet_wrap(~LEVEL_NAME+PD_hotspot, scales="free")+
+#   theme_void()
+
+bat <- scico(palette="hawaii", n=4, begin=0, alpha=1)
+# arrange colors (bat[2] = defore)
+bat2 <- c(bat[3], bat[2], bat[4], bat[1])
+ggplot(test, aes(fill=variable, x=1, y=value))+
+  geom_bar(position=position_dodge(), stat="identity")+
+  scale_fill_manual(values=bat2)+
+  facet_wrap(~LEVEL_NAME+PD_hotspot, scales="free")+
+  theme_void()+coord_cartesian(expand=F, ylim=c(-0.3, 1))+theme(panel.border=element_rect(fill=NA))
+ggsave("figures/little_bars_alpha09.pdf", width=3, height=3)
 
 
 
 
 
+save.image("workspace_maps.RData")
 
 
 
 
+# MORE SI PLOTS #####
+load("workspace_maps.RData")
 
+ggplot(shp2, aes(x=SES.PD, y=SES.PE, label=LEVEL_NAME))+
+  geom_point()+
+  geom_label(nudge_x=1, hjust=0, label.size=0, label.padding=unit(0.5,"mm"), 
+             alpha=0, color = alpha('black', .5), size=3)+
+  scale_x_continuous(limits=c(-80,20))
+ggsave("figures/SES_PE_vs_SES_PD.png", width=5, height=5)
 
 
 
@@ -935,9 +1288,9 @@ ggsave("figures/hotspots_on_the_spectrum.png", width=8, height=7, units = "in", 
 # ggplot(shp) + 
 #   geom_sf(aes(fill=threat),lwd=0, col=NA) + 
 #   #geom_sf(data=thicc_lines, lwd=1.5, aes(col=sr), show.legend=F)+
-#   #scale_colour_viridis_c("SR", option = "plasma", trans = "sqrt", 
+#   #scale_colour_scico("SR", palette="batlow", trans = "sqrt", 
 #   #                        begin = lcol, end = sqrt(ucol))+
-#   scale_fill_viridis_c("threat", option = "plasma")+ #, 
+#   scale_fill_scico("threat", palette="batlow")+ #, 
 #   theme(legend.position = c(0.18, 0.3),
 #         legend.key.height = unit(6,"mm"),
 #         legend.background = element_blank(),
@@ -1069,7 +1422,7 @@ ggsave("figures/hotspots_on_the_spectrum.png", width=8, height=7, units = "in", 
 # 
 # 
 # ## Deforestation hotspots -----------------------
-# H <- hotspots(shp2$deforest_mean) # hotspots
+# H <- hotspots(shp2$deforestation2) # hotspots
 # shp2$deforest_spot <- H
 # 
 # # Myers & PD hotspot matches:
@@ -1193,33 +1546,33 @@ ggsave("figures/hotspots_on_the_spectrum.png", width=8, height=7, units = "in", 
 
 # bonbon_area <- ggplot(df2[grep("PD", df2$name),], aes(name, value, color = area, group=LEVEL_NAME))+
 #   geom_bump(size = 1, position = "identity", smooth=sm) +
-#   scale_color_viridis_c(trans="sqrt", alpha = alevel, option = "plasma", guide = "none")+
+#   scale_color_scico(trans="sqrt", alpha = alevel, palette="batlow", guide = "none")+
 #   scale_x_discrete("", expand = c(0.05,0.05))+
 #   scale_y_discrete("rank")+
 #   geom_point(size = 0, aes(fill=area)) +
-#   scale_fill_viridis_c("Area", trans="sqrt", alpha = 1, option = "plasma")+
+#   scale_fill_scico("Area", trans="sqrt", alpha = 1, palette="batlow")+
 #   theme_minimal()
 
 
 # bonbon_area_PE <- ggplot(df2[grep("PE", df2$name),], aes(name, value, color = area, group=LEVEL_NAME))+
 #   geom_bump(size = 2, position = "identity", smooth=sm) +
-#   scale_color_viridis_c(trans="sqrt", alpha = alevel, option = "plasma", guide = "none")+
+#   scale_color_scico(trans="sqrt", alpha = alevel, palette="batlow", guide = "none")+
 #   scale_x_discrete("", expand = c(0.05,0.05))+
 #   scale_y_discrete("rank")+
 #   geom_point(size = 0, aes(fill=area)) +
-#   scale_fill_viridis_c("Area", trans="sqrt", alpha = 1, option = "plasma")+
+#   scale_fill_scico("Area", trans="sqrt", alpha = 1, palette="batlow")+
 #   theme_minimal()s
 
 
 # lsize = 1
 # font.size=2.5
 # library(ggtext)  
-# a <- shp2$deforest_mean[shp2$PD_hotspot=="3-3"]
+# a <- shp2$deforestation2[shp2$PD_hotspot=="3-3"]
 # b <- rev(seq(45,90,5))
-# (deforst_hist_PD <- ggplot(shp2, aes(x=deforest_mean))+
+# (deforst_hist_PD <- ggplot(shp2, aes(x=deforestation2))+
 #     geom_histogram()+
 #     geom_vline( 
-#       aes(xintercept=deforest_mean, col=LEVEL_3_CO), lty=1, size=lsize,show.legend=F)+
+#       aes(xintercept=deforestation2, col=LEVEL_3_CO), lty=1, size=lsize,show.legend=F)+
 #     geom_richtext(data=data.frame(a=a, region=shp2$LEVEL_NAME[shp2$PD_hotspot=="3-3"]), 
 #                   aes(x=a+0.5, y=rev(seq(20,65,5))[rank(a)], label=region, col=region), size=font.size, angle=40, hjust=0, 
 #                   label.padding=unit(0,"mm"), show.legend=F, label.color=NA)+
@@ -1251,37 +1604,37 @@ ggsave("figures/hotspots_on_the_spectrum.png", width=8, height=7, units = "in", 
 #     geom_vline(data=data.frame(a=a, region=shp2$LEVEL_3_CO[shp2$PD_hotspot=="3-3"]), 
 #                aes(xintercept=a, col=region), lty=1, show.legend=F))
 # 
-# a <- shp2$deforest_mean[shp2$PE_hotspot%in%c("3-4","4-3")]
+# a <- shp2$deforestation2[shp2$PE_hotspot%in%pespots]
 # b <- rev(seq(45,90,5))
-# (deforst_hist_PE <- ggplot(shp2, aes(x=deforest_mean))+
+# (deforst_hist_PE <- ggplot(shp2, aes(x=deforestation2))+
 #     geom_histogram()+
 #     coord_cartesian(expand=F, ylim=c(0,110))+
-#     geom_vline(data=data.frame(a=a, region=shp2$LEVEL_3_CO[shp2$PE_hotspot%in%c("3-4","4-3")]), 
+#     geom_vline(data=data.frame(a=a, region=shp2$LEVEL_3_CO[shp2$PE_hotspot%in%pespots]), 
 #                aes(xintercept=a, col=region), lty=1, show.legend=F))
-# a <- shp2$hfp_mean[shp2$PE_hotspot%in%c("3-4","4-3")]
+# a <- shp2$hfp_mean[shp2$PE_hotspot%in%pespots]
 # b <- rev(seq(18,32,1))
 # (hfp_hist_PE <- ggplot(shp2, aes(x=hfp_mean))+
 #     geom_histogram()+
 #     theme(axis.title.y.left=element_blank())+
 #     coord_cartesian(expand=F, ylim=c(0,45))+
-#     geom_vline(data=data.frame(a=a, region=shp2$LEVEL_3_CO[shp2$PE_hotspot%in%c("3-4","4-3")]), 
+#     geom_vline(data=data.frame(a=a, region=shp2$LEVEL_3_CO[shp2$PE_hotspot%in%pespots]), 
 #                aes(xintercept=a, col=region), lty=1, show.legend=T)+
 #     theme(legend.key.height=unit(0.4,"cm")))
-# a <- shp2$mat_change[shp2$PE_hotspot%in%c("3-4","4-3")]
+# a <- shp2$mat_change[shp2$PE_hotspot%in%pespots]
 # b <- rev(seq(46,55,1))
 # (mat_hist_PE <- ggplot(shp2, aes(x=mat_change))+
 #     geom_histogram()+
 #     theme(axis.title.y.left=element_blank())+
 #     coord_cartesian(expand=F, ylim=c(0,70))+
-#     geom_vline(data=data.frame(a=a, region=shp2$LEVEL_3_CO[shp2$PE_hotspot%in%c("3-4","4-3")]), 
+#     geom_vline(data=data.frame(a=a, region=shp2$LEVEL_3_CO[shp2$PE_hotspot%in%pespots]), 
 #                aes(xintercept=a, col=region), lty=1, show.legend=F))
-# a <- shp2$pre_change[shp2$PE_hotspot%in%c("3-4","4-3")]
+# a <- shp2$pre_change[shp2$PE_hotspot%in%pespots]
 # b <- rev(seq(55,100,5))
 # (pre_hist_PE <- ggplot(shp2, aes(x=pre_change))+
 #     geom_histogram()+
 #     theme(axis.title.y.left=element_blank())+
 #     coord_cartesian(expand=F, ylim=c(0,120), xlim=c(-1000,1500))+
-#     geom_vline(data=data.frame(a=a, region=shp2$LEVEL_3_CO[shp2$PE_hotspot%in%c("3-4","4-3")]), 
+#     geom_vline(data=data.frame(a=a, region=shp2$LEVEL_3_CO[shp2$PE_hotspot%in%pespots]), 
 #                aes(xintercept=a, col=region), lty=1, show.legend=F))
 # 
 # 
@@ -1289,3 +1642,228 @@ ggsave("figures/hotspots_on_the_spectrum.png", width=8, height=7, units = "in", 
 # plot_grid(deforst_hist_PD, hfp_hist_PD, mat_hist_PD, pre_hist_PD, 
 #           deforst_hist_PE, hfp_hist_PE, mat_hist_PE, pre_hist_PE, ncol=2, 
 #           labels=c("PD", "", "", "", "PE", "", "", ""), label_size=9, label_fontface="plain")
+#load("workspace_point1.RData")
+
+# dim <- 4
+# #breaks=bi_class_breaks(shp2, x=SES.PD, y=SES.PE, style="jenks", dim=dim)
+# shp2$bi_class <- bi_class(shp2, x = richness, y = WE, style = "jenks", dim = dim)$bi_class
+# shp2$bi_class_ses <- bi_class(shp2, x = SES.PD, y = SES.PE, style = "jenks", dim = dim)$bi_class
+# thicc_lines <- shp2[which(shp2$area<min.area),]
+
+# (choropl1 <- ggplot() +
+#   geom_sf(na.omit(shp2), mapping = aes(fill = bi_class_ses), color = NA, size = 0.1, show.legend = FALSE) +
+#   bi_scale_fill(pal = my_pal, dim=dim, na.value="white") +
+#   geom_sf(data=thicc_lines, lwd=1, aes(col=bi_class_ses), show.legend=F)+
+#   bi_scale_color(pal = my_pal, dim=dim, na.value="white") +
+#   bi_theme()+ theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm"))+
+#   coord_sf(expand = F)) 
+# legend <- bi_legend(pal = my_pal, dim=dim, xlab="sesPD", ylab="sesPE ", size=8,
+#                     breaks=bi_class_breaks(shp2, x=SES.PD, y=SES.PE, style="jenks", dim=dim))+
+#   theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=40, hjust=1),
+#         axis.text=element_text(size=5))
+# (pd_pe_map <- ggdraw() + draw_plot(choropl1, 0, 0, 1, 1) + draw_plot(legend, 0.05, 0, 0.3, 0.3))
+# 
+# 
+# choropl2 <- ggplot() +
+#     geom_sf(shp2, mapping = aes(fill = bi_class), color = NA, size = 0.1, show.legend = FALSE) +
+#     bi_scale_fill(pal = my_pal, dim = 4, na.value="white") +
+#     geom_sf(data=thicc_lines, lwd=1, aes(col=bi_class), show.legend=F)+
+#     bi_scale_color(pal = my_pal, dim = 4, na.value="white") +
+#     bi_theme()+ theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm"))+
+#     coord_sf(expand = F)# t,r,b,l bi_theme()+ 
+# legend <- bi_legend(pal = my_pal, dim=dim, xlab="SR", ylab="WE ", size=8,
+#                       breaks=bi_class_breaks(shp2, x=richness, y=WE, style = "jenks", dim = dim))+
+#     theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=40, hjust=1),
+#           axis.text=element_text(size=5))
+# (sr_we_map <- ggdraw() + draw_plot(choropl2, 0, 0, 1, 1) + draw_plot(legend, 0.04, 0, 0.33, 0.33))
+# 
+# plot_grid(pd_pe_map, sr_we_map, ncol=2)
+# ggsave("figures/choropleth_map.png", width=12.5, height=3.5, units = "in", dpi = 600, bg = "white")
+# 
+# 
+# ## Threat boxplots for groups ------------------------------------------
+# # threats: HFP, future clim change, deforestation
+# 
+# # boxplot for deforest vs biclass groups -a more quantitative plot
+# #coropleth_palette <- read.csv("figures/coropleth_palette.txt", header = F)$V1 # actual order
+# 
+# (biclass_vs_deforest <- ggplot(shp2)+
+#   geom_boxplot(aes(x=bi_class_ses, y=deforestation2), varwidth = T,  show.legend=F)+ #, fill=bi_class_ses
+#   #scale_fill_manual(values=coropleth_palette)+
+#   xlab("SES.PD-SES.PE group"))
+# # it does not look like there is a strong pattern in deforestation. might be single hotspots in it though. gotta inspect visually. check for hfp and future climate change as well:
+# (biclass_vs_hfp <- ggplot(shp2)+
+#     geom_boxplot(aes(x=bi_class_ses, y=hfp_mean), varwidth = T,  show.legend=F)+ 
+#     xlab("SES.PD-SES.PE group"))
+# (biclass_vs_fut_prec <- ggplot(shp2)+
+#     geom_boxplot(aes(x=bi_class_ses, y=pre_change), varwidth = T,  show.legend=F)+
+#     xlab("SES.PD-SES.PE group"))
+# (biclass_vs_fut_mat <- ggplot(shp2)+
+#     geom_boxplot(aes(x=bi_class_ses, y=mat_change), varwidth = T,  show.legend=F)+
+#     xlab("SES.PD-SES.PE group"))
+# plot_grid(biclass_vs_deforest, biclass_vs_hfp, biclass_vs_fut_prec, biclass_vs_fut_mat, ncol=2)
+# ggsave("figures/boxplot_PD_PE_threats.png", width=7, height=7, units = "in", dpi = 600, bg = "white")
+# 
+# ## continuous plot
+# y <- c("deforestation2", "hfp_mean", "pre_change", "mat_change")
+# for(i in 1:4){
+#   response <- y[i] 
+#   g <- ggplot(shp2, aes_string(x="SES.PD", y=response))+
+#     geom_point()+
+#     geom_smooth()
+#   assign(response, g) #generate an object for each plot
+# }
+# for(i in 1:4){
+#   response <- y[i] 
+#   g <- ggplot(shp2, aes_string(x="SES.PE", y=response))+
+#     geom_point()+
+#     geom_smooth()
+#   assign(paste0(response, "_PE"),g) #generate an object for each plot
+# }
+# plot_grid(deforestation2, hfp_mean, pre_change, mat_change, 
+#           deforestation2_PE, hfp_mean_PE, pre_change_PE, mat_change_PE, ncol=4)
+# 
+# 
+# 
+# ## adding Myer hotspots -------------------------------------
+# ha <- st_read("hotspot_area.gpkg")
+# pm <- st_read("Poly-Micronesia.gpkg")
+# gc()
+# 
+# # ha_united <- st_union(ha)
+# # st_write(ha_united, "hotspot_area_united.gpkg")
+# ha_united <- st_read("hotspot_area_united.gpkg")
+# 
+# # change projection + solve dateline issue
+# ha_united <- st_wrap_dateline(ha_united, options = c("WRAPDATELINE=YES", "DATELINEOFFSET=180"))
+# pm <- st_wrap_dateline(pm, options = c("WRAPDATELINE=YES", "DATELINEOFFSET=180"))
+# ha_united <- st_transform(ha_united, my_projection)
+# pm <- st_transform(pm, my_projection)
+# 
+# 
+# # plotting with triangle pattern takes a minute, be patient!
+# choropl3 <- choropl1+
+#     geom_sf_pattern(data=ha_united, pattern = "circle", fill="grey30", #pattern_type="triangle", 
+#                     colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.01, pattern_spacing=0.02)+
+#     geom_sf_pattern(data=pm, pattern = "circle", fill="grey30", #pattern_type="triangle",  
+#                     colour="grey30", lwd=0.1, pattern_size=0.2, alpha=0, pattern_density=0.01, pattern_spacing=0.02)+
+#   theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F)
+# legend <- bi_legend(pal = my_pal, dim=dim, xlab="sesPD", ylab="sesPE ", size=8,
+#                     breaks=bi_class_breaks(shp2, x=SES.PD, y=SES.PE, style="jenks", dim=dim))+
+#   theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
+# pd_pe_myer <- ggdraw() + draw_plot(choropl3, 0, 0, 1, 1) + draw_plot(legend, 0.05, 0, 0.3, 0.3)
+# ggsave("figures/PD_PE_Myer.png", width=10, height=5.74, units = "in", dpi = 600, bg = "white")
+
+# OLD SINGLE CHOROLPLETH PLOTS THREATS ----
+# # legend position and size
+# l.x=0.07; l.y=0.01; l.width=0.25; l.height=0.25
+# 
+# ## PLOTS ----
+# PE_deforest <- ggplot() +
+#   geom_sf(shp2, mapping = aes(fill = bi_class_PE_deforest), color = NA, size = 0.1, show.legend = FALSE) +
+#   bi_scale_fill(pal = my_pal, dim=dim, na.value="white") +
+#   geom_sf(data=thicc_lines, lwd=1, aes(col=bi_class_PE_deforest), show.legend=F)+
+#   bi_scale_color(pal = my_pal, dim=dim, na.value="white") +
+#   bi_theme()+
+#   coord_sf(expand = F)
+# (legend <- bi_legend(pal=my_pal, dim=dim, xlab="deforestation", ylab="sesPE ", size=8,
+#                      breaks=bi_class_breaks(shp2, x=deforestation2, y=SES.PE, style="jenks", dim=dim))+
+#     theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text = element_blank())+
+#     annotate("text", x=rep(1:4,each=4), y=rep(1:4,4), 
+#              label=class_col(shp2$bi_class_PE_deforest), col="white", size=4, alpha=.7))
+# ses_pe_deforest_map <- ggdraw() + draw_plot(PE_deforest, 0, 0, 1, 1) + draw_plot(legend, l.x, l.y, l.width, l.height)
+# ggsave(plot=ses_pe_deforest_map, "figures/choropleth_PE_deforest.png", 
+#        width=8, height=4.62, units = "in", dpi = 300, bg = "white")
+# 
+# 
+# PD_deforest <- ggplot() +
+#   geom_sf(shp2, mapping = aes(fill = bi_class_PD_deforest), color = NA, size = 0.1, show.legend = FALSE) +
+#   bi_scale_fill(pal = my_pal, dim = dim, na.value="white") +
+#   geom_sf(data=thicc_lines, lwd=1, aes(col=bi_class_PD_deforest), show.legend=F)+
+#   bi_scale_color(pal = my_pal, dim = dim, na.value="white") +
+#   bi_theme()+ theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F) 
+# legend <- bi_legend(pal = my_pal, dim=dim, xlab="deforestation", ylab="SES.PD ", size=8, 
+#                     breaks=bi_class_breaks(shp2, x=deforestation2, y=SES.PD, style="jenks", dim=dim))+
+#   theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_blank())+
+#   annotate("text", x=rep(1:4,each=4), y=rep(1:4,4), 
+#            label=class_col(shp2$bi_class_PD_deforest), col="white", size=4, alpha=.7)
+# ses_pd_deforest_map <- ggdraw() + draw_plot(PD_deforest, 0, 0, 1, 1) + draw_plot(legend, l.x, l.y, l.width, l.height)
+# ggsave(plot=ses_pd_deforest_map,"figures/choropleth_PD_deforest.png", width=10, height=5.74, units = "in", dpi = 600, bg = "white")
+# 
+# 
+# 
+# ### Human footprint index
+# hfp_pe <- ggplot() +
+#   geom_sf(shp2, mapping = aes(fill = bi_class_PE_hfp), color = NA, size = 0.1, show.legend = FALSE) +
+#   bi_scale_fill(pal = my_pal, dim = dim, na.value="white") +
+#   geom_sf(data=thicc_lines, lwd=1, aes(col=bi_class_PE_hfp), show.legend=F)+
+#   bi_scale_color(pal = my_pal, dim = dim, na.value="white") +
+#   bi_theme()+ theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F)
+# legend <- bi_legend(pal = my_pal, dim=dim, xlab="HFP", ylab="SES.PE ", size=8, 
+#                     breaks=bi_class_breaks(shp2, x=hfp_mean, y=SES.PE, style="jenks", dim=dim))+
+#   theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_blank())+
+#   annotate("text", x=rep(1:4,each=4), y=rep(1:4,4), 
+#            label=class_col(shp2$bi_class_PE_hfp), col="white", size=4, alpha=.7)
+# ggdraw() + draw_plot(hfp_pe, 0, 0, 1, 1) + draw_plot(legend, l.x, l.y, l.width, l.height)
+# #ggsave("figures/choropleth_PE_hfp.png", width=10, height=5.74, units="in", dpi=300, bg="white")
+# 
+# hfp_pd <- ggplot() +
+#   geom_sf(shp2, mapping = aes(fill = bi_class_PD_hfp), color = NA, size = 0.1, show.legend = FALSE) +
+#   bi_scale_fill(pal = my_pal, dim = dim, na.value="white") +
+#   geom_sf(data=thicc_lines, lwd=1, aes(col=bi_class_PD_hfp), show.legend=F)+
+#   bi_scale_color(pal = my_pal, dim = dim, na.value="white") +
+#   bi_theme()+ theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F)
+# legend <- bi_legend(pal = my_pal, dim=dim, xlab="HFP", ylab="SES.PD ", size=8, 
+#                     breaks=bi_class_breaks(shp2, x=hfp_mean, y=SES.PD, style="jenks", dim=dim))+
+#   theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
+# ggdraw() + draw_plot(hfp_pd, 0, 0, 1, 1) + draw_plot(legend, l.x, l.y, l.width, l.height)
+# ggsave("figures/choropleth_PD_hfp.png", width=10, height=5.74, units="in", dpi=300, bg="white")
+# 
+# ### Future climate
+# prechange_pe <- ggplot() +
+#   geom_sf(shp2, mapping = aes(fill = bi_class_PE_pre_change), color = NA, size = 0.1, show.legend = FALSE) +
+#   bi_scale_fill(pal = my_pal, dim = dim, na.value="white") +
+#   geom_sf(data=thicc_lines, lwd=1, aes(col=bi_class_PE_pre_change), show.legend=F)+
+#   bi_scale_color(pal = my_pal, dim = dim, na.value="white") +
+#   bi_theme()+ theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F)
+# legend <- bi_legend(pal = my_pal, dim=dim, xlab="pre_change", ylab="SES.PE ", size=8, 
+#                     breaks=bi_class_breaks(shp2, x=pre_change, y=SES.PE, style="jenks", dim=dim))+
+#   theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
+# ggdraw() + draw_plot(prechange_pe, 0, 0, 1, 1) + draw_plot(legend, l.x, l.y, l.width, l.height)
+# ggsave("figures/choropleth_PE_prechange.png", width=10, height=5.74, units="in", dpi=300, bg="white")
+# 
+# prechange_pd <- ggplot() +
+#   geom_sf(shp2, mapping = aes(fill = bi_class_PD_pre_change), color = NA, size = 0.1, show.legend = FALSE) +
+#   bi_scale_fill(pal = my_pal, dim = dim, na.value="white") +
+#   geom_sf(data=thicc_lines, lwd=1, aes(col=bi_class_PD_pre_change), show.legend=F)+
+#   bi_scale_color(pal = my_pal, dim = dim, na.value="white") +
+#   bi_theme()+ theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F)
+# legend <- bi_legend(pal = my_pal, dim=dim, xlab="pre_change", ylab="SES.PD ", size=8, 
+#                     breaks=bi_class_breaks(shp2, x=pre_change, y=SES.PD, style="jenks", dim=dim))+
+#   theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
+# ggdraw() + draw_plot(prechange_pd, 0, 0, 1, 1) + draw_plot(legend, l.x, l.y, l.width, l.height)
+# ggsave("figures/choropleth_PD_prechange.png", width=10, height=5.74, units="in", dpi=300, bg="white")
+# 
+# matchange_pe <- ggplot() +
+#   geom_sf(shp2, mapping = aes(fill = bi_class_PE_mat_change), color = NA, size = 0.1, show.legend = FALSE) +
+#   bi_scale_fill(pal = my_pal, dim = dim, na.value="white") +
+#   geom_sf(data=thicc_lines, lwd=1, aes(col=bi_class_PE_mat_change), show.legend=F)+
+#   bi_scale_color(pal = my_pal, dim = dim, na.value="white") +
+#   bi_theme()+ theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F)
+# legend <- bi_legend(pal = my_pal, dim=dim, xlab="mat_change", ylab="SES.PE ", size=8, 
+#                     breaks=bi_class_breaks(shp2, x=mat_change, y=SES.PE, style="jenks", dim=dim))+
+#   theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
+# ggdraw() + draw_plot(matchange_pe, 0, 0, 1, 1) + draw_plot(legend, l.x, l.y, l.width, l.height)
+# ggsave("figures/choropleth_PE_matchange.png", width=10, height=5.74, units="in", dpi=300, bg="white")
+# 
+# matchange_pd <- ggplot() +
+#   geom_sf(shp2, mapping = aes(fill = bi_class_PD_mat_change), color = NA, size = 0.1, show.legend = FALSE) +
+#   bi_scale_fill(pal = my_pal, dim = dim, na.value="white") +
+#   geom_sf(data=thicc_lines, lwd=1, aes(col=bi_class_PD_mat_change), show.legend=F)+
+#   bi_scale_color(pal = my_pal, dim = dim, na.value="white") +
+#   bi_theme()+ theme(plot.margin = margin(0.1, -0.2, 0.1, -0.2, "cm")) + coord_sf(expand = F)
+# legend <- bi_legend(pal = my_pal, dim=dim, xlab="mat_change", ylab="SES.PD ", size=8, 
+#                     breaks=bi_class_breaks(shp2, x=mat_change, y=SES.PD, style="jenks", dim=dim))+
+#   theme(plot.margin=margin(0, 0, 0, 0, "cm"), axis.text.x = element_text(angle=45, hjust=1))
+# ggdraw() + draw_plot(matchange_pd, 0, 0, 1, 1) + draw_plot(legend, l.x, l.y, l.width, l.height)
+# ggsave("figures/choropleth_PD_matchange.png", width=10, height=5.74, units="in", dpi=300, bg="white")

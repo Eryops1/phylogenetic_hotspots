@@ -13,7 +13,7 @@ library(sf)
 library(ggplot2)
 theme_set(theme_bw())
 library(cowplot)
-library(rgdal)
+#library(rgdal)
 library(beepr)
 
 
@@ -96,11 +96,11 @@ rm(phylist2)
 # transfer to cluster manually, file too big for github
 
 #check if all submat really the same:
-cn <- lapply(submat, colnames)
-for(i in 1:99)print(all(cn[i]%in%cn[i+1])) # all true, save space:
+#cn <- lapply(submat, colnames)
+#for(i in 1:99)print(all(cn[i]%in%cn[i+1])) # all true, save space:
 submat <- submat[[1]]
 
-save(list = c("submat", "subphy"), file="PD_nullmodel/comm_and_phy.RData")
+#save(list = c("submat", "subphy"), file="PD_nullmodel/comm_and_phy.RData")
 # gdat = list(submat, subphy)
 # saveRDS(gdat, file="PD_nullmodel/comm_and_phy.rds")
 
@@ -374,6 +374,80 @@ git push"
 
 
 
+
+
+
+# Rarefaction a la Brody Sandel 2018 --------------------------------------
+
+# Battling the assumption that species of different SR should have same
+# environmental filtering, and PDI....
+# One possible approach to removing richness-dependence is to rarefy all samples
+# in the community matrix to the number of species in the smallest sample, then
+# compute PDI.
+
+load("PD_nullmodel/comm_and_phy.RData")
+tree <- subphy[[1]]
+
+submat <- mat[-as.numeric(which(rowSums(mat)<30)),] 
+# remove bot countries with SR <30:
+min(rowSums(submat))
+# 41
+PD_ses()
+
+# rarefaction
+res <- list(length=500)
+rarefaction=41
+no_zero <- apply(submat, 1, function(x)return(which(x==1))) # returns cols == 1
+
+Sys.time()
+set.seed(939)
+for(i in 1:500){
+  submat2 <- submat # reset matrix for each run
+  no_zero_sub <- lapply(no_zero, sample, size=rarefaction)
+  for(j in 1:nrow(submat2)){
+    # set all not sampled entries to ZERO
+    submat2[j, -as.numeric(no_zero_sub[[j]])] <- 0
+  }
+  res[[i]] <- PD_ses(submat2, tree, reps=100, "tipshuffle")
+  if(!i%%1)cat(i,"\r")
+}
+Sys.time()
+
+# stopped at 10h (=162 reps) for now
+
+res.comb <- do.call(rbind, res)
+# get original richness back in
+res.comb$richness_original <- as.numeric(rep(rowSums(submat), length(res)))
+
+ggplot(res.comb)+
+  #geom_point(aes(y=zscore, x=richness_original, group=grids), alpha=.05)+
+  stat_summary(aes(y=zscore, x=richness_original, group=grids), fun = "median", geom = "point")+
+  ylab("median zscore rarefaction (n=162, sample size=41)")
+
+ggplot(res.comb)+
+  stat_summary(aes(y=zscore, x=richness_original, group=grids), fun = "sd", geom = "point")+
+  ylab("SD zscore rarefaction (n=162, sample size=41)")
+
+saveRDS(res.comb, "brody_rarefaction.rds")
+
+
+
+# Botta-Dukat normalisaztion #####
+# account for the non-normal distribution of the null-distribution
+library(phyloregion)
+library(ecospat)
+load("PD_nullmodel/comm_and_phy.RData")
+tree <- subphy[[1]]
+sesPD_norm <- PD_ses_normal(submat, tree, reps=100, "tipshuffle")
+sesPD_norm
+
+saveRDS(sesPD_norm, "sesPD_norm.rds")
+
+
+
+
+
+
 # SES.PD, AvTD, TTD --------------------------------------------------
 
 # # SES.PD, AvTD, TTD
@@ -408,7 +482,6 @@ git push"
 # # saveRDS(tipshuffle.df, "tipshuffle.rds")
 
 # PD rowwise -------------------------------------------------------------
-ś
 # pdnames <- dir("PD_nullmodel", pattern="rowwise", full.names = T)
 # ind.list <- lapply(pdnames, readRDS)
 # 
@@ -480,6 +553,62 @@ pe.df[pe.df$richness<30, -c(1:3,9:11)] <- NA
 
 WE <- weighted_endemism(submat) # one is enough
 #rm(submat, subphy)
+
+
+
+
+
+
+# RPD + RPE ---------------------------------------------------------------
+# Mishler 2014:
+# We also calculated for each grid cell two derived metrics that are new to this
+# study and have been added as extensions of the Biodiverse package: RPD and
+# RPE. Both of these indices are ratios that compare the PD and PE observed on
+# the actual tree in the numerator to that observed on a comparison tree in the
+# denominator. To make them easily comparable between analyses, the trees in
+# both the numerator and the denominator are scaled such that branch lengths are
+# calculated as a fraction of the total tree length. The comparison tree retains
+# the actual tree topology but makes all branches of equal length. Thus, RPD is
+# PD measured on the actual tree divided by PD measured on the comparison tree,
+# while RPE is PE measured on the actual tree divided by PE measured on the
+# comparison tree. In combination with the randomization test (below), this lets
+# us examine the extent to which differential branch lengths matter to the
+# patterns of PD and PE observed, which is important to our goals.
+
+# install.packages("remotes")
+# remotes::install_github("joelnitta/canaper")
+library(canaper)
+#data(phylocom)
+
+load("PD_nullmodel/comm_and_phy.RData")
+tree <- subphy[[1]]
+rm(subphy)
+
+# make data digestible for canaper (doesnt like ^numbers or -)
+comm <- as.matrix(submat)
+colnames(comm) <- paste0("sp", colnames(comm))
+colnames(comm) <- gsub("-", "_", colnames(comm))
+tree$tip.label <- paste0("sp", tree$tip.label)
+tree$tip.label <- gsub("-", "_", tree$tip.label)
+
+set.seed(071421)
+Sys.time()
+rand_test_results <- cpr_rand_test(
+  comm, tree,
+  null_model = "swap", 
+  n_iterations=100
+)
+Sys.time()
+
+
+
+
+
+
+
+
+
+
 
 
 
