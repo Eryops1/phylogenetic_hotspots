@@ -145,8 +145,79 @@ PE_ses <-function (x, phy, model = "tipshuffle",
 environment(PE_ses) <- asNamespace('phyloregion')
 
 
-normalized = function(x)(x-min(x, na.rm=T))/(max(x, na.rm=T)-min(x, na.rm=T))
+normalized = function(x){(x-min(x, na.rm=T))/(max(x, na.rm=T)-min(x, na.rm=T))}
 
 
+# PD_ses with normal distriution check? -------------------------------------------------
+
+
+PD_ses_normal <- function (x, phy, model = c("tipshuffle", "rowwise", "colwise"),
+          reps = 1000, ...)
+{
+  colnames(x) <- gsub(" ", "_", colnames(x))
+  p <- keep.tip(phy, intersect(phy$tip.label, colnames(x)))
+  x <- x[, intersect(p$tip.label, colnames(x))]
+
+  PD_obs <- PD(x, p)
+  PD_obs <- sqrt(PD_obs)
+  
+  pd.rand <- switch(model, 
+                    tipshuffle = lapply(seq_len(reps), function(i) PD(x, rt(p))), 
+                    rowwise = lapply(seq_len(reps), function(i) PD(x[sample(nrow(x)), ], p)), 
+                    colwise = lapply(seq_len(reps), function(i) PD(x[, sample(ncol(x))], p)))
+  pd_rand <- lapply(pd.rand, sqrt)
+  y <- do.call(rbind, pd_rand)
+  pd_rand_mean <- apply(X = y, MARGIN = 2, FUN = mean, na.rm = TRUE)
+  # transform!
+  #pd_rand_mean <- sqrt(pd_rand_mean)
+  pd_rand_sd <- apply(X = y, MARGIN = 2, FUN = var, na.rm = TRUE)
+  #pd_rand_sd <- sqrt(pd_rand_sd)
+  zscore <- (PD_obs - pd_rand_mean)/sqrt(pd_rand_sd)
+  pd_obs_rank <- apply(X = rbind(PD_obs, y), MARGIN = 2, FUN = rank)[1,]
+  pd_obs_rank <- ifelse(is.na(pd_rand_mean), NA, pd_obs_rank)
+  m <- data.frame(grids = rownames(x), 
+                  PD_obs, 
+                  pd_rand_mean,
+                  pd_rand_sd, 
+                  pd_obs_rank, 
+                  zscore, 
+                  pd_obs_p = pd_obs_rank/(reps +1), 
+                  reps = reps, row.names = row.names(x))
+  z <- data.frame(table(sparse2long(x)$grids))
+  names(z) <- c("grids", "richness")
+  res <- Reduce(function(x, y) merge(x, y, by = "grids", all = TRUE),
+                list(z, m))
+  res
+}
+environment(PD_ses_normal) <- asNamespace('phyloregion')
+
+
+
+# 
+# bi_wrap <- function(dat, x, y, style, dim){
+#   # a wrapper for bi_class and bi_class_breaks
+#   varx <- eval(substitute(x))
+# #  vary <- substitute(y)
+#   
+#   classes <- biscale::bi_class(.data=dat, x=varx, y=substitute(y), style=style, dim=dim)$bi_class
+#   # bi_breaks <- biscale::bi_class_breaks(.data=dat, x=x, y=y, style=style, dim=dim)
+#   # # create numeric vector with case counts
+#   # ct <- c(length(which(classes=="1-1")), length(which(classes=="1-2")), length(which(classes=="1-3")), length(which(classes=="1-4")), 
+#   #         length(which(classes=="2-1")), length(which(classes=="2-2")), length(which(classes=="2-3")), length(which(classes=="2-4")), 
+#   #         length(which(classes=="3-1")), length(which(classes=="3-2")), length(which(classes=="3-3")), length(which(classes=="3-4")), 
+#   #         length(which(classes=="4-1")), length(which(classes=="4-2")), length(which(classes=="4-3")), length(which(classes=="4-4")))
+#   # ret <- list(classes, bi_breaks, ct)
+#   return(ret)
+# }
+
+
+class_col <- function(classes){
+  # classes: bi_class vector
+  ct <- c(length(which(classes=="1-1")), length(which(classes=="1-2")), length(which(classes=="1-3")), length(which(classes=="1-4")),
+          length(which(classes=="2-1")), length(which(classes=="2-2")), length(which(classes=="2-3")), length(which(classes=="2-4")),
+          length(which(classes=="3-1")), length(which(classes=="3-2")), length(which(classes=="3-3")), length(which(classes=="3-4")),
+          length(which(classes=="4-1")), length(which(classes=="4-2")), length(which(classes=="4-3")), length(which(classes=="4-4")))
+  return(ct)
+}
 
 
