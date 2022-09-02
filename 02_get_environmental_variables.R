@@ -27,15 +27,12 @@ library(ncdf4)
 # diversity hotspots.
 
 
-# Prep for cluster runs  ---------------------------------------------------
-
-
+behr <- "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs"
 
 # *** Human footprint ------------------------------------------------------
 
 # https://www.nature.com/articles/s41597-022-01284-8#Sec12
 hfp <- raster("../DATA/PDiv/hfp2018.tif")
-behr <- "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs"
 hfp <- projectRaster(hfp, crs=behr)
 writeRaster(hfp, "../DATA/PDiv/hfp.tif")
 
@@ -51,10 +48,47 @@ for(i in 1:length(tx)){
   download.file(url, destfile)}
 }
 
+tx <- readLines("../DATA/PDiv/treecover2000.txt")
+for(i in 1:length(tx)){
+  url <- tx[i]
+  destfile <- paste0("../DATA/PDiv/treecover2000/", sub("^.*?GFC-2021-v1\\.9/", "", tx[i]))
+  if(!file.exists(destfile)){
+    download.file(url, destfile)}
+}
+
+#treecover <- raster("../DATA/PDiv/treecover2000/Hansen_GFC-2021-v1.9_treecover2000_60N_070W.tif")
+treecover <- raster("../DATA/PDiv/treecover2000/treecover300dpi.tif")
+treecover <- raster::crop(treecover, extent(-180, 180, -59, 78))
 deforest <- raster("../DATA/PDiv/deforestation/deforest_combined.tif")
-deforest[deforest == 255] <- NA
 deforest <- projectRaster(deforest, crs=behr)
-writeRaster(deforest, "../DATA/PDiv/deforest.tif")
+treecover <- projectRaster(treecover, crs=behr)
+
+
+
+# convert to binary tree cover yes/no for clipping 
+x <- values(treecover)
+hist(x)
+x[x<10] <- 0
+x[x>=10] <- 1
+values(treecover) <- x
+plot(treecover)
+
+plot(deforest) # different values are different years!!! its ALL deforestation
+extent(deforest)
+deforest <- raster::crop(deforest, extent(-17355314, 17328826, -6353170, 7174430))
+x <- values(deforest)
+x[x<10] <- 0
+x[x>=10] <- 1
+values(deforest) <- x
+plot(deforest)
+
+# when calculating the deforestation per bot country, crop bot country layer
+# with with tree cover layer first to get only the values for area actually
+# covered with forest
+
+
+writeRaster(deforest, "../DATA/PDiv/deforest_fin.tif", overwrite=T)
+writeRaster(treecover, "../DATA/PDiv/treecover_fin.tif", overwrite=T)
 
 # *** Climate change ----------------------------------------------------------
 
@@ -169,6 +203,11 @@ library(exactextractr)
 # load data
 shp <- readRDS('fin_shape.rds')
 lay <- raster(paste0(var, '.tif')
+if(var=='deforest'){
+  lay <- raster('deforest_fin.tif')
+  treecover <- raster('treecover_fin.tif')
+}
+
   
 # set up variables
 vars_stat <- c('mean', 'sd', 'n')
@@ -184,6 +223,9 @@ upsale_count <- c()
 for(i in 1:nrow(shp@data)){
   # loop over botanical countries
   shape_sub <- subset(shp, shp$LEVEL3_COD==shp$LEVEL3_COD[[i]])
+  if(var=='deforest'){
+  test <- crop(shp[7], treecover)
+}
     rest <- exact_extract(lay, shape_sub)
     #rest <- raster::extract(lay, shape_sub)
     rest <- na.omit(rest[[1]])
@@ -259,7 +301,7 @@ git commit -m 'env model script changes'
 git push"
 })
 
-# stuff on GenomeDK: git pull etc (doesnot work yet....)
+# stuff on GenomeDK: git pull etc
 # system2({
 #   "ssh -T 'mtietje@login.genome.au.dk'"
 # })
@@ -267,6 +309,72 @@ git push"
 
 
 
+
+
+# Different method for deforestation --------------------
+shp <- readRDS("fin_shape.rds")
+deforest <- terra::rast("../DATA/PDiv/deforest_fin.tif")
+treecover <- terra::rast("../DATA/PDiv/treecover_fin.tif")
+shp <- st_transform(shp, behr)
+shp2 <- terra::vect(shp)
+
+# set up variables
+var="deforest"
+vars_stat <- c('proportion')
+combs <- nrow(expand.grid(var, vars_stat))
+m <- matrix(seq(1:combs), ncol=3, byrow = TRUE)
+num_list <- split(m, rep(1:nrow(m)))
+res <- matrix(nrow=nrow(shp), ncol=combs)
+rownames(res) <- shp$LEVEL3_COD
+disag_id <- c()
+upsale_count <- c()
+
+
+
+#library(exactextractr)
+for(i in 1:nrow(shp2)){
+  # loop over botanical countries
+    shape_sub <- shp2[i]
+  # kill switch for ANT
+    if(shape_sub$LEVEL3_COD=="ANT"){next}
+    treecover_crop <- terra::crop(treecover, shape_sub, mask=TRUE)
+    tree_poly <- terra::as.polygons(treecover_crop)
+  # kill switch for no treecover:
+    if(all(dim(tree_poly)==c(0,0))){next}
+    
+    # get the area affected by deforestation
+    deforest_crop <- terra::crop(deforest, tree_poly, mask=TRUE)
+    x <- as.numeric(na.omit(values(deforest_crop)))
+    affected <- length(which(x==1))
+    unaffected <- length(which(x==0))
+    total <- length(x)
+    # increase resolution necessary?
+    # if(all(is.na(rest))==TRUE){
+    #   print('disaggregate to increase resolution')
+    #   upsale_count <- c(upsale_count, 1)
+    #   disag_id <- c(disag_id, paste(i))
+    #   # to avoid huge raster files crop to extent of shapefile sub * 20
+    #   newExtent <- extent(bbox(shape_sub))
+    #   lay2 <- crop(lay, newExtent*20)
+    #   lay2 <- disaggregate(lay2, 10)
+    #   rest <- exact_extract(lay2, shape_sub)
+    #   rest <- na.omit(rest[[1]])
+    #   
+    # }else{}
+    
+    # get mean, sd and sample size
+    res[i,1] <- affected/total
+    # res[i,2] <- sd(rest$value)
+    # res[i,3] <- length(rest$value)
+    print(i)
+}
+
+res <- rbind(res, NA)
+row.names(res)[369] <- "BOU"
+res <- res[order(row.names(res)),]
+res <- as.matrix(res)
+
+saveRDS(res, file=paste0('environment/deforestation2.rds'))
 
 
 
@@ -292,7 +400,8 @@ shp <- merge(shp, global_drivers, all.x=TRUE)
 
 ## Load Environment data ---------------------------------------------------
 
-vars <- c('hfp','deforest','bio1','bio5','bio6','bio7','bio12','bio15','PC_primf','PC_primn','PC_secdf','PC_secdn','PC_urban','PC_c3ann','PC_c4ann','PC_c3per','PC_c4per','PC_c3nfx','PC_pastr','PC_range','PC_secmb','PC_secma','FC_primf','FC_primn','FC_secdf','FC_secdn','FC_urban','FC_c3ann','FC_c4ann','FC_c3per','FC_c4per','FC_c3nfx','FC_pastr','FC_range','FC_secmb','FC_secma')
+
+vars <- c('hfp','deforestation2','bio1','bio5','bio6','bio7','bio12','bio15','PC_primf','PC_primn','PC_secdf','PC_secdn','PC_urban','PC_c3ann','PC_c4ann','PC_c3per','PC_c4per','PC_c3nfx','PC_pastr','PC_range','PC_secmb','PC_secma','FC_primf','FC_primn','FC_secdf','FC_secdn','FC_urban','FC_c3ann','FC_c4ann','FC_c3per','FC_c4per','FC_c3nfx','FC_pastr','FC_range','FC_secmb','FC_secma')
 
 var.list <- lapply(paste0("environment/", vars, ".rds"), readRDS)
 names(var.list) <- vars
