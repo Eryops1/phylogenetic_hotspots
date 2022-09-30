@@ -11,6 +11,8 @@
 *.gri
 *.tif
 /output
+/papers
+/species_area_ standardisation_files
 *.out
 .gwf/
 .gwfconf.json
