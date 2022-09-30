@@ -62,6 +62,17 @@ length(unique(dist$area_code_l3))
 dist.mat <- long2sparse(dist, grids = "area_code_l3", species = "plant_name_id")
 rm(dist)
 
+
+# Get family count per country --------------------------------------------
+
+# extract species IDs per bot country
+res <- apply(dist.mat, 1, function(x){names(which(x == "1"))})
+# get family names
+res2 <- lapply(res, function(x){unique(nam$family[which(nam$accepted_plant_name_id %in% x)])})
+#tmp <- data.frame(LEVEL3_COD = names(res2), family = lengths(res2)) # include list in df
+saveRDS(res2, "families_per_level.rds")
+rm(res,res2)
+
 # Get phylogenies --------------------------------------------------------
 
 # read in TACTed trees one at a time
@@ -520,8 +531,8 @@ saveRDS(sesPD_norm, "sesPD_norm.rds")
 # saveRDS(PE, "PE.rds")
 
 # load results from GDK run
-pdnames <- dir("PD_nullmodel", pattern="PE_", full.names = T)
-ind.list <- lapply(pdnames, readRDS)
+penames <- dir("PD_nullmodel", pattern="PE_", full.names = T)
+ind.list <- lapply(penames, readRDS)
 
 # alt.list <- readRDS("PD_nullmodel/indices_2.rds") # 1=AvDT, 2=TTD
 # tmp <- lapply(ind.list, function(x){cbind(x[[1]], x[[2]])})
@@ -539,6 +550,26 @@ pe.df <- data.frame(LEVEL3_COD = ind.list[[1]]$grids,
                     pe_obs_p = apply(sapply(ind.list, "[[", "pe_obs_p"), 1, mean),
                     reps = apply(sapply(ind.list, "[[", "reps"), 1, mean)
 )
+
+penames <- dir("PE_nullmodel", pattern="weighted=F", full.names = T)
+ind.list <- lapply(penames, readRDS)
+pe.df2 <- data.frame(LEVEL3_COD = ind.list[[1]]$grids,
+                    richness = apply(sapply(ind.list, "[[", "richness"), 1, mean),
+                    PE_obs = apply(sapply(ind.list, "[[", "PE_obs"), 1, mean),
+                    pe_rand_mean = apply(sapply(ind.list, "[[", "pe_rand_mean"), 1, mean),
+                    pe_rand_sd = apply(sapply(ind.list, "[[", "pe_rand_sd"), 1, mean),
+                    pe_obs_rank = apply(sapply(ind.list, "[[", "pe_obs_rank"), 1, mean),
+                    SES.PE = apply(sapply(ind.list, "[[", "zscore"), 1, mean),
+                    pe_obs_p = apply(sapply(ind.list, "[[", "pe_obs_p"), 1, mean),
+                    reps = apply(sapply(ind.list, "[[", "reps"), 1, mean)
+)
+
+# compare strict + weighted
+plot(pe.df$PE_obs, pe.df2$PE_obs, xlab="weighted endemism (Rosauer et al. 2009)", ylab="strict endemism (Faith et al. 2004)")
+cor.test(pe.df$PE_obs, pe.df2$PE_obs, method="s")
+plot(pe.df$SES.PE, pe.df2$SES.PE)
+cor.test(pe.df$SES.PE, pe.df2$SES.PE, method="s")
+hist(pe.df2$SES.PE)
 
 # Careful with SD: from the function "pd_rand_sd <- apply(X = y, MARGIN = 2, FUN = var, na.rm = TRUE)" this is variance! --> zscore is fine: zscore <- (PD_obs - pd_rand_mean)/sqrt(pd_rand_sd)
 

@@ -14,7 +14,7 @@ library(sf)
 library(ggplot2)
 theme_set(theme_bw())
 library(cowplot)
-library(rgdal)
+#library(rgdal)
 library(beepr)
 library(ncdf4)
 
@@ -380,6 +380,41 @@ saveRDS(res, file=paste0('environment/deforestation2.rds'))
 
 
 
+# Mittermeiers hotpot coverages for botanical countries ---------------------
+h <- st_read("hotspots_fixed.gpkg")
+h <- st_wrap_dateline(h, options = c("WRAPDATELINE=YES", "DATELINEOFFSET=180"))
+h <- st_transform(h, behr)
+
+shp <- readRDS("fin_shape.rds")
+shp <- st_transform(shp, behr)
+s <- as(st_geometry(shp), "Spatial")
+m3 <- as(st_geometry(h), "Spatial")
+
+
+library(terra)
+a <- c()
+for(i in 1:length(s)){
+  tmp <- s[i,]
+  res <- raster::intersect(tmp, m3) # zero width buffering happens automatically now
+  if(class(res)!="NULL"){
+    hot_area <- sum(area(res))
+    tmp_area <- area(tmp)
+    a <- c(a, hot_area / tmp_area)
+  }else{a <- c(a, 0)}
+  if(!i%%1)cat(i,"\r")
+}
+
+shp$hotspot_coverage <- a
+saveRDS(shp, file=paste0('environment/hotspot_coverage.rds'))
+
+
+
+
+
+
+
+
+
 # Merge + save ------------------------------------------------------------
 
 
@@ -401,7 +436,8 @@ shp <- merge(shp, global_drivers, all.x=TRUE)
 ## Load Environment data ---------------------------------------------------
 
 
-vars <- c('hfp','deforestation2','bio1','bio5','bio6','bio7','bio12','bio15','PC_primf','PC_primn','PC_secdf','PC_secdn','PC_urban','PC_c3ann','PC_c4ann','PC_c3per','PC_c4per','PC_c3nfx','PC_pastr','PC_range','PC_secmb','PC_secma','FC_primf','FC_primn','FC_secdf','FC_secdn','FC_urban','FC_c3ann','FC_c4ann','FC_c3per','FC_c4per','FC_c3nfx','FC_pastr','FC_range','FC_secmb','FC_secma')
+vars <- c('hfp','deforestation2','bio1','bio5','bio6','bio7','bio12','bio15')
+#,'PC_primf','PC_primn','PC_secdf','PC_secdn','PC_urban','PC_c3ann','PC_c4ann','PC_c3per','PC_c4per','PC_c3nfx','PC_pastr','PC_range','PC_secmb','PC_secma','FC_primf','FC_primn','FC_secdf','FC_secdn','FC_urban','FC_c3ann','FC_c4ann','FC_c3per','FC_c4per','FC_c3nfx','FC_pastr','FC_range','FC_secmb','FC_secma'
 
 var.list <- lapply(paste0("environment/", vars, ".rds"), readRDS)
 names(var.list) <- vars
@@ -418,6 +454,10 @@ names(shp)
 # BIO7 = Temperature Annual Range (BIO5-BIO6)
 # BIO12 = Annual Precipitation
 # Bio15 = Precipitation Seasonality
+
+## Add hotspot coverage --------------------------------------------------
+hc <- readRDS('environment/hotspot_coverage.rds')
+shp <- merge(shp, st_drop_geometry(hc), all.x=T)
 
 
 ## Get future MAT + PRE change -------------------------------------------

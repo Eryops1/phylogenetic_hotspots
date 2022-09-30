@@ -1,6 +1,35 @@
+
 # functions collection
+
+lunique <- function(x){length(unique(x))}
+
+
+
 library(ggcorrplot)
 
+
+#### plot setup ----
+my_pal1 <- c("#d3d3d3", "#a8aec3", "#7f88b2", "#5665a3", 
+             "#d3bc9a", "#a89b8e", "#7f7a82", "#565a77", 
+             "#d3a45e", "#a88756", "#7f6a4f", "#564e48", 
+             "#d38819", "#a87017", "#7f5816", "#564114")
+my_pal1 <- c(
+  "1-1" = as.character(my_pal1[1]), # low x, low y, etc.....
+  "2-1" = as.character(my_pal1[2]), 
+  "3-1" = as.character(my_pal1[3]), 
+  "4-1" = as.character(my_pal1[4]),
+  "1-2" = as.character(my_pal1[5]),
+  "2-2" = as.character(my_pal1[6]),
+  "3-2" = as.character(my_pal1[7]),
+  "4-2" = as.character(my_pal1[8]), 
+  "1-3" = as.character(my_pal1[9]), 
+  "2-3" = as.character(my_pal1[10]), 
+  "3-3" = as.character(my_pal1[11]), 
+  "4-3" = as.character(my_pal1[12]), 
+  "1-4" = as.character(my_pal1[13]), 
+  "2-4" = as.character(my_pal1[14]), 
+  "3-4" = as.character(my_pal1[15]), 
+  "4-4" = as.character(my_pal1[16]))
 
 # function that modifies corrplot from ggcorrplot package
 # to allow for visual highlighting of values above a certain thereshold
@@ -221,3 +250,8 @@ class_col <- function(classes){
 }
 
 
+# used R packages:
+p <- c("biscale","terra","ggcorrplot","ggplot2","ncdf4","raster","exactextractr","data.table","sf",
+  "castor","ecospat","phyloregion","treemapify","scico","stringr","gbm","caret","spatialRF")
+sort(p)
+paste0(p, ", ", collapse=" ")

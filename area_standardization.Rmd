@@ -1,0 +1,364 @@
+wd <- dirname(rstudioapi::getSourceEditorContext()$path)
+setwd(wd)
+rm(list = setdiff(ls(), lsf.str()))  
+gc()
+library(sf)
+library(ggplot2)
+theme_set(theme_bw()+theme(text=element_text(size=8), panel.grid=element_blank()))
+library(cowplot)
+#library(rgdal)
+library(beepr)
+library(biscale)
+library(spdep)
+library(scico)
+library(ggpattern)
+library(data.table)
+if(!dir.exists("figures"))dir.create("figures")
+source("99_functions.R")
+
+
+# Load data ---------------------------------------------------------------
+
+gallpeters_projection <- "+proj=cea +lon_0=0 +x_0=0 +y_0=0 +lat_ts=45 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+# Gall-Peters. Horizontally compressed version of the Lambert equal-area.
+# Standard parallels at 45°N/S. Aspect ratio of ~1.6. Similar is Balthasar
+# projection with standard parallels at 50°N/S.
+behrmann <- "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs"
+# chose:
+my_projection <- gallpeters_projection
+shp <- readRDS("fin_shp.rds")
+
+# remove not needed data
+shp <- shp[,-grep("obs_p|obs_rank|reps|LEVEL2|LEVEL1|LEVEL_3_CO|ID|\\.3|_rw|CONTI|REGION", names(shp))]
+names(shp)<- gsub("\\.1", "_mean", names(shp))
+names(shp)<- gsub("\\.2", "_sd", names(shp))
+
+#st_write(shp, "fin_shape_for_gis_checks.gpkg")
+
+
+
+# Area standardization --------------------------------------------------------
+## CHOSE ONE ///
+
+olson <- readRDS("../DATA/PDiv/biomes_olson_ALL.rds")
+shp <- merge(shp, olson[,c("country", "X15", "X16")], by.x="LEVEL3_COD", by.y="country", all.x=TRUE)
+shp$area_ni <- shp$area * (1-shp$X16)
+
+
+
+## standardize by SAC -----
+library(sars)
+# Uses a dataset in the form of a dataframe with two columns: the first with
+# island/site areas, and the second with the species richness of each
+# island/site.
+
+fit_mult <- sar_multi(data.frame(area=shp$area_ni[!shp$LEVEL3_COD=="ANT"], shp$richness[!shp$LEVEL3_COD=="ANT"]))
+sort(sapply(fit_mult, "[[", "R2"))
+
+tmp <- sar_pred(fit_mult$weibull4, shp$area_ni) # gets the theoretical SR
+shp$sdensity <- shp$richness/tmp$Prediction
+
+ggplot(shp, aes(fill=sdensity))+
+  geom_sf()+
+  scale_fill_scico(palette="batlow")
+
+
+plot(shp$area_ni, shp$richness)
+plot(shp$area_ni, shp$sdensity)
+plot(shp$richness, shp$sdensity)
+
+# same for weighted endemism
+fit_mult <- sar_multi(data.frame(area=shp$area_ni[!shp$LEVEL3_COD=="ANT"], shp$WE[!shp$LEVEL3_COD=="ANT"]))
+sort(sapply(fit_mult, "[[", "R2"))
+tmp <- sar_pred(fit_mult$logistic, shp$area_ni)
+shp$WE_s <- shp$WE/tmp$Prediction
+
+
+
+
+
+
+## standardize by inhabitable area -------
+## inhabitable = area - icesheets / glaciated areas
+# 15= lake
+# 16=ice + rock
+
+shp$sdensity <- shp$richness/(shp$area_ni/1000000) # from sqm -> sqkm
+ggplot(shp, aes(fill=PD, col=PD))+
+  geom_sf()
+View(st_drop_geometry(shp[,c("LEVEL3_COD", "LEVEL_NAME", "area", "area_ni", "sdensity", "richness")]))
+
+# Selvagens as extreme island with 90 species on 2sqkm
+hist(log(shp$sdensity), breaks=20)
+ggplot(shp, aes(fill=sdensity, col=sdensity))+
+  geom_sf()+
+  scale_fill_scico(trans="log")+
+  scale_color_scico(trans="log")
+
+shp$WE_s <- shp$WE/(shp$area_ni/1000000) # from sqm -> sqkm
+
+
+
+
+
+
+
+## standardize by inhabitable area, min 1500 species -------
+
+shp$sdensity <- shp$richness/(shp$area_ni/1000000) # from sqm -> sqkm
+shp <- shp[shp$richness>=1000,]
+ggplot(shp, aes(fill=sqrt(sdensity), col=sdensity))+
+  geom_sf()
+View(st_drop_geometry(shp[,c("LEVEL3_COD", "LEVEL_NAME", "area", "area_ni", "sdensity", "richness")]))
+
+shp$WE_s <- shp$WE/(shp$area_ni/1000000) # from sqm -> sqkm
+
+
+
+
+## standardize by SAC > 1500 -----
+shp <- shp[shp$richness>=1000,]
+library(sars)
+# Uses a dataset in the form of a dataframe with two columns: the first with
+# island/site areas, and the second with the species richness of each
+# island/site.
+
+fit_mult <- sar_multi(data.frame(area=shp$area_ni[!shp$LEVEL3_COD=="ANT"], shp$richness[!shp$LEVEL3_COD=="ANT"]))
+sort(sapply(fit_mult, "[[", "R2"))
+
+tmp <- sar_pred(fit_mult$weibull4, shp$area_ni) # gets the theoretical SR
+shp$sdensity <- shp$richness/tmp$Prediction
+
+ggplot(shp, aes(fill=sdensity))+
+  geom_sf(col=NA)+
+  scale_fill_scico(palette="batlow")
+
+
+plot(shp$area_ni, shp$richness)
+plot(shp$area_ni, shp$sdensity)
+plot(shp$richness, shp$sdensity)
+
+# same for weighted endemism
+fit_mult <- sar_multi(data.frame(area=shp$area_ni[!shp$LEVEL3_COD=="ANT"], shp$WE[!shp$LEVEL3_COD=="ANT"]))
+sort(sapply(fit_mult, "[[", "R2"))
+tmp <- sar_pred(fit_mult$logistic, shp$area_ni)
+shp$WE_s <- shp$WE/tmp$Prediction
+
+
+
+
+## standardise PD_obs by SR -----
+shp <- shp[!shp$LEVEL3_COD=="ANT",]
+shp$PD_SR <- shp$PD_obs / shp$richness
+hist(log(shp$PD_SR))
+ggplot(shp, aes(fill=PD_SR))+
+  geom_sf(col=NA)+
+  scale_fill_scico(palette="batlow", trans="log")
+
+
+
+
+
+# Maps SR, SES.PD,  WE, SES.PE ------------------------------------------------
+
+# transform projection
+shp <- st_transform(shp, my_projection)
+
+min.area <- 6e+9
+shp <- shp[!shp$LEVEL3_COD=="ANT",]
+thicc_lines <- shp[which(shp$area<min.area),]
+
+lcol <- min(thicc_lines$PD_obs)/max(shp$PD_obs)
+ucol <- max(thicc_lines$PD_obs)/max(shp$PD_obs)
+(pd_map <- ggplot(shp) + 
+    geom_sf(data=shp, aes(fill=PD_obs),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1, aes(col=PD_obs), show.legend=F)+
+    scale_colour_scico("PD", palette = "batlow", trans = "sqrt", 
+                       begin = lcol, end = sqrt(ucol))+
+    scale_fill_scico("PD", palette = "batlow", trans="sqrt")+ #, 
+    theme(legend.position = c(0.22, 0.3),
+          legend.key.height = unit(6,"mm"),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          text = element_text(size = 10))+
+    xlab(" ")
+)
+lcol <- min(thicc_lines$PE_obs)/max(shp$PE_obs)
+ucol <- max(thicc_lines$PE_obs)/max(shp$PE_obs)
+(pe_map <- ggplot(shp) + 
+    geom_sf(aes(fill=PE_obs),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1, aes(col=PE_obs), show.legend=F)+
+    scale_colour_scico("PE", palette="batlow", trans="sqrt",
+                       begin = lcol, end = ucol)+
+    scale_fill_scico("PE", palette="batlow",trans="sqrt")+ #, 
+    theme(legend.position = c(0.18, 0.3),
+          legend.key.height = unit(6,"mm"),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          text = element_text(size = 10),
+    )+
+    xlab(" ")
+)
+# Simple SR 
+lcol <- min(thicc_lines$richness)/max(shp$richness)
+ucol <- max(thicc_lines$richness)/max(shp$richness)
+(sr_map <- ggplot(shp) + 
+    geom_sf(aes(fill=richness),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1, aes(col=richness), show.legend=F)+
+    scale_colour_scico("SR", palette="batlow", trans = "sqrt", 
+                       begin = lcol, end = sqrt(ucol))+
+    scale_fill_scico("SR", palette="batlow", trans = "sqrt")+ #, 
+    theme_void()+
+    theme(legend.position = c(0.22, 0.3),
+          legend.key.height = unit(6,"mm"),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          text = element_text(size = 10)
+    )
+)
+
+
+lcol <- min(thicc_lines$sdensity)/max(shp$sdensity)
+ucol <- max(thicc_lines$sdensity)/max(shp$sdensity)
+transform <- "log"
+(sd_map <- ggplot(shp) + 
+    geom_sf(aes(fill=sdensity),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1, aes(col=sdensity), show.legend=F)+
+    scale_colour_scico("", palette="batlow", trans = transform, 
+                       begin = lcol, end=ucol)+
+    scale_fill_scico("Species density", palette="batlow", trans=transform)+ #,breaks = c(0, 0.01, 0.1, 1, 10), labels = c("","0.01","0.1","1", "10")
+    theme_void()+
+    theme(legend.position = c(0.22, 0.3),
+          legend.key.height = unit(6,"mm"),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          text = element_text(size = 10)
+    )
+)
+lcol <- min(thicc_lines$PD_SR)/max(shp$PD_SR)
+ucol <- max(thicc_lines$PD_SR)/max(shp$PD_SR)
+transform <- "log"
+(PD_SR_map <- ggplot(shp[shp$richness>1000,]) + 
+    geom_sf(aes(fill=PD_SR),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines[thicc_lines$richness>1000,], lwd=2, aes(col=PD_SR), show.legend=F)+
+    scale_colour_scico("", palette="batlow", trans = transform, 
+                       begin = lcol, end=ucol)+
+    scale_fill_scico("PD/SR", palette="batlow", trans=transform)+ #,breaks = c(0, 0.01, 0.1, 1, 10), labels = c("","0.01","0.1","1", "10")
+    theme_void()+
+    theme(legend.position = c(0.22, 0.3),
+          legend.key.height = unit(6,"mm"),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          text = element_text(size = 10)
+    )
+)
+(nrow(shp[shp$richness>1000,])/100)*5 # 7 bot countries
+tmp <- shp[shp$richness>1000,]
+tmp$LEVEL_NAME[order(tmp$PD_SR, decreasing=T)][1:14]
+
+
+shp2 <- shp[!is.na(shp$SES.PD),]
+thicc_lines <- shp2[which(shp2$area<min.area),]
+
+# simple WE
+lcol <- min(thicc_lines$WE)/max(shp$WE)
+ucol <- max(thicc_lines$WE)/max(shp$WE)
+(we_map <- ggplot(shp2) + 
+    geom_sf(aes(fill=WE),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1, aes(col=WE), show.legend=F)+
+    scale_colour_scico("WE", palette="batlow", trans = "sqrt", 
+                       begin = lcol, end = sqrt(ucol))+
+    scale_fill_scico("WE", palette="batlow", trans = "sqrt")+ #, 
+    theme_void()+
+    theme(legend.position = c(0.22, 0.3),
+          legend.key.height = unit(6,"mm"),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          text = element_text(size = 10)
+    )+
+    xlab(" ")
+)
+
+lcol <- min(thicc_lines$WE_s)/max(shp$WE_s)
+ucol <- max(thicc_lines$WE_s)/max(shp$WE_s)
+(we_s_map <- ggplot(shp2) + 
+    geom_sf(aes(fill=WE_s),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1, aes(col=WE_s), show.legend=F)+
+    scale_colour_scico("WE_s", palette="batlow", trans = "sqrt", 
+                       begin = lcol, end = sqrt(ucol))+
+    scale_fill_scico("WE_s", palette="batlow", trans="sqrt")+ #, 
+    theme_void()+
+    theme(legend.position = c(0.22, 0.3),
+          legend.key.height = unit(6,"mm"),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          text = element_text(size = 10)
+    )+
+    xlab(" ")
+)
+
+
+lcol <- 1-min(thicc_lines$SES.PD)/(min(shp2$SES.PD)-max(shp2$SES.PD))
+ucol <- max(thicc_lines$SES.PD)/max(shp2$SES.PD)
+(pd_ses_map <- ggplot(shp2) + 
+    geom_sf(aes(fill=SES.PD),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1, aes(col=SES.PD), show.legend=F)+
+    scale_colour_scico("SES.PD", palette="batlow", begin=lcol, end=ucol)+
+    scale_fill_scico("SES.PD", palette="batlow")+  
+    theme_void()+
+    theme(legend.position = c(0.22, 0.3),
+          legend.key.height = unit(6,"mm"),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          text = element_text(size = 10),
+    )+
+    xlab(" ")
+)
+
+lcol <- min(thicc_lines$SES.PE+abs(min(shp2$SES.PE)))/diff(range(shp2$SES.PE)) 
+ucol <- max(thicc_lines$SES.PE)/max(shp2$SES.PE)
+(pe_ses_map <- ggplot(shp2) + 
+    geom_sf(aes(fill=SES.PE),lwd=0, col=NA) + 
+    geom_sf(data=thicc_lines, lwd=1, aes(col=SES.PE), show.legend=F)+
+    scale_colour_scico("SES.PE", palette="batlow",
+                       begin = lcol, end = ucol)+
+    scale_fill_scico("SES.PE", palette="batlow")+ 
+    theme_void()+
+    theme(legend.position = c(0.22, 0.3),
+          legend.key.height = unit(6,"mm"),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          text = element_text(size = 10),
+    )+
+    xlab(" ")
+)
+
+
+
+plot_grid(sr_map, we_map, pd_ses_map, pe_ses_map, ncol = 2, 
+          labels=c("A","B","C","D"), label_fontface=1)
+ggsave("figures/maps.png", width=12.5, height=7, units = "in", dpi = 600, bg = "white")
+
+plot_grid(sd_map, we_s_map, pd_ses_map, pe_ses_map, ncol = 2, 
+          labels=c("A","B","C","D"), label_fontface=1)
+ggsave("figures/maps_s.png", width=12.5, height=7, units = "in", dpi = 600, bg = "white")
+
+

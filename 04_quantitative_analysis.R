@@ -9,10 +9,10 @@ library(sf)
 library(ggplot2)
 theme_set(theme_bw())
 library(cowplot)
-library(rgdal)
+#library(rgdal)
 library(beepr)
 if(!dir.exists("figures"))dir.create("figures")
-
+source("99_functions.R")
 
 
 # Load data ---------------------------------------------------------------
@@ -64,28 +64,28 @@ n_var_miss(dat.sub)
 gg_miss_upset(dat.sub, nsets=37)
 
 
-plot_grid(
-  ggplot(dat.sub, aes(y=area, group=is.na(hfp_mean)))+
-    geom_boxplot(varwidth = T)+
-    scale_y_log10()+
-    xlab("HFP == NA (positive=T: n=27)"),
-  ggplot(dat.sub, aes(y=PD_obs, group=is.na(hfp_mean)))+
-    geom_boxplot(varwidth = T)+
-    xlab("HFP == NA (positive=T: n=27)"),
-  ggplot(dat.sub, aes(y=SES.PD, group=is.na(hfp_mean)))+
-    geom_boxplot(varwidth = T)+
-    xlab("HFP == NA (positive=T: n=27)"),
-  ggplot(dat.sub, aes(y=SES.PE, group=is.na(hfp_mean)))+
-    geom_boxplot(varwidth = T)+
-    scale_y_log10()+
-    xlab("HFP == NA (positive=T: n=27)"))
-ggsave("figures/missing_hfp_influence.png", width=5, height=4, 
-       units = "in", dpi = 300, bg = "white")
+# plot_grid(
+#   ggplot(dat.sub, aes(y=area, group=is.na(hfp_mean)))+
+#     geom_boxplot(varwidth = T)+
+#     scale_y_log10()+
+#     xlab("HFP == NA (positive=T: n=27)"),
+#   ggplot(dat.sub, aes(y=PD_obs, group=is.na(hfp_mean)))+
+#     geom_boxplot(varwidth = T)+
+#     xlab("HFP == NA (positive=T: n=27)"),
+#   ggplot(dat.sub, aes(y=SES.PD, group=is.na(hfp_mean)))+
+#     geom_boxplot(varwidth = T)+
+#     xlab("HFP == NA (positive=T: n=27)"),
+#   ggplot(dat.sub, aes(y=SES.PE, group=is.na(hfp_mean)))+
+#     geom_boxplot(varwidth = T)+
+#     scale_y_log10()+
+#     xlab("HFP == NA (positive=T: n=27)"))
+# ggsave("figures/missing_hfp_influence.png", width=5, height=4, 
+#        units = "in", dpi = 300, bg = "white")
 
-ggplot(dat.sub, aes(y=area, group=is.na(PC_primf_mean)))+
-  geom_boxplot(varwidth = T)+
-  scale_y_log10()+
-  xlab("PRIMF_past change == NA (positive=T)")
+# ggplot(dat.sub, aes(y=area, group=is.na(PC_primf_mean)))+
+#   geom_boxplot(varwidth = T)+
+#   scale_y_log10()+
+#   xlab("PRIMF_past change == NA (positive=T)")
 
 
 dat_no.na <- na.omit(dat.sub)
@@ -94,7 +94,6 @@ dim(dat_no.na)
 # 316 bot countries got data!
 
 # Correlation ##########################
-source("99_functions.R")
 library(rstatix)
 cmat <- cor_mat(dat_no.na[,-grep("LEVEL|hfp|deforest|bio|change|PC|FC|pd_rand_mean",names(dat_no.na))], method = "s")
 cpmat <- cor_pmat(dat_no.na[,-grep("LEVEL|hfp|deforest|bio|change|PC|FC|pd_rand_mean",names(dat_no.na))], method = "s")
@@ -131,58 +130,11 @@ ggsave("figures/correlation.png", width=7, height=6, units = "in", dpi = 600, bg
 
 # Spatial autocorrelation -------------------------------------------------
 
-library(spatialRF)
-
-# subset spatial object to dat_no.na variables
-shp <- shp[,which(names(shp) %in% names(dat_no.na))]
-shp2 <- na.omit(shp)
-
-#coordinates of the cases
-shp2$centroids <- st_centroid(shp2) %>% 
-  st_coordinates()
-shp2$y <- shp2$centroids[,1] # x=lng
-shp2$x <- shp2$centroids[,2]
-xy <- st_drop_geometry(shp2[, c("x", "y")])
-
-#distance matrix
-dm <- dist(xy, method = "euclidean", diag = TRUE, upper = TRUE)
-dm <- as.matrix(dm)
-
-#distance thresholds (same units as distance_matrix)
-distance.thresholds <- c(0, 100000, 500000, 1000000, 2000000, 3000000, 4000000, 5000000, 6000000, 7000000, 8000000, 9000000, 10000000)
-
-#random seed for reproducibility
-random.seed <- 1
-
-# spatialRF::plot_training_df(
-#   data = shp2,
-#   dependent.variable.name = SES.PD,
-#   predictor.variable.names = predictor.variable.names,
-#   ncol = 5,
-#   point.color = viridis::viridis(100, option = "F"),
-#   line.color = "gray30"
-# )
-# 
-# ## assess autocorrelation
-# 
-# spatialRF::plot_training_df_moran(
-#   data = shp2,
-#   dependent.variable.name = dependent.variable.name,
-#   predictor.variable.names = predictor.variable.names,
-#   distance.matrix = dm,
-#   distance.thresholds = distance.thresholds,
-#   fill.color = viridis::viridis(
-#     100,
-#     option = "F",
-#     direction = -1
-#   ),
-#   point.color = "gray40"
-# )
 
 library(spdep)
 # create neighbor list
-nb <- spdep::poly2nb(shp2, row.names = shp2$LEVEL3_COD)
-names(nb) <- shp2$LEVEL3_COD
+nb <- spdep::poly2nb(shp, row.names = shp$LEVEL3_COD)
+names(nb) <- shp$LEVEL3_COD
 
 # distance object
 col.W <- nb2listw(nb, style="W", zero.policy = TRUE)
@@ -190,20 +142,20 @@ col.W <- nb2listw(nb, style="W", zero.policy = TRUE)
 
 # *** Moran's I -----------------------------------------------------------
 
-#moran.test(tmp$richness, col.W, zero.policy = TRUE)
-tmpm <- st_drop_geometry(shp2)
-tmpm <- tmpm[,-c(1,2)] # exclude level names
-res <- apply(tmpm, 2, moran.test, listw=col.W, zero.policy = TRUE)
-res.df <- sapply(res, "[[", "estimate")
-res.df <- rbind(res.df, sapply(res, "[[", "p.value"))
-row.names(res.df) <- c("moran", "expect", "var", "pvalue")
-res.df <- as.data.frame(t(res.df))
-res.df$twoSD <- 2*sqrt(res.df$var)
-ggplot(res.df, aes(y=expect, x=row.names(res.df), shape=factor(pvalue<0.05)))+
-  geom_pointrange(aes(ymin=expect-twoSD, ymax=expect+twoSD))+
-  geom_point(aes(y=moran), x=row.names(res.df))+
-  xlab("Moran's I")+
-  coord_flip()
+# #moran.test(tmp$richness, col.W, zero.policy = TRUE)
+# tmpm <- st_drop_geometry(shp)
+# tmpm <- tmpm[,-c(1,2)] # exclude level names
+# res <- apply(tmpm, 2, moran.test, listw=col.W, zero.policy = TRUE)
+# res.df <- sapply(res, "[[", "estimate")
+# res.df <- rbind(res.df, sapply(res, "[[", "p.value"))
+# row.names(res.df) <- c("moran", "expect", "var", "pvalue")
+# res.df <- as.data.frame(t(res.df))
+# res.df$twoSD <- 2*sqrt(res.df$var)
+# ggplot(res.df, aes(y=expect, x=row.names(res.df), shape=factor(pvalue<0.05)))+
+#   geom_pointrange(aes(ymin=expect-twoSD, ymax=expect+twoSD))+
+#   geom_point(aes(y=moran), x=row.names(res.df))+
+#   xlab("Moran's I")+
+#   coord_flip()
 
 
 
@@ -212,20 +164,42 @@ ggplot(res.df, aes(y=expect, x=row.names(res.df), shape=factor(pvalue<0.05)))+
 #A positive Lee’s L indicates that clusters match for the two variables. A
 #negative value indicates that the clusters have an opposite spatial
 #distribution . A value around zero indicates that the spatialstructures of the
-#two variables do not match. The significance of the values of Lee’s L was
-#evaluated using a Monte Carlo test with 999 randomizations.
+#two variables do not match. 
 
-# use this to check where PD hotspots and threats overlap?
+# reduce to relevant variables:
+var_labels <- c("SES.PD"="SES.PD", "SES.PE"="SES.PE", "soil"="number soil types", 
+                "mat_mean"="mean annual temperature",
+                "mat_sd"="mean annual temperature_sd", "tra_mean"="annual temperature range", 
+                "tra_sd"="annual temperature range_sd", 
+                "pre_mean"="annual precipitation", "pre_sd"="annual precipitation_sd", 
+                "prs_mean"="precipitation seasonality", "prs_sd"="precipitation seasonality_sd", 
+                "mio_pre_ano_mean"="Miocene precipitation anomaly", "mio_mat_ano_mean"="Miocene temperature anomaly",
+                "mat_lgm_ano_mean"="Last Glacial Maximum temperature anomaly",
+                "pre_lgm_ano_mean"="Last Glacial Maximum precipitation anomaly", 
+                "elev_range"="elevation range", "tri"="Terrain Ruggedness Index", 
+                "area"="area", "sub_trop_mbf"="(Sub)Tropical moist broadleaf forests",
+                "sub_trop_dbf"="(Sub)Tropical dry broadleaf forests", 
+                "sub_trop_cf"="(Sub)Tropical coniferous forests", 
+                "temp_bmf"="Temperate broadleaf and mixed forests", 
+                "temp_cf"="Temperate coniferous forests", "boreal_f_taiga"="Boreal forests/taiga",
+                "sub_trop_gss"="(Sub)Tropical grasslands, savannas, shrublands",
+                "temp_gss"="Temperate grasslands, savannas, shrublands",
+                "flooded_gs"="Flooded grasslands and savannas",
+                "mont_gs"="Montane grasslands and shrublands", "tundra"="Tundra",
+                "medit_fws"="Mediterranean forests, woodlands, scrub",
+                "deserts_x_shrub"="Deserts and xeric shrublands")
 
-nb <- spdep::poly2nb(tmp, row.names = tmp$LEVEL3_COD)
+dat <- shp[,which(names(shp) %in% c(names(var_labels), "LEVEL3_COD"))]
+names(dat)
+dat <- na.omit(dat)
+
+nb <- spdep::poly2nb(dat, row.names = dat$LEVEL3_COD)
 col.W <- nb2listw(nb, style="W", zero.policy = TRUE)
+lee.dat <- st_drop_geometry(dat[,-grep("LEVEL3_COD|SES.PE", names(dat))])
 
-
-lee.test(tmpm$SES.PD, tmpm$SES.PD, listw=col.W, zero.policy = T)
-lee.mc(tmpm$SES.PD, tmpm$SES.PD, nsim=99, col.W, zero.policy=TRUE)
-
-les <- apply(tmpm[,-which(names(tmpm)=="pd_rand_mean")], 2, lee.test, y=tmpm$SES.PD, 
+les <- apply(lee.dat[,!names(lee.dat)%in%"SES.PD"], 2, lee.test, y=lee.dat$SES.PD, 
              listw=col.W, zero.policy = TRUE, alternative="two.sided")
+
 les.df <- sapply(les, "[[", "estimate")
 les.df <- rbind(les.df, sapply(les, "[[", "p.value"))
 row.names(les.df) <- c("Lee", "expect", "var", "pvalue")
@@ -238,89 +212,164 @@ co <- row.names(les.df)
 row.names(les.df) <- factor(row.names(les.df), levels=co)
 les.df$vars <- row.names(les.df)
 les.df$vars <- factor(les.df$vars, levels=co)
-ggplot(les.df, aes(y=expect, x=vars))+
+p_lee1 <- ggplot(les.df, aes(y=expect, x=vars))+
   geom_linerange(aes(ymin=expect-twoSD, ymax=expect+twoSD), col="grey70")+
   geom_point(aes(y=Lee, x=row.names(les.df), col=factor(pvalue<0.05)), show.legend = F)+
   ylab("Lee's L with SES.PD")+
-  scale_color_manual("p<0.05",values=c("grey20", "red"))+
+  scale_color_scico_d("p<0.05", end=.8)+
+  scale_x_discrete("", labels=var_labels)+
   xlab("")+
-  coord_flip()
-ggsave("figures/LeesL.png", width=5, height=8, units = "in", dpi = 300)
-#A positive Lee’s L indicates that clusters match for the two variables. A
-#negative value indicates that the clusters have an opposite spatial
-#distribution . A value around zero indicates that the spatialstructures of the
-#two variables do not match. The significance of the values of Lee’s L was
-#evaluated using a Monte Carlo test with 999 randomizations.
+  coord_flip()+
+  theme(axis.text.y=element_text(size=8))
+
+lee.dat <- st_drop_geometry(dat[,-grep("LEVEL3_COD|SES.PD", names(dat))])
+
+les2 <- apply(lee.dat[,!names(lee.dat)%in%"SES.PE"], 2, lee.test, y=lee.dat$SES.PE, 
+             listw=col.W, zero.policy = TRUE, alternative="two.sided")
+
+
+les2.df <- sapply(les2, "[[", "estimate")
+les2.df <- rbind(les2.df, sapply(les2, "[[", "p.value"))
+row.names(les2.df) <- c("Lee", "expect", "var", "pvalue")
+les2.df <- as.data.frame(t(les2.df))
+les2.df$twoSD <- 2*sqrt(les2.df$var)
+
+# sort the cor strength
+les2.df <- les2.df[order(les2.df$Lee, decreasing = T),]
+co <- row.names(les2.df)
+row.names(les2.df) <- factor(row.names(les2.df), levels=co)
+les2.df$vars <- row.names(les2.df)
+les2.df$vars <- factor(les2.df$vars, levels=co)
+p_lee2 <- ggplot(les2.df, aes(y=expect, x=vars))+
+  geom_linerange(aes(ymin=expect-twoSD, ymax=expect+twoSD), col="grey70")+
+  geom_point(aes(y=Lee, x=row.names(les2.df), col=factor(pvalue<0.05)), show.legend = F)+
+  ylab("Lee's L with SES.PE")+
+  scale_color_scico_d("p<0.05", end=.8)+
+  scale_x_discrete("", labels=var_labels)+
+  coord_flip()+
+  theme(axis.text.y=element_text(size=8))
+
+plot_grid(p_lee1, p_lee2, ncol=2, labels=c("A", "B"), label_size=10, label_fontface="plain")
+ggsave("figures/LeesL_and_environment.png", width=10, height=5, units = "in", dpi = 300)
 
 
 
+# SES.PD + PE VS taxonomic measures
+# reduce to relevant variables:
+dat <- shp[,c(1,3,7,12,14)]
+names(dat)
+dat <- na.omit(dat)
+
+nb <- spdep::poly2nb(dat, row.names = dat$LEVEL3_COD)
+col.W <- nb2listw(nb, style="W", zero.policy = TRUE)
+lee.dat <- st_drop_geometry(dat[,-which(names(dat)=="LEVEL3_COD")])
+
+les <- apply(lee.dat[,!names(lee.dat)%in%"SES.PD"], 2, lee.test, y=lee.dat$SES.PD, 
+             listw=col.W, zero.policy = TRUE, alternative="two.sided")
+# 
+# les.df2 <- sapply(les, "[[", "estimate")
+# les.df2 <- rbind(les.df2, sapply(les, "[[", "p.value"))
+# row.names(les.df2) <- c("Lee", "expect", "var", "pvalue")
+# les.df2 <- as.data.frame(t(les.df2))
+# les.df2$twoSD <- 2*sqrt(les.df2$var)
+# 
+# # sort the cor strength
+# les.df2 <- les.df2[order(les.df2$Lee, decreasing = T),]
+# co <- row.names(les.df2)
+# row.names(les.df2) <- factor(row.names(les.df2), levels=co)
+# les.df2$vars <- row.names(les.df2)
+# les.df2$vars <- factor(les.df22$vars, levels=co)
+# ggplot(les.df2, aes(y=expect, x=vars))+
+#   geom_linerange(aes(ymin=expect-twoSD, ymax=expect+twoSD), col="grey70")+
+#   geom_point(aes(y=Lee, x=row.names(les.df2), col=factor(pvalue<0.05)), show.legend = F)+
+#   ylab("Lee's L with SES.PD")+
+#   scale_color_manual("p<0.05",values=c("grey20", "red"))+
+#   xlab("")+
+#   coord_flip()
+#ggsave("figures/LeesL_SES_PD_and_environment.png", width=4, height=4, units = "in", dpi = 300)
 
 
-# Multicollinearity ########################################################
-# check potential full regressions for multicollinearity
-names(dat_no.na) <- sub("_mean$", "_m", names(dat_no.na)) # shorten mean to _m
+cor.test(lee.dat$SES.PD, lee.dat$SES.PE, method="p")
+lee.test(lee.dat$SES.PD, lee.dat$SES.PE, listw=col.W, zero.policy = TRUE, alternative="two.sided")
+lee.mc(lee.dat$SES.PD, lee.dat$SES.PE, listw=col.W, zero.policy = TRUE, alternative="greater", nsim=999)
 
-temp <- dat_no.na[,-grep("LEVEL|hfp|deforest|bio|change|pd_rand|PD_obs|WE|PE",
-                         names(dat_no.na))]
-lm_pd <- lm(SES.PD ~ . , data=temp)
-summary(lm_pd)
-sort(car::vif(lm_pd))
-# mat, subtropmbf are problematic
+cor.test(lee.dat$SES.PD, lee.dat$richness, method="p")
+lee.test(lee.dat$SES.PD, lee.dat$richness, listw=col.W, zero.policy = TRUE, alternative="two.sided")
+lee.mc(lee.dat$SES.PD, lee.dat$richness, listw=col.W, zero.policy = TRUE, alternative="less", nsim=999)
 
-# test changes
-lm_pd1 <- lm(SES.PD ~ . -sub_trop_mbf, data=temp)
-sort(car::vif(lm_pd1))
-lm_pd2 <- lm(SES.PD ~ . -mat_m, data=temp)
-sort(car::vif(lm_pd2))
-lm_pd3 <- lm(SES.PD ~ . -mat_m -sub_trop_mbf, data=temp)
-sort(car::vif(lm_pd3))
-lm_pd4 <- lm(SES.PD ~ . -mat_m -sub_trop_mbf -pre_lgm_ano_m, data=temp)
-sort(car::vif(lm_pd4))
+cor.test(lee.dat$SES.PE, lee.dat$WE, method="p")
+lee.test(lee.dat$SES.PE, lee.dat$richness, listw=col.W, zero.policy = TRUE, alternative="two.sided")
+lee.mc(lee.dat$SES.PE, lee.dat$richness, listw=col.W, zero.policy = TRUE, alternative="greater", nsim=999)
 
-
-
-
-
-plot_grid(ncol=2,
-          
-          ggplot(data=shp, aes(fill=PD_obs))+
-            geom_sf(lwd=0)
-          ,
-          ggplot(data=shp, aes(fill=SES.PD))+
-            geom_sf(lwd=0)
-          ,
-          ggplot(data=shp, aes(x=richness, y=SES.PD))+
-            geom_text(aes(label=LEVEL3_COD))
-          ,
-          ggplot(data=shp, aes(x=pd_rand_mean, y=PD_obs, col=log(richness)))+
-            geom_point()+
-            geom_abline(x=1)+
-            scale_x_continuous(trans="sqrt")+
-            scale_y_continuous(trans="sqrt")
-          # observed PD is usually lower than for a random species sample for the phylogey that matches the SR
-)
-
-
-ggplot(data=shp, aes(x=richness, y=PD_obs))+
-  geom_point()+
-  geom_point(aes(y=pd_rand_mean), col="salmon")+
-  scale_x_continuous(trans="log")+
-  scale_y_continuous(trans="log")
-
-hist(shp$pd_rand_mean)
-
-
-
-# PD_obs: observed PD in community
-# pd_rand_mean: mean PD in null communities
-# pd_obs_rank: Rank of observed PD vs. null communities
-# pd_obs_z: Standardized effect size of PD vs. null communities = (PD_obs - pd_rand_mean) / pd_rand_sd
-# pd_obs_p: P-value (quantile) of observed PD vs. null communities = mpd_obs_rank / iter + 1
 
 
 
 # Variable importance -----------------------------------------------------
+## Spatial RF -------------
 
+library(spatialRF)
+
+#coordinates of the cases
+dat$centroids <- st_centroid(dat) %>% 
+  st_coordinates()
+dat$y <- dat$centroids[,1] # x=lng
+dat$x <- dat$centroids[,2]
+xy <- st_drop_geometry(dat[, c("x", "y")])
+
+#distance matrix
+dm <- dist(xy, method = "euclidean", diag = TRUE, upper = TRUE)
+dm <- as.matrix(dm)
+
+#distance thresholds (same units as distance_matrix)
+distance.thresholds <- c(0, 100000, 500000, 1000000, 2000000, 3000000, 4000000, 5000000, 6000000, 7000000, 8000000, 9000000, 10000000)
+
+#random seed for reproducibility
+random.seed <- 1
+
+dat.ns <- st_drop_geometry(dat)
+predictor.variable.names <- names(dat.ns)
+predictor.variable.names <- predictor.variable.names[-c(1,2,3,29,30,31)]
+
+spatialRF::plot_training_df(
+  data = dat.ns,
+  dependent.variable.name = "SES.PD",
+  predictor.variable.names = predictor.variable.names,
+  ncol = 5,
+  point.color = viridis::viridis(100, option = "F"),
+  line.color = "gray30"
+)
+
+## assess autocorrelation
+
+spatialRF::plot_training_df_moran(
+  data = dat.ns,
+  dependent.variable.name = "SES.PD",
+  predictor.variable.names = predictor.variable.names,
+  distance.matrix = dm,
+  distance.thresholds = distance.thresholds,
+  fill.color = viridis::viridis(
+    100,
+    option = "F",
+    direction = -1
+  ),
+  point.color = "gray40"
+)
+
+## assess possible interaction terms
+interactions <- spatialRF::the_feature_engineer(
+  data = dat.ns,
+  dependent.variable.name = "SES.PD",
+  predictor.variable.names = predictor.variable.names,
+  xy = xy,
+  importance.threshold = 0.50, #uses 50% best predictors
+  cor.threshold = 0.60, #max corr between interactions and predictors
+  seed = random.seed,
+  repetitions = 100,
+  verbose = TRUE
+)
+
+
+## GBM -------------------
 library(caret)
 library(gbm)
 library(parallel)
@@ -414,6 +463,71 @@ ggsave("figures/varImp_SES_PE_gbm10_runs.png", width=7, height=14, units = "in",
 
 
 
+
+# Multicollinearity ########################################################
+# check potential full regressions for multicollinearity
+names(dat_no.na) <- sub("_mean$", "_m", names(dat_no.na)) # shorten mean to _m
+
+temp <- dat_no.na[,-grep("LEVEL|hfp|deforest|bio|change|pd_rand|PD_obs|WE|PE",
+                         names(dat_no.na))]
+lm_pd <- lm(SES.PD ~ . , data=temp)
+summary(lm_pd)
+sort(car::vif(lm_pd))
+# mat, subtropmbf are problematic
+
+# test changes
+lm_pd1 <- lm(SES.PD ~ . -sub_trop_mbf, data=temp)
+sort(car::vif(lm_pd1))
+lm_pd2 <- lm(SES.PD ~ . -mat_m, data=temp)
+sort(car::vif(lm_pd2))
+lm_pd3 <- lm(SES.PD ~ . -mat_m -sub_trop_mbf, data=temp)
+sort(car::vif(lm_pd3))
+lm_pd4 <- lm(SES.PD ~ . -mat_m -sub_trop_mbf -pre_lgm_ano_m, data=temp)
+sort(car::vif(lm_pd4))
+
+
+
+
+
+plot_grid(ncol=2,
+          
+          ggplot(data=shp, aes(fill=PD_obs))+
+            geom_sf(lwd=0)
+          ,
+          ggplot(data=shp, aes(fill=SES.PD))+
+            geom_sf(lwd=0)
+          ,
+          ggplot(data=shp, aes(x=richness, y=SES.PD))+
+            geom_text(aes(label=LEVEL3_COD))
+          ,
+          ggplot(data=shp, aes(x=pd_rand_mean, y=PD_obs, col=log(richness)))+
+            geom_point()+
+            geom_abline(x=1)+
+            scale_x_continuous(trans="sqrt")+
+            scale_y_continuous(trans="sqrt")
+          # observed PD is usually lower than for a random species sample for the phylogey that matches the SR
+)
+
+
+ggplot(data=shp, aes(x=richness, y=PD_obs))+
+  geom_point()+
+  geom_point(aes(y=pd_rand_mean), col="salmon")+
+  scale_x_continuous(trans="log")+
+  scale_y_continuous(trans="log")
+
+hist(shp$pd_rand_mean)
+
+
+
+# PD_obs: observed PD in community
+# pd_rand_mean: mean PD in null communities
+# pd_obs_rank: Rank of observed PD vs. null communities
+# pd_obs_z: Standardized effect size of PD vs. null communities = (PD_obs - pd_rand_mean) / pd_rand_sd
+# pd_obs_p: P-value (quantile) of observed PD vs. null communities = mpd_obs_rank / iter + 1
+
+
+
+
 # Distribution, transformations, standardization ---------------------
 
 dat <- dat[,-grep("_sd$", names(dat))]
@@ -455,3 +569,6 @@ cor.test(shp$SES.PD/shp$area, shp$richness/shp$area, method="s")
 
 
 saveRDS(shp, "for_plotting.rds")
+
+
+

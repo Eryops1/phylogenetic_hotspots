@@ -1,4 +1,4 @@
-# old school spatial models 
+# spatial models 
 
 
 wd <- dirname(rstudioapi::getSourceEditorContext()$path)
@@ -10,7 +10,7 @@ library(ggplot2)
 theme_set(theme_bw()+theme(text=element_text(size=9), panel.grid=element_blank()))
 library(cowplot)
 #library(rgdal)
-library(mgcv)
+#library(mgcv)
 library(caret)
 library(gbm)
 library(parallel)
@@ -82,7 +82,7 @@ spatialRF::plot_training_df(
 )
 
 ## assess autocorrelation
-spatialRF::plot_training_df_moran(
+tmp <- spatialRF::plot_training_df_moran(
   data = dat.ns,
   dependent.variable.name = dependent.variable.name,
   predictor.variable.names = predictor.variable.names,
@@ -95,23 +95,47 @@ spatialRF::plot_training_df_moran(
   ),
   point.color = "gray40"
 )
-ggsave("figures/morans_I_in_variables.png", width=7, height=5, dpi=300)
+
+var_labels <- c("SES.PE"="SES.PE", "soil"="number soil types", "mat_mean"="mean annual temperature",
+                "mat_sd"="mean annual temperature_sd", "tra_mean"="annual temperature range", 
+                "tra_sd"="annual temperature range_sd", 
+                "pre_mean"="annual precipitation", "pre_sd"="annual precipitation_sd", 
+                "prs_mean"="precipitation seasonality", "prs_sd"="precipitation seasonality_sd", 
+                "mio_pre_ano_mean"="Miocene precipitation anomaly", "mio_mat_ano_mean"="Miocene temperature anomaly",
+                "mat_lgm_ano_mean"="Last Glacial Maximum temperature anomaly",
+                "pre_lgm_ano_mean"="Last Glacial Maximum precipitation anomaly", 
+                "elev_range"="elevation range", "tri"="Terrain Ruggedness Index", 
+                "area"="area", "sub_trop_mbf"="(Sub)Tropical moist broadleaf forests",
+                "sub_trop_dbf"="(Sub)Tropical dry broadleaf forests", 
+                "sub_trop_cf"="(Sub)Tropical coniferous forests", 
+                "temp_bmf"="Temperate broadleaf and mixed forests", 
+                "temp_cf"="Temperate coniferous forests", "boreal_f_taiga"="Boreal forests/taiga",
+                "sub_trop_gss"="(Sub)Tropical grasslands, savannas, shrublands",
+                "temp_gss"="Temperate grasslands, savannas, shrublands",
+                "flooded_gs"="Flooded grasslands and savannas",
+                "mont_gs"="Montane grasslands and shrublands", "tundra"="Tundra",
+                "medit_fws"="Mediterranean forests, woodlands, scrub",
+                "deserts_x_shrub"="Deserts and xeric shrublands")
+tmp + 
+  scale_y_discrete(labels=var_labels)+
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+ggsave("figures/morans_I_in_variables.png", width=9, height=5, dpi=300)
 
 
-# Finding promising variable interactions
-interactions <- spatialRF::the_feature_engineer(
-  data = dat.ns,
-  dependent.variable.name = "SES.PD",
-  predictor.variable.names = predictor.variable.names,
-  xy = xy,
-  importance.threshold = 0.50, #uses 50% best predictors
-  cor.threshold = 0.60, #max corr between interactions and predictors
-  seed = random.seed,
-  repetitions = 100,
-  verbose = TRUE
-)
-# 3 interactions with area + biome (medit fws, mat_lgm_ano, desert_x_shrub)
-## not really intuitive why they should be interacting, leave them for now
+# # Finding promising variable interactions
+# interactions <- spatialRF::the_feature_engineer(
+#   data = dat.ns,
+#   dependent.variable.name = "SES.PD",
+#   predictor.variable.names = predictor.variable.names,
+#   xy = xy,
+#   importance.threshold = 0.50, #uses 50% best predictors
+#   cor.threshold = 0.60, #max corr between interactions and predictors
+#   seed = random.seed,
+#   repetitions = 100,
+#   verbose = TRUE
+# )
+# # 3 interactions with area + biome (medit fws, mat_lgm_ano, desert_x_shrub)
+# ## not really intuitive why they should be interacting, leave them for now
 
 
 ## non spatial RF
@@ -327,14 +351,14 @@ p1 <- ggplot2::ggplot() +
     ggplot2::aes(
       x = y,
       y = x,
-      color = spatial_predictor_2000000_6
+      color = spatial_predictor_2000000_19
     ),
     size = 2.5
   ) +
   ggplot2::scale_color_viridis_c(option = "F") +
   ggplot2::theme_bw() +
   ggplot2::labs(color = "Eigenvalue") +
-  ggplot2::ggtitle("Variable: spatial_predictor_2000000_6") +
+  ggplot2::ggtitle("Variable: spatial_predictor_2000000_19") +
   ggplot2::theme(legend.position = "bottom")+
   ggplot2::xlab("Longitude") +
   ggplot2::ylab("Latitude")
@@ -346,7 +370,7 @@ p2 <- ggplot2::ggplot() +
     ggplot2::aes(
       x = y,
       y = x,
-      color = spatial_predictor_1000000_11,
+      color = spatial_predictor_2000000_19,
     ),
     size = 2.5
   ) +
@@ -426,11 +450,19 @@ kableExtra::kbl(
   kableExtra::kable_paper("hover", full_width = F)
 
 
+save.image("workspace_spatial1.RData")
 
 
 
 
+
+
+
+
+# SAVEPOINT ----
 # Spatial GBM -------------------
+
+load("workspace_spatial1.RData")
 
 shp <- readRDS("fin_shp.rds")
 
@@ -459,7 +491,7 @@ dm <- as.matrix(dm)
 #distance thresholds (same units as distance_matrix)
 distance.thresholds <- 100000*c(1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100)
 
-## get spatial predictors ----
+## spatial predictors ----
 mems <- spatialRF::mem_multithreshold(
   distance.matrix = dm,
   distance.thresholds = distance.thresholds
@@ -479,7 +511,7 @@ mems <- mems[, mem.rank$ranking]
 dat.ns <- cbind(dat.ns, mems[,1:10])
 
 
-## tuning parameter with caret package ----
+## parameter tuning ----
 gbmControl <- trainControl(method = "repeatedcv", number = 10,
                            repeats = 3, savePredictions = "final",
                            returnResamp ="final")# allowParallel=F has become necessary recently, not sure why.
@@ -508,7 +540,7 @@ n <- n[c(non_spat, spat[seq(n_spatial)])]
 f.pd <- as.formula(paste("SES.PD ~", paste(n[!n %in% c("SES.PD", "SES.PE")], collapse = " + ")))
 f.pe <- as.formula(paste("SES.PE ~", paste(n[!n %in% c("SES.PD", "SES.PE")], collapse = " + ")))
 
-## RUN GBMs (sequential run) ----
+## run (sequential run) ----
 foreach::registerDoSEQ()
 s <- seq(500,509,1)
 res <- list()
@@ -527,98 +559,22 @@ for(i in 1:10){
 }
 saveRDS(res, paste0("idata/res10GBM_PE", n_spatial, "spat_predictors.rds"))
 
+save.image("workspace_spatial2.RData")
 
+
+
+
+
+
+
+
+
+# SAVEPOINT ----
 # RESULTS ----
-# 
-# ## analyse PD-----
-# shp <- readRDS("fin_shp.rds")
-# shp <- shp[,-grep("obs_p|obs_rank|reps|_cw$|LEVEL2|LEVEL1|LEVEL_3_CO|LEVEL_NAME|ID|\\.3|_rw|CONTI|REGION", names(shp))]
-# names(shp)<- gsub("\\.1", "_mean", names(shp))
-# names(shp)<- gsub("\\.2", "_sd", names(shp))
-# dat <- shp[,c(1,6,13,16:44)]
-# dat <- na.omit(dat)
-# dat.ns <- st_drop_geometry(dat)
-# 
-# #coordinates of the cases
-# dat$centroids <- st_centroid(dat) %>% 
-#   st_coordinates()
-# dat$y <- dat$centroids[,1] # x=lng
-# dat$x <- dat$centroids[,2]
-# xy <- st_drop_geometry(dat[, c("x", "y")])
-# 
-# n_spatial <- 2
-# res <- readRDS(paste0("idata/res10GBM_PD", n_spatial, "spat_predictors.rds"))
-# 
-# ## morans I for residuals ----
-# # get model averages
-# resids_list <- lapply(res, residuals)
-# resids_df <- as.data.frame(resids_list, col.names=c(1:length(res)))
-# dat.ns$PD_residual_median <- apply(resids_df, 1, median)
-# resids_df$SES.PD <- dat.ns$SES.PD
-# 
-# resids_df_l <- tidyr::pivot_longer(resids_df, cols=1:length(res))
-# ggplot(resids_df_l, aes(x=SES.PD, y=value, group=SES.PD))+
-#   geom_boxplot()+
-#   theme(axis.text.x=element_text(angle=45))+
-#   geom_hline(yintercept=0)+
-#   ylab(paste0("SES.PD GBM model residuals ", n_spatial, "spat pred, 10 runs"))
-# 
-# # distance matrix
-# dm <- dist(xy, method = "euclidean", diag = TRUE, upper = TRUE)
-# dm <- as.matrix(dm)
-# 
-# #distance thresholds (same units as distance_matrix = METERS)
-# distance.thresholds <- 100000*c(1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100)
-# 
-# # distance bands
-# moran <- data.frame(dist.class = distance.thresholds,
-#                     moransI = NA,
-#                     moransp = NA)
-# 
-# coo <- cbind(dat$y, dat$x)
-# for(i in 1:length(moran$dist.class)){
-#   S.dist  <-  spdep::dnearneigh(coo, 0, moran$dist.class[i], longlat = FALSE)
-#   lw <- spdep::nb2listw(S.dist, style="W",zero.policy=T) 
-#   
-#   MI <- spdep::moran.mc(dat.ns$PD_residual_median, lw, nsim=999,zero.policy=T) 
-#   moran$moransI[i] <- MI$statistic
-#   moran$moransp[i] <- MI$p.value
-#   if(!i%%1)cat(i,"\r")
-# }
-# temp <- tidyr::pivot_longer(moran, cols = c("moransI"))
-# ggplot(temp, aes(x=dist.class, y=value)) +
-#   geom_line()+
-#   geom_point(aes(size=moransp<0.05))+
-#   scale_x_continuous("Distance class (m)")+
-#   scale_color_discrete("GBM residuals")+
-#   ylab("Moran's I for SES.PD GBM residuals")+
-#   theme(legend.position=c(.85,.85))
-# ggsave(paste0("figures/moransI_SES_PD_gbm_", n_spatial, "spatialpredictor.png"), width=5, height=4, units = "in", dpi = 300)
-# 
-# 
-# ## model results ----
-# pdl <- lapply(res, summary)
-# 
-# pdm <- sapply(pdl, "[", "rel.inf")
-# pdv <- sapply(pdl, "[", "var")
-# pddf <- data.frame(variable = unlist(pdv), rel.inf = unlist(pdm))
-# 
-# # sort factors
-# su <- tapply(pddf$rel.inf, pddf$variable, median)
-# pddf$variable <- factor(pddf$variable)
-# pddf$variable <- factor(pddf$variable, levels=names(sort(su, decreasing = F)))
-# 
-# ggplot(pddf, aes(x=variable, y=rel.inf))+
-#   geom_boxplot()+
-#   ylab("Relative influence")+
-#   theme(axis.title.y = element_blank(), axis.text.y = element_text(size=9))+
-#   coord_flip()
-# ggsave(paste0("figures/varImp_SES_PD_gbm10_runs_", n_spatial, "spatial.png"), width=6, height=4, units = "in", dpi = 600)
-# 
-# 
-# 
-# 
+
 ## analyse SES.PD ----
+load("workspace_spatial2.RData")
+
 dat <- na.omit(dat)
 dat.ns <- st_drop_geometry(dat)
 
@@ -627,6 +583,7 @@ res0 <- readRDS(paste0("idata/res10GBM_PD", n_spatial[1], "spat_predictors.rds")
 res1 <- readRDS(paste0("idata/res10GBM_PD", n_spatial[2], "spat_predictors.rds"))
 res2 <- readRDS(paste0("idata/res10GBM_PD", n_spatial[3], "spat_predictors.rds"))
 res <- list(res0, res1, res2)
+res.pd <- res
 
 ## morans I for residuals ----
 resids_list <- lapply(res, lapply, residuals)
@@ -681,8 +638,8 @@ for(i in 1:length(moran$dist.class)){
 }
 
 moran$obs_id <- seq(1:nrow(moran))
-setDT(moran)
-dat.mlt <- melt(moran, id.vars = c("obs_id", "dist.class"))
+data.table::setDT(moran)
+dat.mlt <- data.table::melt(moran, id.vars = c("obs_id", "dist.class"))
 # Ericks comment: now extract group number into new column. I know you can do this more elegantly
 # with your grepl magic. I prolly could too, but you get the point.
 dat.mlt[grepl("0", variable), group := 0]
@@ -690,7 +647,7 @@ dat.mlt[grepl("1", variable), group := 1]
 dat.mlt[grepl("2", variable), group := 2]
 
 dat.mlt[, variable := gsub("[0-9]", "", variable)]
-dat.mlt.cst <- dcast(data = dat.mlt,
+dat.mlt.cst <- data.table::dcast(data = dat.mlt,
                      obs_id + dist.class + group ~ variable,
                      value.var = "value")
 
@@ -720,26 +677,28 @@ pddf <- data.frame(variable = unlist(lapply(pdv, unlist)),
 su <- tapply(pddf$rel.inf, pddf$variable, median)
 pddf$variable <- factor(pddf$variable)
 pddf$variable <- factor(pddf$variable, levels=names(sort(su, decreasing = F)))
+
 varimp_PD <- ggplot(pddf, aes(x=variable, y=rel.inf, fill=factor(spat_predictors)))+
   geom_boxplot()+
   ylab("Relative influence")+
   scale_fill_scico_d(palette="batlow", end=0.7, alpha=0.7)+
+  scale_x_discrete(labels=var_labels)+
   theme(axis.title.y = element_blank())+
   coord_flip()+
   facet_wrap(~spat_predictors)+ 
   theme(strip.background=element_blank(), legend.position="none", panel.grid.major.y=element_line(size=0.05, color="grey50"))
 ggsave(paste0("figures/varImp_SES_PD_gbm10_runs_all_spatial.png"), width=6, height=4, units = "in", dpi = 600)
-
-
-# alt layout cumulative importance plot
-ggplot(pddf)+
-  geom_boxplot(aes(x=variable, y=rel.inf, fill=factor(spat_predictors)))+
-  ylab("Relative influence")+
-  scale_fill_scico_d(palette="batlow", end=0.7, alpha=0.7)+
-  theme(axis.title.y = element_blank())+
-  coord_flip()+
-#  facet_wrap(~spat_predictors)+
-  theme(strip.background=element_blank(), legend.position=c(.8,.2), panel.grid.major.y=element_line(size=0.05, color="grey50"))
+# 
+# 
+# # alt layout cumulative importance plot
+# ggplot(pddf)+
+#   geom_boxplot(aes(x=variable, y=rel.inf, fill=factor(spat_predictors)))+
+#   ylab("Relative influence")+
+#   scale_fill_scico_d(palette="batlow", end=0.7, alpha=0.7)+
+#   theme(axis.title.y = element_blank())+
+#   coord_flip()+
+# #  facet_wrap(~spat_predictors)+
+#   theme(strip.background=element_blank(), legend.position=c(.8,.2), panel.grid.major.y=element_line(size=0.05, color="grey50"))
 
 # pdm <- lapply(pdl, sapply, "[", "rel.inf")
 # # switch to cumulative importance
@@ -749,13 +708,13 @@ ggplot(pddf)+
 #                    spat_predictors=c(rep(0, length(unlist(pdv[[1]]))),
 #                                      rep(1, length(unlist(pdv[[2]]))),
 #                                      rep(2, length(unlist(pdv[[3]])))))
-dfdf.alt <- aggregate(pddf$rel.inf, by=list(pddf$spat_predictors, pddf$variable), median)
-ggplot(dfdf.alt)+
-  geom_smooth(aes(y=x, x=Group.2, col=factor(Group.1), fill=factor(Group.1), group=Group.1), alpha=0.1)+
-  ylab("Relative influence")+
-  scale_color_scico_d(palette="batlow", end=0.7, alpha=0.7)+
-  scale_fill_scico_d(palette="batlow", end=0.7, alpha=0.7)+
-  theme(axis.text.x=element_text(angle=45, hjust=1))
+# dfdf.alt <- aggregate(pddf$rel.inf, by=list(pddf$spat_predictors, pddf$variable), median)
+# ggplot(dfdf.alt)+
+#   geom_smooth(aes(y=x, x=Group.2, col=factor(Group.1), fill=factor(Group.1), group=Group.1), alpha=0.1)+
+#   ylab("Relative influence")+
+#   scale_color_scico_d(palette="batlow", end=0.7, alpha=0.7)+
+#   scale_fill_scico_d(palette="batlow", end=0.7, alpha=0.7)+
+#   theme(axis.text.x=element_text(angle=45, hjust=1))
 
 
 ### performance ----
@@ -792,6 +751,7 @@ res0 <- readRDS(paste0("idata/res10GBM_PE", n_spatial[1], "spat_predictors.rds")
 res1 <- readRDS(paste0("idata/res10GBM_PE", n_spatial[2], "spat_predictors.rds"))
 res2 <- readRDS(paste0("idata/res10GBM_PE", n_spatial[3], "spat_predictors.rds"))
 res <- list(res0, res1, res2)
+res.pe <- res
 
 ## morans I for residuals ----
 # get model averages
@@ -849,8 +809,8 @@ for(i in 1:length(moran$dist.class)){
 }
 
 moran$obs_id <- seq(1:nrow(moran))
-setDT(moran)
-dat.mlt <- melt(moran, id.vars = c("obs_id", "dist.class"))
+data.table::setDT(moran)
+dat.mlt <- data.table::melt(moran, id.vars = c("obs_id", "dist.class"))
 
 # Ericks comment: now extract group number into new column. I know you can do this more elegantly
 # with your grepl magic. I prolly could too, but you get the point.
@@ -859,7 +819,7 @@ dat.mlt[grepl("1", variable), group := 1]
 dat.mlt[grepl("2", variable), group := 2]
 
 dat.mlt[, variable := gsub("[0-9]", "", variable)]
-dat.mlt.cst <- dcast(data = dat.mlt,
+dat.mlt.cst <- data.table::dcast(data = dat.mlt,
                      obs_id + dist.class + group ~ variable,
                      value.var = "value")
 
@@ -892,6 +852,7 @@ pddf$variable <- factor(pddf$variable, levels=names(sort(su, decreasing = F)))
 varimp_pe <- ggplot(pddf, aes(x=variable, y=rel.inf, fill=factor(spat_predictors)))+
   geom_boxplot()+
   ylab("Relative influence")+
+  scale_x_discrete(labels=var_labels)+
   scale_fill_scico_d(palette="batlow", end=0.7, alpha=0.7)+
   theme(axis.title.y = element_blank())+
   coord_flip()+
@@ -912,7 +873,7 @@ rmse <- lapply(res.gbm, sapply, "[[", "RMSE")
 perf <- data.frame(spat_pred = c(rep(0,10,),rep(1,10,),rep(2,10,)),
                    r2= unlist(r2),
                    rmse = unlist(rmse))
-perf.l <- melt(perf, id="spat_pred")
+perf.l <- data.table::melt(perf, id="spat_pred")
 
 performance_pe <- ggplot(perf.l, aes(x=factor(spat_pred), y=value, fill=factor(spat_pred), group=spat_pred))+
   geom_boxplot()+
@@ -949,179 +910,349 @@ df2 <- aggregate(pedf$rel.inf, by=list(variable=pedf$variable), FUN=median)
 
 df <- merge(df, df2, by="variable", all=T)
 names(df) <- c("variable", "SES.PD", "SES.PE")
-df.mlt <- melt(df, id.vars="variable", variable.name="group", value.name="rel.inf")
+df.mlt <- data.table::melt(df, id.vars="variable", variable.name="group", value.name="rel.inf")
 # sort factors
 su <- tapply(df.mlt$rel.inf, df.mlt$variable, median)
-df.mlt$variable <- factor(df.mlt$variable)
-df.mlt$variable <- factor(df.mlt$variable, levels=names(sort(su, decreasing = F)))
-
-varimp_bar <- ggplot(df.mlt, aes(x=factor(variable), y=rel.inf, fill=group))+
-  geom_bar(stat="identity", position="dodge", width=0.7)+
-  ylab("Relative influence")+
-  scale_fill_scico_d(palette="batlow", end=0.7, alpha=0.7)+
+df.mlt$variable <- factor(df.mlt$variable)te="batlow", end=0.7, alpha=0.7)+
   theme(axis.title.y = element_blank())+
+  scale_x_discrete(labels=var_labels, family="Helvetica")+
   coord_flip()+
   theme(legend.position=c(0.9,0.8), legend.title=element_blank())
 ggsave(varimp_bar, paste0("figures/varImp_gbm_best_models_summary.png"), width=4, height=3, units = "in", dpi = 300)
 
-varimp_ranks <- ggplot(df, aes(x=rank(SES.PD), y=rank(SES.PE), label=variable))+
-  #geom_point()+
-  geom_label(label.padding=unit(0,"mm"), label.size=0, size=1.7)+
-  scale_x_continuous("SES.PD")+
+var_labels2 <- c(var_labels, "spatial_predictor_100000_1"="spatial predictor 100000_1",  
+                "spatial_predictor_100000_2"="spatial predictor100000_2")
+varimp_ranks <- 
+  ggplot(df, aes(x=rank(SES.PD), y=rank(SES.PE), label=variable))+
+#  geom_label(label.padding=unit(0,"mm"), label.size=0, size=1.7)+
+  geom_label(label.padding=unit(0,"mm"), nudge_y=.7, nudge_x=0, label.size=0, size=1.7,
+             label=var_labels2[df$variable], col="grey40")+
+  geom_point(size=.4)+
+  scale_x_continuous("SES.PD", limits=c(-3,32.5))+
   scale_y_continuous("SES.PE")+
+  geom_abline(aes(slope=1, intercept=0), col="grey50", lwd=.1)+
   theme(text=element_text(size=6), plot.background=element_blank(), panel.background=element_blank())+
   ggtitle("Variable model ranks")
-ggsave(varimp_ranks, paste0("figures/var_ranks_summary.png"), width=4, height=4, units = "in", dpi = 300)
 
-ggdraw() + draw_plot(varimp_bar, 0, 0, 1, 1) + draw_plot(varimp_ranks, 0.51, 0.1, 0.45, 0.65)
-ggsave(paste0("figures/varimp_combi.png"), width=6, height=4, units = "in", dpi = 300)
+#ggsave(varimp_ranks, paste0("figures/var_ranks_summary.png"), width=4, height=4, units = "in", dpi = 300)
+
+ggdraw() + draw_plot(varimp_bar, 0, 0, 1, 1) + draw_plot(varimp_ranks, 0.52, 0.08, 0.46, 0.66)
+#ggsave(paste0("figures/varimp_combi.png"), width=7, height=5, units = "in", dpi = 300)
+
+
 
 
 # marginal effect plots ----
+# working with the 2 spatial predictor model here
 
-plot_grid(ncol=4, 
-plot.gbm(res[[1]][[1]]$finalModel, "tra_mean", ylab="SES.PE"),
-plot.gbm(res[[1]][[1]]$finalModel, "elev_range"),
-plot.gbm(res[[1]][[1]]$finalModel, "sub_trop_mbf"),
-plot.gbm(res[[1]][[1]]$finalModel, "mat_mean"),
-plot.gbm(res[[1]][[1]]$finalModel, "pre_sd"),
-plot.gbm(res[[1]][[1]]$finalModel, "area"),
-plot.gbm(res[[1]][[1]]$finalModel, "soil"))
-
-
-
-
-
-
-
-
-
-# Classification tree for Hotspots via environment ------------------------
-
-load("workspace_maps.RData")
-
-# clean unneeded data
-shp2 <- shp2[,-grep("obs_p|obs_rank|reps|_cw$|LEVEL2|LEVEL1|LEVEL_3_CO|LEVEL_NAME|ID|\\.3|_rw|CONTI|REGION|mpd|TTD|AvTD|^bio_|^FC|^PC", names(shp2))]
-
-#coordinates of the cases
-shp2$centroids <- st_centroid(shp2) %>% 
-  st_coordinates()
-shp2$y <- shp2$centroids[,1] # x=lng
-shp2$x <- shp2$centroids[,2]
-xy <- st_drop_geometry(shp2[, c("x", "y")])
-shp2.ns <- st_drop_geometry(shp2)
-
-#distance matrix
-dm <- dist(xy, method = "euclidean", diag = TRUE, upper = TRUE)
-dm <- as.matrix(dm)
-
-#distance thresholds (same units as distance_matrix)
-distance.thresholds <- 100000*c(1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100)
-
-## get spatial predictors ----
-mems <- spatialRF::mem_multithreshold(
-  distance.matrix = dm,
-  distance.thresholds = distance.thresholds
-)
-kableExtra::kbl(
-  head(mems[, 1:4], n = 10),
-  format = "html"
-) %>%
-  kableExtra::kable_paper("hover", full_width = F)
-
-mem.rank <- spatialRF::rank_spatial_predictors(
-  distance.matrix = dm,
-  spatial.predictors.df = mems,
-  ranking.method = "moran"
-)
-mems <- mems[, mem.rank$ranking]
-shp2.ns <- cbind(shp2.ns, mems[,1:10])
-shp2.ns$hotspot_type[is.na(shp2.ns$hotspot_type)] <- "none"
-shp2.ns$hotspot_type <- as.factor(shp2.ns$hotspot_type)
-
-
-## tuning parameter with caret package ----
-gbmControl <- trainControl(method = "repeatedcv", number = 10,
-                           repeats = 3, savePredictions = "final",
-                           returnResamp ="final")# allowParallel=F has become necessary recently, not sure why.
-gbmGrid <-  expand.grid(interaction.depth = c(1, 2, 3),
-                        n.trees = (1:10)*50,
-                        shrinkage = c(0.1, 0.01, 0.001),
-                        n.minobsinnode = c(5, 10, 15))
-# define gbm function
-run.gbm <- function(i, seeds, data, trControl=gbmControl,
-                    tuneGrid=gbmGrid, f){
-  set.seed(s[i])
-  if(!i%%1)cat(i,"\r")
-  temp <- train(f, data, method = "gbm",
-                trControl = gbmControl, verbose=FALSE,
-                tuneGrid = gbmGrid,
-                na.action=na.omit)
-  return(temp)
+## SES.PE -----
+vars <- row.names(varImp(res.pe[[3]][[1]])$importance)
+for(i in 1:length(vars)){
+  # extract
+  tmp <- as.data.frame(lapply(res.pe[[3]], function(x){
+    plot.gbm(x$finalModel, vars[i], return.grid = TRUE)}))
+  # reshape
+  tmp2 <- data.table::melt(tmp[,-grep(paste0(vars[i], "\\.[1-9]$"), names(tmp))], 
+                   id.vars=vars[i], variable.name="rep_n")
+  # plot
+  p.marg <- ggplot(tmp2, aes_string(x=names(tmp2)[1], y="value", group="rep_n"))+
+    geom_line()+ ylab("SES.PE")
+  assign(paste0(vars[i], "_plot"), p.marg)
 }
 
-## define gbm formula. choose here spatial predictors if desired ----
-vars <- paste(names(shp2.ns)[c(12:40,78,79)], collapse="+")
-f.hs <- as.formula(paste0("hotspot_type ~ ", vars))
+ses.pe.marginal.effects <- plot_grid(ncol=6, 
+      plotlist = mget(paste0(vars[1:length(vars)], "_plot"))) 
 
-## RUN GBMs (sequential run) ----
-foreach::registerDoSEQ()
-s <- seq(500,509,1)
-res.class.tree <- list()
-for(i in 1:1){
-  res.class.tree[[i]] <- run.gbm(i=i, seeds=s[i], data=shp2.ns, f=f.hs)
-  beepr::beep(2)
+  
+## SES.PD -----
+vars <- row.names(varImp(res.pd[[3]][[1]])$importance)
+for(i in 1:length(vars)){
+  # extract
+  tmp <- as.data.frame(lapply(res.pd[[3]], function(x){
+    plot.gbm(x$finalModel, vars[i], return.grid = TRUE)}))
+  # reshape
+  tmp2 <- data.table::melt(tmp[,-grep(paste0(vars[i], "\\.[1-9]$"), names(tmp))], 
+                           id.vars=vars[i], variable.name="rep_n")
+  # plot
+  p.marg <- ggplot(tmp2, aes_string(x=names(tmp2)[1], y="value", group="rep_n"))+
+    geom_line()+ ylab("SES.PD")
+  assign(paste0(vars[i], "_plot"), p.marg)
 }
-tmp <- res.class.tree[[1]]
-dev.off()
-summary(tmp)
-tmp
-tmp$bestTune
-tmp$results[184,] # 3% correctly identified when taking random chance into account. lol
+
+ses.pd.marginal.effects <- plot_grid(ncol=6, 
+                                     plotlist = mget(paste0(vars[1:length(vars)], "_plot"))) 
 
 
-# Accuracy is the percentage of correctly classified instances out of all
-# instances. It is more useful on a binary classification than multi-class
-# classification problems because it can be less clear exactly how the accuracy
-# breaks down across those classes (e.g. you need to go deeper with a confusion
-# matrix).
-#
-# Kappa is like classification accuracy, except that it is
-# normalized at the baseline of random chance on your dataset. It is a more
-# useful measure to use on problems that have an imbalance in the classes (e.g.
-# 70-30 split for classes 0 and 1 and you can achieve 70% accuracy by predicting
-# all instances are for class 0).
+plot_grid(ses.pd.marginal.effects,ses.pe.marginal.effects, ncol=1, labels=c("A", "B"), label_fontface=1, label_size=12)                                     
+ggsave("figures/marg_effect_plots_gbm.png", width=10, height=15, units = "in", dpi = 300)
 
-## Confusion matrix
-expected <- tmp$pred$obs
-predicted <- tmp$pred$pred
-results <- confusionMatrix(data=predicted, reference=expected)
-print(results)
-table(expected)
+# sort for variable importance
 
 
-# Simple binomial model
-shp2.ns$hs <- "no"
-shp2.ns$hs[shp2.ns$hotspot_type %in% c("PE","PD","both")] <- "yes"
-shp2.ns$hs <- as.factor(shp2.ns$hs)
 
-nums <- c(12:40,78,79)
-vars <- paste(names(shp2.ns)[nums[1:30]], collapse="+")
-f.hs <- as.formula(paste0("hs ~ ", vars))
 
-dat <- shp2.ns[,names(shp2.ns) %in% unlist(strsplit(as.character(f.hs), split=" "))]
-dat <- na.omit(dat)
-b1 <- glm(f.hs, data=shp2.ns, family="binomial")
-summary(b1)
-b1.steps <- MASS::stepAIC(b1, steps=20)
-b1.steps
+# ggplot(tra_mean_me, aes(x=tra_mean, y=value, group=rep_n))+
+#   geom_line()+ ylab("SES.PE"),
+# ggplot(elev_range_me, aes(x=elev_range, y=value, group=rep_n))+
+#   geom_line()+ ylab("SES.PE"),
+# ggplot(sub_trop_mbf_me, aes(x=sub_trop_mbf, y=value, group=rep_n))+
+#   geom_line()+ ylab("SES.PE"),
+# ggplot(mat_mean_me, aes(x=mat_mean, y=value, group=rep_n))+
+#   geom_line()+ ylab("SES.PE"),
+# ggplot(pre_sd_me, aes(x=pre_sd, y=value, group=rep_n))+
+#   geom_line()+ ylab("SES.PE"),
+# ggplot(area_me, aes(x=area, y=value, group=rep_n))+
+#   geom_line()+ ylab("SES.PE")
+)
 
-b2 <- glm(hs ~ soil + mat_mean + mat_sd + tra_sd + prs_sd + 
-            mio_mat_ano_mean + tri + sub_trop_mbf + temp_bmf + flooded_gs, 
-          family = "binomial", data = shp2.ns)
-summary(b2)
 
-b3 <- glm(hs ~ soil + sqrt(tra_sd) + mat_mean + sub_trop_mbf , dat, family="binomial")
-summary(b3)
+# tra_mean_me <- as.data.frame(lapply(res.pe[[3]], function(x){
+#  plot.gbm(x$finalModel, "tra_mean", return.grid = TRUE)}))
+# elev_range_me <- as.data.frame(lapply(res.pe[[3]], function(x){
+#   plot.gbm(x$finalModel, "elev_range", return.grid = TRUE)}))
+# sub_trop_mbf_me <- as.data.frame(lapply(res.pe[[3]], function(x){
+#   plot.gbm(x$finalModel, "sub_trop_mbf", return.grid = TRUE)}))
+# mat_mean_me <- as.data.frame(lapply(res.pe[[3]], function(x){
+#   plot.gbm(x$finalModel, "mat_mean", return.grid = TRUE)}))
+# pre_sd_me <- as.data.frame(lapply(res.pe[[3]], function(x){
+#   plot.gbm(x$finalModel, "pre_sd", return.grid = TRUE)}))
+# area_me <- as.data.frame(lapply(res.pe[[3]], function(x){
+#   plot.gbm(x$finalModel, "area", return.grid = TRUE)}))
+# 
+# 
+# tra_mean_me <- data.table::melt(tra_mean_me[,-grep("tra_mean\\.[1-9]$", names(tra_mean_me))],
+#                 id.vars="tra_mean", variable.name="rep_n")
+# elev_range_me <- data.table::melt(elev_range_me[,-grep("elev_range\\.[1-9]$", names(elev_range_me))], 
+#                  id.vars="elev_range", variable.name="rep_n")
+# sub_trop_mbf_me <- data.table::melt(sub_trop_mbf_me[,-grep("sub_trop_mbf\\.[1-9]$", names(sub_trop_mbf_me))], 
+#                                   id.vars="sub_trop_mbf", variable.name="rep_n")
+# mat_mean_me <- data.table::melt(mat_mean_me[,-grep("mat_mean\\.[1-9]$", names(mat_mean_me))], 
+#                                     id.vars="mat_mean", variable.name="rep_n")
+# pre_sd_me <- data.table::melt(pre_sd_me[,-grep("pre_sd\\.[1-9]$", names(pre_sd_me))], 
+#                                 id.vars="pre_sd", variable.name="rep_n")
+# area_me <- data.table::melt(area_me[,-grep("area\\.[1-9]$", names(area_me))], 
+#                               id.vars="area", variable.name="rep_n")
 
-# problem: not normal
+
+
+
+# # Classification tree for Hotspots via environment 
+# 
+# load("workspace_maps.RData")
+# 
+# # clean unneeded data
+# shp2 <- shp2[,-grep("obs_p|obs_rank|reps|_cw$|LEVEL2|LEVEL1|LEVEL_3_CO|LEVEL_NAME|ID|\\.3|_rw|CONTI|REGION|mpd|TTD|AvTD|^bio_|^FC|^PC", names(shp2))]
+# 
+# #coordinates of the cases
+# shp2$centroids <- st_centroid(shp2) %>% 
+#   st_coordinates()
+# shp2$y <- shp2$centroids[,1] # x=lng
+# shp2$x <- shp2$centroids[,2]
+# xy <- st_drop_geometry(shp2[, c("x", "y")])
+# shp2.ns <- st_drop_geometry(shp2)
+# 
+# #distance matrix
+# dm <- dist(xy, method = "euclidean", diag = TRUE, upper = TRUE)
+# dm <- as.matrix(dm)
+# 
+# #distance thresholds (same units as distance_matrix)
+# distance.thresholds <- 100000*c(1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100)
+# 
+# ## get spatial predictors
+# mems <- spatialRF::mem_multithreshold(
+#   distance.matrix = dm,
+#   distance.thresholds = distance.thresholds
+# )
+# kableExtra::kbl(
+#   head(mems[, 1:4], n = 10),
+#   format = "html"
+# ) %>%
+#   kableExtra::kable_paper("hover", full_width = F)
+# 
+# mem.rank <- spatialRF::rank_spatial_predictors(
+#   distance.matrix = dm,
+#   spatial.predictors.df = mems,
+#   ranking.method = "moran"
+# )
+# mems <- mems[, mem.rank$ranking]
+# shp2.ns <- cbind(shp2.ns, mems[,1:10])
+# shp2.ns$hotspot_type[is.na(shp2.ns$hotspot_type)] <- "none"
+# shp2.ns$hotspot_type <- as.factor(shp2.ns$hotspot_type)
+# 
+# 
+# ## tuning parameter with caret package 
+# gbmControl <- trainControl(method = "repeatedcv", number = 10,
+#                            repeats = 3, savePredictions = "final",
+#                            returnResamp ="final")# allowParallel=F has become necessary recently, not sure why.
+# gbmGrid <-  expand.grid(interaction.depth = c(1, 2, 3),
+#                         n.trees = (1:10)*50,
+#                         shrinkage = c(0.1, 0.01, 0.001),
+#                         n.minobsinnode = c(5, 10, 15))
+# # define gbm function
+# run.gbm <- function(i, seeds, data, trControl=gbmControl,
+#                     tuneGrid=gbmGrid, f){
+#   set.seed(s[i])
+#   if(!i%%1)cat(i,"\r")
+#   temp <- train(f, data, method = "gbm",
+#                 trControl = gbmControl, verbose=FALSE,
+#                 tuneGrid = gbmGrid,
+#                 na.action=na.omit)
+#   return(temp)
+# }
+# 
+# ## define gbm formula. choose here spatial predictors if desired 
+# vars <- paste(names(shp2.ns)[c(12:40,78,79)], collapse="+")
+# f.hs <- as.formula(paste0("hotspot_type ~ ", vars))
+# 
+# ## RUN GBMs (sequential run) 
+# foreach::registerDoSEQ()
+# s <- seq(500,509,1)
+# res.class.tree <- list()
+# for(i in 1:1){
+#   res.class.tree[[i]] <- run.gbm(i=i, seeds=s[i], data=shp2.ns, f=f.hs)
+#   beepr::beep(2)
+# }
+# tmp <- res.class.tree[[1]]
+# dev.off()
+# summary(tmp)
+# tmp
+# tmp$bestTune
+# tmp$results[184,] # 3% correctly identified when taking random chance into account. lol
+# 
+# 
+# # Accuracy is the percentage of correctly classified instances out of all
+# # instances. It is more useful on a binary classification than multi-class
+# # classification problems because it can be less clear exactly how the accuracy
+# # breaks down across those classes (e.g. you need to go deeper with a confusion
+# # matrix).
+# #
+# # Kappa is like classification accuracy, except that it is
+# # normalized at the baseline of random chance on your dataset. It is a more
+# # useful measure to use on problems that have an imbalance in the classes (e.g.
+# # 70-30 split for classes 0 and 1 and you can achieve 70% accuracy by predicting
+# # all instances are for class 0).
+# 
+# ## Confusion matrix
+# expected <- tmp$pred$obs
+# predicted <- tmp$pred$pred
+# results <- confusionMatrix(data=predicted, reference=expected)
+# print(results)
+# table(expected)
+# 
+# 
+# # Simple binomial model
+# shp2.ns$hs <- "no"
+# shp2.ns$hs[shp2.ns$hotspot_type %in% c("PE","PD","both")] <- "yes"
+# shp2.ns$hs <- as.factor(shp2.ns$hs)
+# 
+# nums <- c(12:40,78,79)
+# vars <- paste(names(shp2.ns)[nums[1:30]], collapse="+")
+# f.hs <- as.formula(paste0("hs ~ ", vars))
+# 
+# dat <- shp2.ns[,names(shp2.ns) %in% unlist(strsplit(as.character(f.hs), split=" "))]
+# dat <- na.omit(dat)
+# b1 <- glm(f.hs, data=shp2.ns, family="binomial")
+# summary(b1)
+# b1.steps <- MASS::stepAIC(b1, steps=20)
+# b1.steps
+# 
+# b2 <- glm(hs ~ soil + mat_mean + mat_sd + tra_sd + prs_sd + 
+#             mio_mat_ano_mean + tri + sub_trop_mbf + temp_bmf + flooded_gs, 
+#           family = "binomial", data = shp2.ns)
+# summary(b2)
+# 
+# b3 <- glm(hs ~ soil + sqrt(tra_sd) + mat_mean + sub_trop_mbf , dat, family="binomial")
+# summary(b3)
+# 
+# # problem: not normal
+# 
+# # CACHE
+# # 
+# # ## analyse PD
+# # shp <- readRDS("fin_shp.rds")
+# # shp <- shp[,-grep("obs_p|obs_rank|reps|_cw$|LEVEL2|LEVEL1|LEVEL_3_CO|LEVEL_NAME|ID|\\.3|_rw|CONTI|REGION", names(shp))]
+# # names(shp)<- gsub("\\.1", "_mean", names(shp))
+# # names(shp)<- gsub("\\.2", "_sd", names(shp))
+# # dat <- shp[,c(1,6,13,16:44)]
+# # dat <- na.omit(dat)
+# # dat.ns <- st_drop_geometry(dat)
+# # 
+# # #coordinates of the cases
+# # dat$centroids <- st_centroid(dat) %>% 
+# #   st_coordinates()
+# # dat$y <- dat$centroids[,1] # x=lng
+# # dat$x <- dat$centroids[,2]
+# # xy <- st_drop_geometry(dat[, c("x", "y")])
+# # 
+# # n_spatial <- 2
+# # res <- readRDS(paste0("idata/res10GBM_PD", n_spatial, "spat_predictors.rds"))
+# # 
+# # ## morans I for residuals
+# # # get model averages
+# # resids_list <- lapply(res, residuals)
+# # resids_df <- as.data.frame(resids_list, col.names=c(1:length(res)))
+# # dat.ns$PD_residual_median <- apply(resids_df, 1, median)
+# # resids_df$SES.PD <- dat.ns$SES.PD
+# # 
+# # resids_df_l <- tidyr::pivot_longer(resids_df, cols=1:length(res))
+# # ggplot(resids_df_l, aes(x=SES.PD, y=value, group=SES.PD))+
+# #   geom_boxplot()+
+# #   theme(axis.text.x=element_text(angle=45))+
+# #   geom_hline(yintercept=0)+
+# #   ylab(paste0("SES.PD GBM model residuals ", n_spatial, "spat pred, 10 runs"))
+# # 
+# # # distance matrix
+# # dm <- dist(xy, method = "euclidean", diag = TRUE, upper = TRUE)
+# # dm <- as.matrix(dm)
+# # 
+# # #distance thresholds (same units as distance_matrix = METERS)
+# # distance.thresholds <- 100000*c(1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100)
+# # 
+# # # distance bands
+# # moran <- data.frame(dist.class = distance.thresholds,
+# #                     moransI = NA,
+# #                     moransp = NA)
+# # 
+# # coo <- cbind(dat$y, dat$x)
+# # for(i in 1:length(moran$dist.class)){
+# #   S.dist  <-  spdep::dnearneigh(coo, 0, moran$dist.class[i], longlat = FALSE)
+# #   lw <- spdep::nb2listw(S.dist, style="W",zero.policy=T) 
+# #   
+# #   MI <- spdep::moran.mc(dat.ns$PD_residual_median, lw, nsim=999,zero.policy=T) 
+# #   moran$moransI[i] <- MI$statistic
+# #   moran$moransp[i] <- MI$p.value
+# #   if(!i%%1)cat(i,"\r")
+# # }
+# # temp <- tidyr::pivot_longer(moran, cols = c("moransI"))
+# # ggplot(temp, aes(x=dist.class, y=value)) +
+# #   geom_line()+
+# #   geom_point(aes(size=moransp<0.05))+
+# #   scale_x_continuous("Distance class (m)")+
+# #   scale_color_discrete("GBM residuals")+
+# #   ylab("Moran's I for SES.PD GBM residuals")+
+# #   theme(legend.position=c(.85,.85))
+# # ggsave(paste0("figures/moransI_SES_PD_gbm_", n_spatial, "spatialpredictor.png"), width=5, height=4, units = "in", dpi = 300)
+# # 
+# # 
+# # ## model results
+# # pdl <- lapply(res, summary)
+# # 
+# # pdm <- sapply(pdl, "[", "rel.inf")
+# # pdv <- sapply(pdl, "[", "var")
+# # pddf <- data.frame(variable = unlist(pdv), rel.inf = unlist(pdm))
+# # 
+# # # sort factors
+# # su <- tapply(pddf$rel.inf, pddf$variable, median)
+# # pddf$variable <- factor(pddf$variable)
+# # pddf$variable <- factor(pddf$variable, levels=names(sort(su, decreasing = F)))
+# # 
+# # ggplot(pddf, aes(x=variable, y=rel.inf))+
+# #   geom_boxplot()+
+# #   ylab("Relative influence")+
+# #   theme(axis.title.y = element_blank(), axis.text.y = element_text(size=9))+
+# #   coord_flip()
+# # ggsave(paste0("figures/varImp_SES_PD_gbm10_runs_", n_spatial, "spatial.png"), width=6, height=4, units = "in", dpi = 600)
+# # 
+# # 
+# # 
+# # 
