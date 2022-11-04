@@ -1,6 +1,16 @@
 # Islands ------------------------------------------------------------------
 
-is <- vect("../DATA/shapefile_bot_countries/level3_and_islands_merged.gpkg")
+
+wd <- dirname(rstudioapi::getSourceEditorContext()$path)
+setwd(wd)
+rm(list = setdiff(ls(), lsf.str()))  
+library(data.table) # fast csv reading
+library(sf)
+library(terra)
+library(ggplot2)
+theme_set(theme_bw())
+
+is <- vect("data/shapefile_bot_countries/level3_and_islands_merged.gpkg")
 g <- as.data.frame(geom(is))
 g <- g[-which(g$hole==1),] # remove holes
 is$island_parts <- as.numeric(tapply(g$part, g$geom, function(x)length(unique(x))))
@@ -28,7 +38,6 @@ ggplot(df, aes(area))+
   scale_fill_scico_d(palette="batlow", alpha=0.5, begin=0, end=.5)+
   geom_vline(xintercept=quantile(df$area[df$island==T], c(.05, .5, .95)), col="#808133", alpha=.5)+
   geom_vline(xintercept=quantile(df$area[df$island==F], c(.05, .5, .95)), col="#001959", alpha=.5)
-
 # A meaningful threshold
 
 ## islands bigger than smallest non-island 
@@ -46,7 +55,7 @@ ggplot(df, aes(x=area, fill=factor(cluster))) +
   geom_histogram(position="dodge")+
   scale_x_continuous(trans="log")+
   theme(legend.position=c(.2,.7))
-ggsave("figures/island_yes_no.png", width=4, height=3, units = "in", dpi = 300, bg = "white")
+#ggsave("figures/island_yes_no.png", width=4, height=3, units = "in", dpi = 300, bg = "white")
 
 
 ## non-islands smaller than biggest island
@@ -63,12 +72,13 @@ big_clust <- na.omit(df$cluster[order(df$area, decreasing=F)])[1]
 df$area_class[df$cluster == big_clust] <- "island"
 
 
-# merge into the main shapefile
-shp <- merge(shp, df[,c("LEVEL_3_CO", "island", "island_parts", "area_class")], by.x="LEVEL3_COD", by.y="LEVEL_3_CO", all.x=T)
-
-# Dom Rep + Haiti are one big unit and will be treated as continental
-shp$area_class[shp$LEVEL3_COD=="DOM"] <- "continental"
-shp$area_class[shp$LEVEL3_COD=="HAI"] <- "continental"
-
-# Remove District of Columbia
-shp <- shp[-which(shp$LEVEL3_COD=="WDC"),]
+# # merge into the main shapefile
+# shp <- merge(shp, df[,c("LEVEL_3_CO", "island", "island_parts", "area_class")], 
+#              by.x="LEVEL3_COD", by.y="LEVEL_3_CO", all.x=T)
+# 
+# # Dom Rep + Haiti are one big unit and will be treated as continental
+# shp$area_class[shp$LEVEL3_COD=="DOM"] <- "continental"
+# shp$area_class[shp$LEVEL3_COD=="HAI"] <- "continental"
+# 
+# # Remove District of Columbia
+# shp <- shp[-which(shp$LEVEL3_COD=="WDC"),]
