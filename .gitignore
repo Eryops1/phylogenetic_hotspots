@@ -12,12 +12,14 @@
 *.tif
 /output
 /papers
+/submission
 /species_area_ standardisation_files
 *.out
 .gwf/
 .gwfconf.json
 /__pycache__/
-
+*.docx
+*.docx.lnk
 =======
 # History files
 .Rhistory
