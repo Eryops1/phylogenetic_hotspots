@@ -1,5 +1,5 @@
 
-# Prep tree with IDs --------------------------------------------------
+# Prep tree with World Checklist Vascular Plant IDs ------------------------
 
 
 wd <- dirname(rstudioapi::getSourceEditorContext()$path)
@@ -10,48 +10,24 @@ library(data.table)
 library(phytools)
 library(castor)
 library(stringr)
-#library(DBI)
-
-#phylo <- read_tree(file="../DATA/phylos/ALLMB.tre")
-phylo <- read_tree(file="../DATA/phylos/GBMB.tre") # genbank tree
-#phylo <- read_tree(file="../DATA/phylos/Seed_plant_TOL.full.Sep.22.2021.tre", interpret_quotes = T) # our tree
-
-
-# match tip labels with WCVP IDs ------------------------------------------
-
-# # where to get clade name?
-# # create_ tip label style
-# wcp <- fread("../DATA/world_checklist_names_and_distribution_JUL_21/checklist_names.txt")
-# n1 <- paste(wcp$genus, wcp$species, sep="_")
-# n2 <- paste(n1, wcp$infraspecific_rank, sep="_")
-# n3 <- paste(n2, wcp$infraspecies, sep="_")
-# n4 <- gsub("__", "", n3)
-# wcp$phylo_name <- n4
-# wcp$phylo_name <- gsub("\\.|,", "", wcp$phylo_name) # clean up, remove dots and commas
-# 
-# test <- phylo$tip.label
-# test_short <- sub("^.*?_", "", test)
-# test_short <- gsub("\\.|,", "", test_short) # clean up, remove dots and commas
-# table(test_short %in% wcp$phylo_name) # works mostly
-# 
-# phylo2 <- phylo
-# phylo2$tip.label <- wcp$accepted_plant_name_id[match(test_short, wcp$phylo_name)]
-# 
-# write_tree(phylo2, "../DATA/phylos/seed_plant_TOL_WCVP_IDs.tre")
 
 
 
-# all label names come from Genbank (NCBI), skip the identification step
+# read phylogeny ---------------------------------------------------------
+phylo <- read_tree(file="data/GBMB.tre") # genbank tree
+# clean labels
 phylo$tip.label <- gsub("_", " ", phylo$tip.label)
 
-# download ncbi taxonomy taxdump files here: https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/
+# all tip label names are from Genbank (NCBI); to get more taxanomy information
+# for matching names with the WCVP, download ncbi taxonomy taxdump files here:
+# https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/
 
 
 
-# get ID + authority from the names taxonomy.dmp --------------------------
+# get ID + authority from taxonomy.dmp --------------------------
 
-text <- readChar("../DATA/new_taxdump/names.dmp", 
-                 nchars = file.info( "../DATA/new_taxdump/names.dmp" )$size, 
+text <- readChar("data/names.dmp", 
+                 nchars = file.info( "data/names.dmp" )$size, 
                  useBytes = TRUE)
 #replace column and row separator
 text <- gsub( "\t\\|\t", "|", text)
@@ -71,7 +47,7 @@ long_name <- authority[authority$name_class=="authority",]
 dat$name_full <- long_name$name_txt[match(dat$tax_id, long_name$tax_id)]
 # if name_full is missing, then there is no author information
 
-dat$tips[!(dat$tips %in% authority$name_txt)] # 98 missing, no match in NCBI
+dat$tips[!(dat$tips %in% authority$name_txt)] # 98 missing: no match in NCBI
 
 dat$name_clean <- gsub(" \\(.*", "", dat$name_full)
 dat$name_clean <- gsub(" [A-Z].*?$", "", dat$name_clean)
@@ -86,8 +62,8 @@ dat$author <- str_trim(dat$author)
 
 # get higher tax ranks from taxonomy.dmp ----------------------------------
 
-text <- readChar("../DATA/new_taxdump/rankedlineage.dmp", 
-                 nchars = file.info( "../DATA/new_taxdump/rankedlineage.dmp" )$size, 
+text <- readChar("data/rankedlineage.dmp", 
+                 nchars = file.info( "data/rankedlineage.dmp" )$size, 
                  useBytes = TRUE)
 text <- gsub( "\t\\|\t", "|", text)
 text <- gsub( "\t\\|\n", "\n", text)
@@ -107,13 +83,15 @@ ncbi
 # merge higher ranks into dat
 dat <- merge(dat, ncbi, by="tax_id", all.x=TRUE)
 dat <- dat[-which(is.na(dat$tax_id)),]
-fwrite(dat, "../DATA/ncbi.csv")
+fwrite(dat, "data/ncbi.csv")
 
 
-# create common format ----------------------------------------------------
+
+
+# create input common format for taxonomy merger ----------------------------
 
 ## get authors from authority data frame, rest from lineage data frame
-dat <- fread("../DATA/ncbi.csv")
+dat <- fread("data/ncbi.csv")
 table(phylo$tip.label %in% dat$tips) # 98 who could not be matched
 
 # create unique ID (some tax ids are >1 due to synonyms)
@@ -121,7 +99,7 @@ table(phylo$tip.label %in% dat$tips) # 98 who could not be matched
 tmp <- dat[dat$tax_id %in% dat$tax_id[dups],] # 157 rows
 tmp <- tmp[!tmp$tips != tmp$tax_name,] # discarded 104
 
-# hack into the main frame ^^
+# no duplicate IDs, please
 dat <- dat[!dat$tax_id %in% dat$tax_id[dups],]
 dat <- rbind(dat, tmp)
 
@@ -134,7 +112,8 @@ dat$species <- gsub("^.*? ", "", dat$tax_name)
 dat$species <- gsub(" .*", "", dat$species)
 
 
-# common format for NCBI --------------------------------------------------
+
+# common format file --------------------------------------------------
 
 split_length <- unlist(lapply(strsplit(as.character(dat$tax_name), split = " "), length))
 table(split_length)
@@ -276,14 +255,14 @@ ncbi_input <- ncbi_input[-which(ncbi_input$usable=="no"),]
 table(phylo$tip.label %in% ncbi_input$tip_label) # 1167 tip labels which will not be matched
 
 # save
-saveRDS(ncbi_input, "ncbi_common_format.rds")
+saveRDS(ncbi_input, "data/ncbi_common_format.rds")
 
 
 # check family names APG IV -----------------------------------------------
 
 ## NCBI
 ncbi_input <- readRDS("ncbi_common_format.rds")
-apg <- fread("../DATA/apgweb_parsed.csv")
+apg <- fread("data/apgweb_parsed.csv")
 unique(ncbi_input$family)
 ncbi_input$family[!ncbi_input$family %in% apg$Syn_Fam]
 # Ripogonaceae is a new family, used to be included in Smilacaceae
@@ -291,10 +270,11 @@ ncbi_input$family[!ncbi_input$family %in% apg$Syn_Fam]
 ncbi_input$family[ncbi_input$family=="Crambidae"] <- "Cactaceae"
 ncbi_input$family <- apg$Acc_Fam[match(ncbi_input$family, apg$Syn_Fam)]
 ncbi_input$family.apg <- ncbi_input$family
-saveRDS(ncbi_input, "../DATA/ncbi_input.rds")
+saveRDS(ncbi_input, "data/ncbi_input.rds")
+
 
 ## WCVP
-wcp <- fread("../DATA/wcvp_names_and_distribution_special_edition_2022/wcvp_names.txt", quote="")
+wcp <- fread("data/wcvp_names_and_distribution_special_edition_2022/wcvp_names.txt", quote="")
 unique(wcp$family)
 unique(wcp$family[!wcp$family %in% apg$Syn_Fam])
 # Pseudotubulare = not a family name, Synonym entry. Remove
@@ -306,27 +286,34 @@ wcp <- wcp[!wcp$family=="Pseudotubulare",]
 
 wcp$family <- apg$Acc_Fam[match(wcp$family, apg$Syn_Fam)]
 wcp$family.apg <- wcp$family
-saveRDS(wcp, "../DATA/wcp_apg.rds")
+saveRDS(wcp, "data/wcp_apg.rds")
+
+
+
+
 
 # run taxonomy matcher to match with WCVP IDs -----------------------------
 
-source("../BIEN/taxonomic_matcher_for_PDiv.R", print.eval = TRUE, chdir = TRUE)
+source("00_taxonomy_matcher_for_PDiv.R", print.eval = TRUE, chdir = TRUE)
 
 
 
 
 # Replace tip labels with WCVP IDs ----------------------------------------
+gc()
 
-ncbi <- readRDS("../DATA/fin_species_match_NCBI_wcvp2022.rds")
+ncbi <- readRDS("data/fin_species_match_NCBI_wcvp2022.rds")
 table(is.na(ncbi$accepted_plant_name_id))
 names(ncbi)
-phylo <- read_tree(file="../DATA/phylos/GBMB.tre") # genbank tree
+
+phylo <- read_tree(file="data/GBMB.tre") # genbank tree
 phylo$tip.label <- gsub("_", " ", phylo$tip.label)
 phylo_org <- phylo
 table(phylo$tip.label %in% ncbi$tip_label) 
-# this is the correct number (tip labels that have been marked unusable etc
-# while building the common format, eg cf. aff. etc). These tip labels did not
-# enter the taxonomy matching procedure
+
+# FALSE = tip labels that have been marked unusable etc while building the
+# common format, eg cf. aff. etc). These tip labels did not enter the taxonomy
+# matching procedure
 
 # use species level
 ncbi$accepted_plant_name_id[!is.na(ncbi$elevated_to_species_id)] <- ncbi$elevated_to_species_id[!is.na(ncbi$elevated_to_species_id)]
@@ -346,79 +333,22 @@ phylo <- keep.tip(phylo, phylo$tip.label[!is.na(phylo$tip.label)]) # remove NA t
 phylo <- keep.tip(phylo, phylo$tip.label[phylo$tip.label!="no match with WCVP found"]) # remove unmatched tips
 
 # duplicates?
-length(which(table(phylo$tip.label)>1)) no
+length(which(table(phylo$tip.label)>1)) 
 
 
+write.tree(phylo, "data/gbmb_matched_wcvp2022.tre")
 
-# # Remove tip duplicates ---------------------------------------------------
-# 
-# # we know that all tips have genetic info behind them, so we modify our multi
-# # resolver function for this
-# wcp <- readRDS("../DATA/wcp_apg.rds")
-# 
-# resolve_multiple_gbmb <- function(MATCHES, wcp, phylo, phylo_org){
-#   # matches = accepted WCSP ID tip labels, phylo=phylogeny with labels replaced,
-#   # phylo_org=original tip labels remove multiple linkages, i.e. when multiple
-#   # tips in the tree are assigned to the same accepted name, using following
-#   # criteria 1) preferably keep tips that have molecular data behind them 2)
-#   # preferably keep tips that have the same genus name as the species they link
-#   # to in WCSP - important for tips that have been added based on taxonomy 3)
-#   # randomly thereafter
-#   for(n in names(table(MATCHES)[table(MATCHES)>1])){
-#     counter <- 1
-#     tips <- which(MATCHES == n)
-#     erase <- rep(FALSE,length(tips))
-#     # #first criterion: if any of the tips comes from GenBank, erase all that don't
-#     # if(sum(phylo$tip.label[tips] %in% phylogb$tip.label)>0){
-#     #   erase <- !phylo$tip.label[tips] %in% phylogb$tip.label
-#     #   #break
-#     #} else {
-#     #second criterion: if at least one of the original tips has the same genus
-#     #as in wcvp, erase others
-#     #retrieve WCVP genus
-#     gen <- as.vector(wcp[wcp$plant_name_id==n,"genus"])
-#     #retrieve tip genera
-#     GEN <- vector("character", length(tips))
-#     for(tip in 1:length(tips)){
-# 
-#       GEN[tip] <- strsplit(phylo_org$tip.label[tips],"_")[[tip]][1]
-#     }
-#     #if at least one of the tips has the same genus as in wcsp, erase the rest
-#     if(gen %in% GEN){
-#       erase <- !GEN == gen
-#     }
-#     #    }
-#     if(sum(!erase)>1){#if there are still n>1 items to be kept (i.e. not erased), chose n-1 randomly for erasing
-#       erase[sample(which(erase==FALSE), size=(sum(!erase)-1))] <- TRUE
-#     }
-# 
-#     #erase tips
-#     MATCHES[tips[erase]] <- NA
-#   }
-#   counter <- counter + 1
-#   if(!counter%%1) print(counter)# cat(counter,"\r")
-#   return(MATCHES)
-# }
-# 
-# # 2 MINUTES ###
-# Sys.time()
-# (res_multi <- resolve_multiple_gbmb(phylo$tip.label, wcp, phylo, phylo_org))
-# table(is.na(res_multi)) # NAs introduced, 11k multis... thats a lot
-# Sys.time()
-# 
-# # drop unused tips
-# res_multi_noNA <- na.omit(res_multi)
-# clean_tree <- keep.tip(phylo, as.character(res_multi_noNA))
 
-write.tree(phylo, "../DATA/gbmb_matched_wcvp2022.tre")
 
 
 # Fix some non monophyletic clades ----------------------------------------
+# for TACT to work clades in the tree have to be monophyletic. A single taxon
+# outside causes missing species to be TACTed all over the tree
 
 rm(list = setdiff(ls(), lsf.str())) 
-tree <- read.tree("../DATA/gbmb_matched_wcvp2022.tre")
-wcp <- readRDS("../DATA/wcp_apg.rds")
-ferns <- as.vector(read.csv("../DATA/fern_list.txt")[,1])
+tree <- read_tree(file="data/gbmb_matched_wcvp2022.tre")
+wcp <- readRDS("data/wcp_apg.rds")
+ferns <- as.vector(read.csv("data/fern_list.txt")[,1])
 wcp <- wcp %>% 
   dplyr::select(-family) %>%
   dplyr::rename("family" = "family.apg")
@@ -426,8 +356,8 @@ wcp <- wcp %>%
 # remove ferns
 wcp <- wcp[!wcp$family %in% ferns,]
 
-# add orders. Do this here because its specific for the tree
-apg <- fread("../DATA/apgweb_parsed.csv")
+# add orders. Do this here because its specific for the tree (changes in APG system)
+apg <- fread("data/apgweb_parsed.csv")
 apg <- unique(apg[,c("Acc_Fam", "Clade")])
 apg$Acc_Fam[duplicated(apg$Acc_Fam)]
 tree$node.label[!tree$node.label==""]
@@ -440,24 +370,28 @@ grep("Orchidales", tree$node.label[!tree$node.label==""])
 grep("Sabiales", tree$node.label[!tree$node.label==""])
 # Sabiales: no
 
-# remove those from apg file
+# remove clade names not included in tree from apg file
 apg <- apg[-grep("Orchidales|Sabiales", apg$Clade),]
 names(apg)[grep("Clade", names(apg))] <- "order"
-table(unique(wcp$family) %in% apg$Acc_Fam) # dat one family
+table(unique(wcp$family) %in% apg$Acc_Fam)
 
 wcp <- merge(wcp, apg, by.x="family", by.y="Acc_Fam", all.x=TRUE)
 
-# get "good species" list
+
+# get "good species" list to add with TACT -------------------
 goodspp <- wcp[wcp$genus_hybrid=="" &
               ""==wcp$species_hybrid &
               ""==wcp$infraspecific_rank &
               ""!=wcp$species &
                  wcp$taxon_status == "Accepted",]
-fwrite(goodspp, "goodsp.csv")
+fwrite(goodspp, "data/goodsp.csv")
 
-goodsp <- fread("goodsp.csv")
+goodsp <- fread("data/goodsp.csv")
 str(goodsp)
 goodsp.sub <- goodsp[which(goodsp$accepted_plant_name_id %in% tree$tip.label),]
+
+
+# check tree attributes (binary, ultrametric etc) ----------------------------
 any(tree$edge.length==0)
 #tree$edge.length[tree$edge.length==0] <- 1.6e-05
 out <- castor::extend_tree_to_height(tree)
@@ -470,7 +404,7 @@ t <- multi2di(t)
 
 # check monophylies
 t0 <-t
-goodsp <- fread("goodsp.csv")
+goodsp <- fread("data/goodsp.csv")
 goodsp.t0 <- goodsp[goodsp$accepted_plant_name_id %in% t0$tip.label,]
 
 orders <- sort(unique(goodsp.t0$order))
@@ -538,7 +472,7 @@ for(i in 1:length(unique(goodsp.tp$order))){
 
 
 
-write.tree(tp, "../DATA/gbmb_matched_monophyletic_orders.tre")
+write.tree(tp, "data/gbmb_matched_monophyletic_orders.tre")
 
 
 
@@ -546,7 +480,7 @@ write.tree(tp, "../DATA/gbmb_matched_monophyletic_orders.tre")
 # *** Write Goodsp as clean csv -----------------------------------------------
 
 
-goodsp <- fread("goodsp.csv")
+goodsp <- fread("data/goodsp.csv")
 # remove those where accepted != plant id
 goodsp <- goodsp[!goodsp$accepted_plant_name_id != goodsp$plant_name_id,]
 names(goodsp)
@@ -570,10 +504,9 @@ mod <- mod[!mod$genus %in% unique(mod$genus[mod$family==""]),]
 # all tips in the taxonomy file?
 table(tp$tip.label %in% mod$accepted_plant_name_id)
 wcp[wcp$plant_name_id %in% tp$tip.label[which(!tp$tip.label %in% mod$accepted_plant_name_id)],]
-# marked as hybrids, remove them from the tree
-#clean_tree <- drop.tip(clean_tree, clean_tree$tip.label[which(!clean_tree$tip.label %in% mod$accepted_plant_name_id)])
 
 
 
-fwrite(mod, sep=",", file="../DATA/goodsp_wcp_2022_forTACT.csv")
+fwrite(mod, sep=",", file="data/goodsp_wcp_2022_forTACT.csv")
+
 
