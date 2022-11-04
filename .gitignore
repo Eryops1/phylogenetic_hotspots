@@ -10,6 +10,8 @@
 *tacted.log.txt
 *.gri
 *.tif
+*.dmp
+goodsp.csv
 /output
 /papers
 /submission

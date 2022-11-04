@@ -1,0 +1,203 @@
+taxonID,scientificName,tip_label,family,genus,species,split_length,author.x,genus_hybrid,species_hybrid,taxon_rank,infra_name,comment,usable,id,family.apg,taxon_status,author.y,accepted_plant_name_id,match_type
+3933,Eucalyptus gunnii,Eucalyptus gunnii,Myrtaceae,Eucalyptus,gunnii,2,,,,species,,,,259,Myrtaceae,Illegitimate,Miq,74115-wcs,
+3933,Eucalyptus gunnii,Eucalyptus gunnii,Myrtaceae,Eucalyptus,gunnii,2,,,,species,,,,259,Myrtaceae,Accepted,Hookf,73063-wcs,
+49862,Eryngium billardierei,Eryngium billardierei,Apiaceae,Eryngium,billardierei,2,,,,species,,,,2602,Apiaceae,Accepted,FDelaroche,799136-az,
+49862,Eryngium billardierei,Eryngium billardierei,Apiaceae,Eryngium,billardierei,2,,,,species,,,,2602,Apiaceae,Illegitimate,HeldrexBoiss,799322-az,
+49877,Tillandsia secunda,Tillandsia secunda,Bromeliaceae,Tillandsia,secunda,2,,,,species,,,,2610,Bromeliaceae,Illegitimate,Sessé&Moc,258714-wcs,
+49877,Tillandsia secunda,Tillandsia secunda,Bromeliaceae,Tillandsia,secunda,2,,,,species,,,,2610,Bromeliaceae,Accepted,Kunth,269725-wcs,
+52456,Caucalis platycarpos,Caucalis platycarpos,Apiaceae,Caucalis,platycarpos,2,L,,,species,,,,2886,Apiaceae,Accepted,L,705953-az,matching authors
+52456,Caucalis platycarpos,Caucalis platycarpos,Apiaceae,Caucalis,platycarpos,2,L,,,species,,,,2886,Apiaceae,Illegitimate,L,390190-az,matching authors
+58849,Vantanea guianensis,Vantanea guianensis,Humiriaceae,Vantanea,guianensis,2,,,,species,,,,3708,Humiriaceae,Accepted,Aubl,457925-az,
+58849,Vantanea guianensis,Vantanea guianensis,Humiriaceae,Vantanea,guianensis,2,,,,species,,,,3708,Humiriaceae,Illegitimate,Poir,1258751-az,
+58950,Crocus nudiflorus,Crocus nudiflorus,Iridaceae,Crocus,nudiflorus,2,Sm,,,species,,,,3739,Iridaceae,Illegitimate,Boiss,327453-wcs,no matching authors
+58950,Crocus nudiflorus,Crocus nudiflorus,Iridaceae,Crocus,nudiflorus,2,Sm,,,species,,,,3739,Iridaceae,Illegitimate,Schult,327154-wcs,no matching authors
+58950,Crocus nudiflorus,Crocus nudiflorus,Iridaceae,Crocus,nudiflorus,2,Sm,,,species,,,,3739,Iridaceae,Accepted,Sm,327378-wcs,matching authors
+58950,Crocus nudiflorus,Crocus nudiflorus,Iridaceae,Crocus,nudiflorus,2,Sm,,,species,,,,3739,Iridaceae,Illegitimate,Hohen,327734-wcs,no matching authors
+58950,Crocus nudiflorus,Crocus nudiflorus,Iridaceae,Crocus,nudiflorus,2,Sm,,,species,,,,3739,Iridaceae,Illegitimate,Sm,327347-wcs,matching authors
+72158,Shepherdia argentea,Shepherdia argentea,Elaeagnaceae,Shepherdia,argentea,2,,,,species,,,,4847,Elaeagnaceae,Accepted,(Pursh)Nutt,592744-az,
+72158,Shepherdia argentea,Shepherdia argentea,Elaeagnaceae,Shepherdia,argentea,2,,,,species,,,,4847,Elaeagnaceae,Illegitimate,Schltdl,785017-az,
+72976,Solidago petiolaris,Solidago petiolaris,Asteraceae,Solidago,petiolaris,2,,,,species,,,,4966,Asteraceae,Accepted,Aiton,1101686-az,
+72976,Solidago petiolaris,Solidago petiolaris,Asteraceae,Solidago,petiolaris,2,,,,species,,,,4966,Asteraceae,Illegitimate,Less,1101887-az,
+72976,Solidago petiolaris,Solidago petiolaris,Asteraceae,Solidago,petiolaris,2,,,,species,,,,4966,Asteraceae,Illegitimate,AGray,1267051-az,
+74826,Peperomia hirta,Peperomia hirta,Piperaceae,Peperomia,hirta,2,,,,species,,,,5188,Piperaceae,Accepted,CDC,557103-az,
+74826,Peperomia hirta,Peperomia hirta,Piperaceae,Peperomia,hirta,2,,,,species,,,,5188,Piperaceae,Illegitimate,Balff,901210-az,
+76287,Thunbergia erecta,Thunbergia erecta,Acanthaceae,Thunbergia,erecta,2,,,,species,,,,5376,Acanthaceae,Invalid,Nees,436130-az,
+76287,Thunbergia erecta,Thunbergia erecta,Acanthaceae,Thunbergia,erecta,2,,,,species,,,,5376,Acanthaceae,Accepted,(Benth)TAnderson,436286-az,
+87670,Eucalyptus diversifolia,Eucalyptus diversifolia,Myrtaceae,Eucalyptus,diversifolia,2,,,,species,,,,6632,Myrtaceae,Accepted,Bonpl,72840-wcs,
+87670,Eucalyptus diversifolia,Eucalyptus diversifolia,Myrtaceae,Eucalyptus,diversifolia,2,,,,species,,,,6632,Myrtaceae,Illegitimate,Woolls,73301-wcs,
+88917,Hedyosmum bonplandianum,Hedyosmum bonplandianum,Chloranthaceae,Hedyosmum,bonplandianum,2,,,,species,,,,6672,Chloranthaceae,Accepted,Kunth,840865-az,
+88917,Hedyosmum bonplandianum,Hedyosmum bonplandianum,Chloranthaceae,Hedyosmum,bonplandianum,2,,,,species,,,,6672,Chloranthaceae,Misapplied,Mart,840867-az,
+95374,Draba alyssoides,Draba alyssoides,Brassicaceae,Draba,alyssoides,2,,,,species,,,,7283,Brassicaceae,Illegitimate,Benth,776680-az,
+95374,Draba alyssoides,Draba alyssoides,Brassicaceae,Draba,alyssoides,2,,,,species,,,,7283,Brassicaceae,Accepted,Humb&BonplexDC,776219-az,
+100160,Ornithopus compressus,Ornithopus compressus,Fabaceae,Ornithopus,compressus,2,,,,species,,,,7744,Fabaceae,Accepted,L,387914-az,
+100160,Ornithopus compressus,Ornithopus compressus,Fabaceae,Ornithopus,compressus,2,,,,species,,,,7744,Fabaceae,Invalid,SieberexSteud,738024-az,
+101994,Plantago rigida,Plantago rigida,Plantaginaceae,Plantago,rigida,2,,,,species,,,,7968,Plantaginaceae,Invalid,Roem&Schult,1260583-az,
+101994,Plantago rigida,Plantago rigida,Plantaginaceae,Plantago,rigida,2,,,,species,,,,7968,Plantaginaceae,Accepted,Kunth,570637-az,
+102692,Celtis laevigata,Celtis laevigata,Cannabaceae,Celtis,laevigata,2,Willd,,,species,,,,7985,Cannabaceae,Illegitimate,Willd,708496-az,matching authors
+102692,Celtis laevigata,Celtis laevigata,Cannabaceae,Celtis,laevigata,2,Willd,,,species,,,,7985,Cannabaceae,Illegitimate,Spreng,708300-az,no matching authors
+102692,Celtis laevigata,Celtis laevigata,Cannabaceae,Celtis,laevigata,2,Willd,,,species,,,,7985,Cannabaceae,Accepted,Willd,708323-az,matching authors
+109094,Chaerophyllum aureum,Chaerophyllum aureum,Apiaceae,Chaerophyllum,aureum,2,L,,,species,,,,8531,Apiaceae,Illegitimate,L,714333-az,matching authors
+109094,Chaerophyllum aureum,Chaerophyllum aureum,Apiaceae,Chaerophyllum,aureum,2,L,,,species,,,,8531,Apiaceae,Accepted,L,714179-az,matching authors
+123178,Epidendrum centropetalum,Epidendrum centropetalum,Orchidaceae,Epidendrum,centropetalum,2,Rchbf,,,species,,,,9654,Orchidaceae,Illegitimate,Rchbf,69875-wcs,matching authors
+123178,Epidendrum centropetalum,Epidendrum centropetalum,Orchidaceae,Epidendrum,centropetalum,2,Rchbf,,,species,,,,9654,Orchidaceae,Accepted,Rchbf,68067-wcs,matching authors
+125532,Restrepia antennifera,Restrepia antennifera,Orchidaceae,Restrepia,antennifera,2,,,,species,,,,10083,Orchidaceae,Illegitimate,Lindl,177413-wcs,
+125532,Restrepia antennifera,Restrepia antennifera,Orchidaceae,Restrepia,antennifera,2,,,,species,,,,10083,Orchidaceae,Accepted,Kunth,177389-wcs,
+155759,Eucalyptus cordata,Eucalyptus cordata,Myrtaceae,Eucalyptus,cordata,2,,,,species,,,,13090,Myrtaceae,Accepted,Labill,72728-wcs,
+155759,Eucalyptus cordata,Eucalyptus cordata,Myrtaceae,Eucalyptus,cordata,2,,,,species,,,,13090,Myrtaceae,Illegitimate,GLodd,73720-wcs,
+157514,Gaultheria leucocarpa,Gaultheria leucocarpa,Ericaceae,Gaultheria,leucocarpa,2,,,,species,,,,13178,Ericaceae,Accepted,Blume,817878-az,
+157514,Gaultheria leucocarpa,Gaultheria leucocarpa,Ericaceae,Gaultheria,leucocarpa,2,,,,species,,,,13178,Ericaceae,Synonym,KunzeexDC,817999-az,
+160551,Eragrostis bicolor,Eragrostis bicolor,Poaceae,Eragrostis,bicolor,2,,,,species,,,,13614,Poaceae,Invalid,Boiss,412999-wcs,
+160551,Eragrostis bicolor,Eragrostis bicolor,Poaceae,Eragrostis,bicolor,2,,,,species,,,,13614,Poaceae,Accepted,Nees,412272-wcs,
+161101,Lemna minuta,Lemna minuta,Araceae,Lemna,minuta,2,,,,species,,,,13665,Araceae,Accepted,Kunth,109312-wcs,
+161101,Lemna minuta,Lemna minuta,Araceae,Lemna,minuta,2,,,,species,,,,13665,Araceae,Invalid,Raf,109342-wcs,
+162016,Peplis portula,Peplis portula,Lythraceae,Peplis,portula,2,,,,species,,,,13733,Lythraceae,Synonym,L,354126-az,
+162016,Peplis portula,Peplis portula,Lythraceae,Peplis,portula,2,,,,species,,,,13733,Lythraceae,Invalid,Schrank,494015-az,
+171310,Gesneria acaulis,Gesneria acaulis,Gesneriaceae,Gesneria,acaulis,2,,,,species,,,,14772,Gesneriaceae,Synonym,Hanst,588886-az,
+171310,Gesneria acaulis,Gesneria acaulis,Gesneriaceae,Gesneria,acaulis,2,,,,species,,,,14772,Gesneriaceae,Accepted,L,824764-az,
+171310,Gesneria acaulis,Gesneria acaulis,Gesneriaceae,Gesneria,acaulis,2,,,,species,,,,14772,Gesneriaceae,Synonym,Moc&Sessé,617298-az,
+180757,Vaccinium floribundum,Vaccinium floribundum,Ericaceae,Vaccinium,floribundum,2,,,,species,,,,15899,Ericaceae,Illegitimate,Miq,1258740-az,
+180757,Vaccinium floribundum,Vaccinium floribundum,Ericaceae,Vaccinium,floribundum,2,,,,species,,,,15899,Ericaceae,Accepted,Kunth,458865-az,
+180966,Cyperus cuspidatus,Cyperus cuspidatus,Cyperaceae,Cyperus,cuspidatus,2,,,,species,,,,15941,Cyperaceae,Accepted,Kunth,236226-wcs,
+180966,Cyperus cuspidatus,Cyperus cuspidatus,Cyperaceae,Cyperus,cuspidatus,2,,,,species,,,,15941,Cyperaceae,Illegitimate,Baker,235830-wcs,
+183845,Eucalyptus perriniana,Eucalyptus perriniana,Myrtaceae,Eucalyptus,perriniana,2,,,,species,,,,16212,Myrtaceae,Accepted,FMuellexRodway,73614-wcs,
+183845,Eucalyptus perriniana,Eucalyptus perriniana,Myrtaceae,Eucalyptus,perriniana,2,,,,species,,,,16212,Myrtaceae,Illegitimate,RTBaker&HGSm,273547-wcs,
+185525,Ilex laurina,Ilex laurina,Aquifoliaceae,Ilex,laurina,2,,,,species,,,,16519,Aquifoliaceae,Accepted,Kunth,860956-az,
+185525,Ilex laurina,Ilex laurina,Aquifoliaceae,Ilex,laurina,2,,,,species,,,,16519,Aquifoliaceae,Synonym,Klotzsch,860630-az,
+185549,Ilex rupicola,Ilex rupicola,Aquifoliaceae,Ilex,rupicola,2,,,,species,,,,16543,Aquifoliaceae,Synonym,Ridl,861516-az,
+185549,Ilex rupicola,Ilex rupicola,Aquifoliaceae,Ilex,rupicola,2,,,,species,,,,16543,Aquifoliaceae,Accepted,Kunth,861392-az,
+195118,Paederota bonarota,Paederota bonarota,Plantaginaceae,Paederota,bonarota,2,,,,species,,,,17432,Plantaginaceae,Misapplied,Jacq,542248-az,
+195118,Paederota bonarota,Paederota bonarota,Plantaginaceae,Paederota,bonarota,2,,,,species,,,,17432,Plantaginaceae,Accepted,(L)L,542260-az,
+197598,Mercurialis elliptica,Mercurialis elliptica,Euphorbiaceae,Mercurialis,elliptica,2,,,,species,,,,17683,Euphorbiaceae,Illegitimate,Duby,125743-wcs,
+197598,Mercurialis elliptica,Mercurialis elliptica,Euphorbiaceae,Mercurialis,elliptica,2,,,,species,,,,17683,Euphorbiaceae,Accepted,Lam,125748-wcs,
+198736,Acacia acradenia,Acacia acradenia,Fabaceae,Acacia,acradenia,2,FMuell,,,species,,,,17894,Fabaceae,Invalid,FMuell,614176-az,matching authors
+198736,Acacia acradenia,Acacia acradenia,Fabaceae,Acacia,acradenia,2,FMuell,,,species,,,,17894,Fabaceae,Accepted,FMuell,611108-az,matching authors
+198916,Indigofera trifoliata,Indigofera trifoliata,Fabaceae,Indigofera,trifoliata,2,L,,,species,,,,17998,Fabaceae,Illegitimate,L,864585-az,matching authors
+198916,Indigofera trifoliata,Indigofera trifoliata,Fabaceae,Indigofera,trifoliata,2,L,,,species,,,,17998,Fabaceae,Accepted,L,864858-az,matching authors
+200626,Aeranthes grandiflora,Aeranthes grandiflora,Orchidaceae,Aeranthes,grandiflora,2,Lindl,,,species,,,,18426,Orchidaceae,Illegitimate,Lindl,3904-wcs,matching authors
+200626,Aeranthes grandiflora,Aeranthes grandiflora,Orchidaceae,Aeranthes,grandiflora,2,Lindl,,,species,,,,18426,Orchidaceae,Accepted,Lindl,3940-wcs,matching authors
+237837,Passiflora alnifolia,Passiflora alnifolia,Passifloraceae,Passiflora,alnifolia,2,,,,species,,,,21928,Passifloraceae,Illegitimate,Mast,559609-az,
+237837,Passiflora alnifolia,Passiflora alnifolia,Passifloraceae,Passiflora,alnifolia,2,,,,species,,,,21928,Passifloraceae,Accepted,Kunth,559822-az,
+243116,Valeriana microphylla,Valeriana microphylla,Caprifoliaceae,Valeriana,microphylla,2,,,,species,,,,22453,Caprifoliaceae,Illegitimate,Bedd,462265-az,
+243116,Valeriana microphylla,Valeriana microphylla,Caprifoliaceae,Valeriana,microphylla,2,,,,species,,,,22453,Caprifoliaceae,Accepted,Kunth,464656-az,
+258998,Allium saxatile,Allium saxatile,Amaryllidaceae,Allium,saxatile,2,MBieb,,,species,,,,23645,Amaryllidaceae,Illegitimate,Pall,294956-wcs,no matching authors
+258998,Allium saxatile,Allium saxatile,Amaryllidaceae,Allium,saxatile,2,MBieb,,,species,,,,23645,Amaryllidaceae,Illegitimate,HohenexBoiss,296183-wcs,no matching authors
+258998,Allium saxatile,Allium saxatile,Amaryllidaceae,Allium,saxatile,2,MBieb,,,species,,,,23645,Amaryllidaceae,Misapplied,MBieb,295993-wcs,matching authors
+258998,Allium saxatile,Allium saxatile,Amaryllidaceae,Allium,saxatile,2,MBieb,,,species,,,,23645,Amaryllidaceae,Accepted,MBieb,296507-wcs,matching authors
+268087,Pyrrhopappus multicaulis,Pyrrhopappus multicaulis,Asteraceae,Pyrrhopappus,multicaulis,2,,,,species,,,,24482,Asteraceae,Synonym,DC,1063595-az,
+268087,Pyrrhopappus multicaulis,Pyrrhopappus multicaulis,Asteraceae,Pyrrhopappus,multicaulis,2,,,,species,,,,24482,Asteraceae,Synonym,CurtissexAGray,1063581-az,
+282540,Hypericum formosum,Hypericum formosum,Hypericaceae,Hypericum,formosum,2,,,,species,,,,25572,Hypericaceae,Illegitimate,Takht,515495-wcs,
+282540,Hypericum formosum,Hypericum formosum,Hypericaceae,Hypericum,formosum,2,,,,species,,,,25572,Hypericaceae,Illegitimate,AGray,516624-wcs,
+282540,Hypericum formosum,Hypericum formosum,Hypericaceae,Hypericum,formosum,2,,,,species,,,,25572,Hypericaceae,Accepted,Kunth,515496-wcs,
+289814,Serjania glabrata,Serjania glabrata,Sapindaceae,Serjania,glabrata,2,,,,species,,,,26151,Sapindaceae,Accepted,Kunth,582694-az,
+289814,Serjania glabrata,Serjania glabrata,Sapindaceae,Serjania,glabrata,2,,,,species,,,,26151,Sapindaceae,Invalid,GrisebexRadlk,582778-az,
+289814,Serjania glabrata,Serjania glabrata,Sapindaceae,Serjania,glabrata,2,,,,species,,,,26151,Sapindaceae,Illegitimate,Benth,582734-az,
+289815,Serjania polyphylla,Serjania polyphylla,Sapindaceae,Serjania,polyphylla,2,,,,species,,,,26152,Sapindaceae,Invalid,PoirexSteud,543786-az,
+289815,Serjania polyphylla,Serjania polyphylla,Sapindaceae,Serjania,polyphylla,2,,,,species,,,,26152,Sapindaceae,Accepted,(L)Radlk,582550-az,
+289815,Serjania polyphylla,Serjania polyphylla,Sapindaceae,Serjania,polyphylla,2,,,,species,,,,26152,Sapindaceae,Invalid,WilldexSchltdl&Cham,582852-az,
+294048,Tillandsia disticha,Tillandsia disticha,Bromeliaceae,Tillandsia,disticha,2,,,,species,,,,26568,Bromeliaceae,Accepted,Kunth,268895-wcs,
+294048,Tillandsia disticha,Tillandsia disticha,Bromeliaceae,Tillandsia,disticha,2,,,,species,,,,26568,Bromeliaceae,Illegitimate,(L)WilldexSchult&Schultf,269742-wcs,
+300900,Valeriana ceratophylla,Valeriana ceratophylla,Caprifoliaceae,Valeriana,ceratophylla,2,,,,species,,,,27100,Caprifoliaceae,Illegitimate,(Hook)MacMill,1258995-az,
+300900,Valeriana ceratophylla,Valeriana ceratophylla,Caprifoliaceae,Valeriana,ceratophylla,2,,,,species,,,,27100,Caprifoliaceae,Accepted,Kunth,464283-az,
+309290,Ficus obtusifolia,Ficus obtusifolia,Moraceae,Ficus,obtusifolia,2,,,,species,,,,27602,Moraceae,Accepted,Kunth,811522-az,
+309290,Ficus obtusifolia,Ficus obtusifolia,Moraceae,Ficus,obtusifolia,2,,,,species,,,,27602,Moraceae,Illegitimate,Roxb,810117-az,
+313078,Lathyrus angulatus,Lathyrus angulatus,Fabaceae,Lathyrus,angulatus,2,L,,,species,,,,28015,Fabaceae,Accepted,L,352119-az,matching authors
+313078,Lathyrus angulatus,Lathyrus angulatus,Fabaceae,Lathyrus,angulatus,2,L,,,species,,,,28015,Fabaceae,Misapplied,L,351119-az,matching authors
+327363,Oberonia iridifolia,Oberonia iridifolia,Orchidaceae,Oberonia,iridifolia,2,,,,species,,,,29308,Orchidaceae,Illegitimate,(Roxb)Lindl,136489-wcs,
+327363,Oberonia iridifolia,Oberonia iridifolia,Orchidaceae,Oberonia,iridifolia,2,,,,species,,,,29308,Orchidaceae,Illegitimate,Lindl,136352-wcs,
+327363,Oberonia iridifolia,Oberonia iridifolia,Orchidaceae,Oberonia,iridifolia,2,,,,species,,,,29308,Orchidaceae,Misapplied,FMuell,136315-wcs,
+330184,Solidago juncea,Solidago juncea,Asteraceae,Solidago,juncea,2,,,,species,,,,29590,Asteraceae,Accepted,Aiton,1101526-az,
+330184,Solidago juncea,Solidago juncea,Asteraceae,Solidago,juncea,2,,,,species,,,,29590,Asteraceae,Invalid,DC,1267042-az,
+344103,Neolitsea chui,Neolitsea chui,Lauraceae,Neolitsea,chui,2,Merr,,,species,,,,30507,Lauraceae,Accepted,Merr,383700-az,matching authors
+344103,Neolitsea chui,Neolitsea chui,Lauraceae,Neolitsea,chui,2,Merr,,,species,,,,30507,Lauraceae,Illegitimate,Merr,1257761-az,matching authors
+344772,Pilea alpestris,Pilea alpestris,Urticaceae,Pilea,alpestris,2,,,,species,,,,30594,Urticaceae,Illegitimate,Ridl,546512-az,
+344772,Pilea alpestris,Pilea alpestris,Urticaceae,Pilea,alpestris,2,,,,species,,,,30594,Urticaceae,Accepted,(Urb)Fawc&Rendle,546151-az,
+352201,Peperomia tristachya,Peperomia tristachya,Piperaceae,Peperomia,tristachya,2,,,,species,,,,31328,Piperaceae,Accepted,Kunth,558677-az,
+352201,Peperomia tristachya,Peperomia tristachya,Piperaceae,Peperomia,tristachya,2,,,,species,,,,31328,Piperaceae,Illegitimate,Opiz,557196-az,
+365151,Vicia humilis,Vicia humilis,Fabaceae,Vicia,humilis,2,,,,species,,,,32205,Fabaceae,Accepted,Kunth,452925-az,
+365151,Vicia humilis,Vicia humilis,Fabaceae,Vicia,humilis,2,,,,species,,,,32205,Fabaceae,Illegitimate,RRHe,453095-az,
+376207,Cuphea hyssopifolia,Cuphea hyssopifolia,Lythraceae,Cuphea,hyssopifolia,2,,,,species,,,,32969,Lythraceae,Illegitimate,Griseb,748292-az,
+376207,Cuphea hyssopifolia,Cuphea hyssopifolia,Lythraceae,Cuphea,hyssopifolia,2,,,,species,,,,32969,Lythraceae,Accepted,Kunth,748114-az,
+376248,Ranunculus ficariifolius,Ranunculus ficariifolius,Ranunculaceae,Ranunculus,ficariifolius,2,,,,species,,,,32976,Ranunculaceae,Illegitimate,HLév&Vaniot,526535-az,
+376248,Ranunculus ficariifolius,Ranunculus ficariifolius,Ranunculaceae,Ranunculus,ficariifolius,2,,,,species,,,,32976,Ranunculaceae,Illegitimate,Beck,870953-az,
+376254,Ranunculus ternatus,Ranunculus ternatus,Ranunculaceae,Ranunculus,ternatus,2,,,,species,,,,32980,Ranunculaceae,Accepted,Thunb,525194-az,
+376254,Ranunculus ternatus,Ranunculus ternatus,Ranunculaceae,Ranunculus,ternatus,2,,,,species,,,,32980,Ranunculaceae,Illegitimate,DC,1259996-az,
+376256,Ranunculus vaginatus,Ranunculus vaginatus,Ranunculaceae,Ranunculus,vaginatus,2,,,,species,,,,32982,Ranunculaceae,Illegitimate,Hand-Mazz,525359-az,
+376256,Ranunculus vaginatus,Ranunculus vaginatus,Ranunculaceae,Ranunculus,vaginatus,2,,,,species,,,,32982,Ranunculaceae,Synonym,Sommerauer,522500-az,
+392645,Salvia aegyptiaca,Salvia aegyptiaca,Lamiaceae,Salvia,aegyptiaca,2,L,,,species,,,,34215,Lamiaceae,Illegitimate,L,459927-wcs,matching authors
+392645,Salvia aegyptiaca,Salvia aegyptiaca,Lamiaceae,Salvia,aegyptiaca,2,L,,,species,,,,34215,Lamiaceae,Accepted,L,181899-wcs,matching authors
+392681,Salvia prunelloides,Salvia prunelloides,Lamiaceae,Salvia,prunelloides,2,,,,species,,,,34247,Lamiaceae,Misapplied,Benth,183267-wcs,
+392681,Salvia prunelloides,Salvia prunelloides,Lamiaceae,Salvia,prunelloides,2,,,,species,,,,34247,Lamiaceae,Accepted,Kunth,183592-wcs,
+412121,Vriesea gigantea,Vriesea gigantea,Bromeliaceae,Vriesea,gigantea,2,,,,species,,,,35213,Bromeliaceae,Accepted,Gaudich,271829-wcs,
+412121,Vriesea gigantea,Vriesea gigantea,Bromeliaceae,Vriesea,gigantea,2,,,,species,,,,35213,Bromeliaceae,Misapplied,Lem,218485-wcs,
+412121,Vriesea gigantea,Vriesea gigantea,Bromeliaceae,Vriesea,gigantea,2,,,,species,,,,35213,Bromeliaceae,Illegitimate,(MartexSchult&Schultf)Mez,272292-wcs,
+435679,Scirpus atrocinctus,Scirpus atrocinctus,Cyperaceae,Scirpus,atrocinctus,2,Fernald,,,species,,,,36787,Cyperaceae,Accepted,Fernald,263755-wcs,matching authors
+435679,Scirpus atrocinctus,Scirpus atrocinctus,Cyperaceae,Scirpus,atrocinctus,2,Fernald,,,species,,,,36787,Cyperaceae,Illegitimate,Fernald,264006-wcs,matching authors
+441034,Ruellia tubiflora,Ruellia tubiflora,Acanthaceae,Ruellia,tubiflora,2,,,,species,,,,37055,Acanthaceae,Illegitimate,Leconte,420262-az,
+441034,Ruellia tubiflora,Ruellia tubiflora,Acanthaceae,Ruellia,tubiflora,2,,,,species,,,,37055,Acanthaceae,Accepted,Kunth,420677-az,
+443380,Verbena canescens,Verbena canescens,Verbenaceae,Verbena,canescens,2,,,,species,,,,37130,Verbenaceae,Illegitimate,Chapm,212129-wcs,
+443380,Verbena canescens,Verbena canescens,Verbenaceae,Verbena,canescens,2,,,,species,,,,37130,Verbenaceae,Accepted,Kunth,212159-wcs,
+473045,Hypericum kalmianum,Hypericum kalmianum,Hypericaceae,Hypericum,kalmianum,2,,,,species,,,,38770,Hypericaceae,Accepted,L,515769-wcs,
+473045,Hypericum kalmianum,Hypericum kalmianum,Hypericaceae,Hypericum,kalmianum,2,,,,species,,,,38770,Hypericaceae,Invalid,Vahl,523221-wcs,
+504268,Croton xalapensis,Croton xalapensis,Euphorbiaceae,Croton,xalapensis,2,,,,species,,,,40940,Euphorbiaceae,Illegitimate,Hookf,51141-wcs,
+504268,Croton xalapensis,Croton xalapensis,Euphorbiaceae,Croton,xalapensis,2,,,,species,,,,40940,Euphorbiaceae,Accepted,Kunth,51532-wcs,
+509667,Crepis incarnata,Crepis incarnata,Asteraceae,Crepis,incarnata,2,,,,species,,,,41086,Asteraceae,Synonym,Vis,1057423-az,
+509667,Crepis incarnata,Crepis incarnata,Asteraceae,Crepis,incarnata,2,,,,species,,,,41086,Asteraceae,Synonym,Tausch,1057016-az,
+529435,Eleocharis filiculmis,Eleocharis filiculmis,Cyperaceae,Eleocharis,filiculmis,2,,,,species,,,,41727,Cyperaceae,Illegitimate,Schur,372738-wcs,
+529435,Eleocharis filiculmis,Eleocharis filiculmis,Cyperaceae,Eleocharis,filiculmis,2,,,,species,,,,41727,Cyperaceae,Accepted,Kunth,242489-wcs,
+554380,Hydrocotyle ranunculoides,Hydrocotyle ranunculoides,Araliaceae,Hydrocotyle,ranunculoides,2,,,,species,,,,42496,Araliaceae,Illegitimate,Blume,1265298-az,
+554380,Hydrocotyle ranunculoides,Hydrocotyle ranunculoides,Araliaceae,Hydrocotyle,ranunculoides,2,,,,species,,,,42496,Araliaceae,Accepted,Lf,856276-az,
+572160,Talinum lineare,Talinum lineare,Talinaceae,Talinum,lineare,2,,,,species,,,,43094,Talinaceae,Accepted,Kunth,513489-az,
+572160,Talinum lineare,Talinum lineare,Talinaceae,Talinum,lineare,2,,,,species,,,,43094,Talinaceae,Illegitimate,Hoffmanns,690712-az,
+675702,Argostemma bifolium,Argostemma bifolium,Rubiaceae,Argostemma,bifolium,2,Ridl,,,species,,,,46019,Rubiaceae,Accepted,Ridl,14796-wcs,matching authors
+675702,Argostemma bifolium,Argostemma bifolium,Rubiaceae,Argostemma,bifolium,2,Ridl,,,species,,,,46019,Rubiaceae,Illegitimate,Ridl,14942-wcs,matching authors
+703408,Luziola peruviana,Luziola peruviana,Poaceae,Luziola,peruviana,2,,,,species,,,,47044,Poaceae,Accepted,JFGmel,423167-wcs,
+703408,Luziola peruviana,Luziola peruviana,Poaceae,Luziola,peruviana,2,,,,species,,,,47044,Poaceae,Invalid,GMeyexBenth,423172-wcs,
+860129,Onosma rigida,Onosma rigida,Boraginaceae,Onosma,rigida,2,Ledeb,,,species,,,,48960,Boraginaceae,Illegitimate,Ledeb,392610-az,matching authors
+860129,Onosma rigida,Onosma rigida,Boraginaceae,Onosma,rigida,2,Ledeb,,,species,,,,48960,Boraginaceae,Accepted,Ledeb,1233176-az,matching authors
+912364,Croton luetzelburgii,Croton luetzelburgii,Euphorbiaceae,Croton,luetzelburgii,2,Pax&KHoffm,,,species,,,,50172,Euphorbiaceae,Illegitimate,Pax&KHoffm,49304-wcs,matching authors
+912364,Croton luetzelburgii,Croton luetzelburgii,Euphorbiaceae,Croton,luetzelburgii,2,Pax&KHoffm,,,species,,,,50172,Euphorbiaceae,Accepted,Pax&KHoffm,50418-wcs,matching authors
+933129,Salvia discolor,Salvia discolor,Lamiaceae,Salvia,discolor,2,,,,species,,,,50426,Lamiaceae,Illegitimate,Sennen,184123-wcs,
+933129,Salvia discolor,Salvia discolor,Lamiaceae,Salvia,discolor,2,,,,species,,,,50426,Lamiaceae,Accepted,Kunth,182523-wcs,
+933129,Salvia discolor,Salvia discolor,Lamiaceae,Salvia,discolor,2,,,,species,,,,50426,Lamiaceae,Illegitimate,Sessé&Moc,183035-wcs,
+1007763,Gladiolus erectiflorus,Gladiolus erectiflorus,Iridaceae,Gladiolus,erectiflorus,2,Baker,,,species,,,,51976,Iridaceae,Illegitimate,Baker,328966-wcs,matching authors
+1007763,Gladiolus erectiflorus,Gladiolus erectiflorus,Iridaceae,Gladiolus,erectiflorus,2,Baker,,,species,,,,51976,Iridaceae,Accepted,Baker,328399-wcs,matching authors
+1030379,Leucocroton revolutus,Leucocroton revolutus,Euphorbiaceae,Leucocroton,revolutus,2,CWright,,,species,,,,52497,Euphorbiaceae,Illegitimate,CWright,111964-wcs,matching authors
+1030379,Leucocroton revolutus,Leucocroton revolutus,Euphorbiaceae,Leucocroton,revolutus,2,CWright,,,species,,,,52497,Euphorbiaceae,Accepted,CWright,111979-wcs,matching authors
+1046493,Euphorbia orbiculata,Euphorbia orbiculata,Euphorbiaceae,Euphorbia,orbiculata,2,,,,species,,,,53292,Euphorbiaceae,Accepted,Kunth,81244-wcs,
+1046493,Euphorbia orbiculata,Euphorbia orbiculata,Euphorbiaceae,Euphorbia,orbiculata,2,,,,species,,,,53292,Euphorbiaceae,Illegitimate,Miq,38007-wcs,
+1049822,Opuntia longispina,Opuntia longispina,Cactaceae,Opuntia,longispina,2,,,,species,,,,53449,Cactaceae,Illegitimate,Pfeiff,391827-az,
+1049822,Opuntia longispina,Opuntia longispina,Cactaceae,Opuntia,longispina,2,,,,species,,,,53449,Cactaceae,Synonym,Haw,626971-az,
+1137029,Hypericum strictum,Hypericum strictum,Hypericaceae,Hypericum,strictum,2,,,,species,,,,56377,Hypericaceae,Accepted,Kunth,516697-wcs,
+1137029,Hypericum strictum,Hypericum strictum,Hypericaceae,Hypericum,strictum,2,,,,species,,,,56377,Hypericaceae,Illegitimate,Malleev,516050-wcs,
+1137038,Hypericum thymifolium,Hypericum thymifolium,Hypericaceae,Hypericum,thymifolium,2,,,,species,,,,56386,Hypericaceae,Accepted,Banks&Sol,516790-wcs,
+1137038,Hypericum thymifolium,Hypericum thymifolium,Hypericaceae,Hypericum,thymifolium,2,,,,species,,,,56386,Hypericaceae,Illegitimate,Kunth,515649-wcs,
+1200757,Habenaria stenopetala,Habenaria stenopetala,Orchidaceae,Habenaria,stenopetala,2,Lindl,,,species,,,,58223,Orchidaceae,Synonym,Lindl,95494-wcs,matching authors
+1200757,Habenaria stenopetala,Habenaria stenopetala,Orchidaceae,Habenaria,stenopetala,2,Lindl,,,species,,,,58223,Orchidaceae,Accepted,Lindl,95654-wcs,matching authors
+1294397,Salvia hypoleuca,Salvia hypoleuca,Lamiaceae,Salvia,hypoleuca,2,,,,species,,,,61087,Lamiaceae,Invalid,HochstexBenth,183812-wcs,
+1294397,Salvia hypoleuca,Salvia hypoleuca,Lamiaceae,Salvia,hypoleuca,2,,,,species,,,,61087,Lamiaceae,Accepted,Benth,182860-wcs,
+1309609,Silene amoena,Silene amoena,Caryophyllaceae,Silene,amoena,2,L,,,species,,,,61296,Caryophyllaceae,Illegitimate,L,1259361-az,matching authors
+1309609,Silene amoena,Silene amoena,Caryophyllaceae,Silene,amoena,2,L,,,species,,,,61296,Caryophyllaceae,Accepted,L,485647-az,matching authors
+1309609,Silene amoena,Silene amoena,Caryophyllaceae,Silene,amoena,2,L,,,species,,,,61296,Caryophyllaceae,Invalid,Fenzl,1259394-az,no matching authors
+1309609,Silene amoena,Silene amoena,Caryophyllaceae,Silene,amoena,2,L,,,species,,,,61296,Caryophyllaceae,Invalid,Fenzl,488252-az,no matching authors
+1309609,Silene amoena,Silene amoena,Caryophyllaceae,Silene,amoena,2,L,,,species,,,,61296,Caryophyllaceae,Illegitimate,Huds,1259358-az,no matching authors
+1368254,Geranium diffusum,Geranium diffusum,Geraniaceae,Geranium,diffusum,2,,,,species,,,,62674,Geraniaceae,Invalid,Picard,823070-az,
+1368254,Geranium diffusum,Geranium diffusum,Geraniaceae,Geranium,diffusum,2,,,,species,,,,62674,Geraniaceae,Accepted,Kunth,823157-az,
+1385507,Saxifraga taylorii,Saxifraga taylorii,Saxifragaceae,Saxifraga,taylorii,2,,,,species,,,,62863,Saxifragaceae,Illegitimate,HarrySm,584148-az,
+1385507,Saxifraga taylorii,Saxifraga taylorii,Saxifragaceae,Saxifraga,taylorii,2,,,,species,,,,62863,Saxifragaceae,Accepted,Calder&Savile,584766-az,
+1426229,Solanum corymbosum,Solanum corymbosum,Solanaceae,Solanum,corymbosum,2,,,,species,,,,64112,Solanaceae,Invalid,BanksexDunal,1031446-az,
+1426229,Solanum corymbosum,Solanum corymbosum,Solanaceae,Solanum,corymbosum,2,,,,species,,,,64112,Solanaceae,Invalid,WightexNees,1031900-az,
+1426229,Solanum corymbosum,Solanum corymbosum,Solanaceae,Solanum,corymbosum,2,,,,species,,,,64112,Solanaceae,Accepted,Jacq,1031726-az,
+1426229,Solanum corymbosum,Solanum corymbosum,Solanaceae,Solanum,corymbosum,2,,,,species,,,,64112,Solanaceae,Invalid,Noronha,1031837-az,
+1504168,Combretum laxum,Combretum laxum,Combretaceae,Combretum,laxum,2,,,,species,,,,66278,Combretaceae,Accepted,Jacq,732736-az,
+1504168,Combretum laxum,Combretum laxum,Combretaceae,Combretum,laxum,2,,,,species,,,,66278,Combretaceae,Illegitimate,Roxb,732377-az,
+1504168,Combretum laxum,Combretum laxum,Combretaceae,Combretum,laxum,2,,,,species,,,,66278,Combretaceae,Illegitimate,Aubl,732993-az,
+1548808,Terminalia brassii,Terminalia brassii,Combretaceae,Terminalia,brassii,2,Exell,,,species,,,,67943,Combretaceae,Accepted,Exell,431452-az,matching authors
+1548808,Terminalia brassii,Terminalia brassii,Combretaceae,Terminalia,brassii,2,Exell,,,species,,,,67943,Combretaceae,Illegitimate,Exell,434390-az,matching authors
+1591393,Epidendrum oxyglossum,Epidendrum oxyglossum,Orchidaceae,Epidendrum,oxyglossum,2,Schltr,,,species,,,,68818,Orchidaceae,Accepted,Schltr,69132-wcs,matching authors
+1591393,Epidendrum oxyglossum,Epidendrum oxyglossum,Orchidaceae,Epidendrum,oxyglossum,2,Schltr,,,species,,,,68818,Orchidaceae,Illegitimate,Schltr,68308-wcs,matching authors
+1592024,Semecarpus obscurus,Semecarpus obscurus,Anacardiaceae,Semecarpus,obscurus,2,Thwaites,,,species,,,,68836,Anacardiaceae,Synonym,Thwaites,479886-az,matching authors
+1592024,Semecarpus obscurus,Semecarpus obscurus,Anacardiaceae,Semecarpus,obscurus,2,Thwaites,,,species,,,,68836,Anacardiaceae,Synonym,Thwaites,479964-az,matching authors
+1640492,Trichilia tomentosa,Trichilia tomentosa,Meliaceae,Trichilia,tomentosa,2,,,,species,,,,69847,Meliaceae,Invalid,AChev,514943-az,
+1640492,Trichilia tomentosa,Trichilia tomentosa,Meliaceae,Trichilia,tomentosa,2,,,,species,,,,69847,Meliaceae,Accepted,Kunth,515418-az,
+1933722,Salvia frigida,Salvia frigida,Lamiaceae,Salvia,frigida,2,Boiss,,,species,,,,74373,Lamiaceae,Synonym,Boiss,184172-wcs,matching authors
+1933722,Salvia frigida,Salvia frigida,Lamiaceae,Salvia,frigida,2,Boiss,,,species,,,,74373,Lamiaceae,Accepted,Boiss,182678-wcs,matching authors
