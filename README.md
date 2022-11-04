@@ -4,14 +4,18 @@
 We estimate the global patterns of plant phylogenetic diversity and endemism using species-level distribution data for 330,527 seed plant species from the World Checklist for Vascular Plants [1]. We define phylodiversity hotspots as areas that jointly maximise species-count based indices (i.e. species richness and endemism) and standardised phylogenetic indices (i.e. standardised PD and standardised PE). Analysing global plant phylodiversity and identify hotspots, compare with conservation hotspots.
 
 ## Content
-This repo contains all code necessary to repeat the study. Since some steps include computation-intense steps (e.g. supplementing the phylogeny with TACT), we provide some derived data files to enable skipping the data preparation steps.
+This repo contains all code necessary to repeat the study. Since some steps include computation-intense steps (e.g. supplementing the phylogeny with TACT, calculation of standardized phylodiversity per tree), we provide some derived data files to enable skipping the data preparation steps.
 
 All analysis were done in R version 4.2.1 (R Core Team, 2022). 
 
 Upon publication, this repo will be archived on Zenodo.
 
 ## Notes on computational requirements
-While all R scripts run on a regular machine with 8GB RAM, adding missing taxa to the phylogenetic tree with TACT [2] takes about 80 hours and requires 150GB RAM for each run. Due to the stochastic nature of the procedure, we ran TACT 100 times, and calculated the phylogeny-derived estimates as average values from all 100 trees.
+### TACT
+Adding missing taxa to the phylogenetic tree with TACT [2] takes about 80 hours and requires 150GB RAM for each run. Due to the stochastic nature of the procedure, we ran TACT 100 times, and calculated the phylogeny-derived estimates as average values from all 100 trees.
+
+### sesPD
+Each calculation run takes 4h and requires 64GB RAM. We ran this on a cluster and provide here in addition to the R script the bash scripts for SLURM.
 
 ## Literature
 [1] Govaerts, R., Nic Lughadha, E., Black, N. et al. The World Checklist of Vascular Plants, a continuously updated resource for exploring global plant diversity. Sci Data 8, 215 (2021). https://doi.org/10.1038/s41597-021-00997-6
