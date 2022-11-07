@@ -33,8 +33,8 @@ res.TTD <- ecospat.calculate.pd(sphy, tmp, type="TTD", method="pairwise")
 
 print("TTD done")
 
-all <- list(ind, res.avTD, res.TTD) #
-saveRDS(all, file=paste0("indices_", rep, '.rds'))
+#all <- list(ind, res.avTD, res.TTD) #
+#saveRDS(all, file=paste0("indices_", rep, '.rds'))
 
 ind$AvTD <- res.avTD
 ind$TTD <- res.TTD
