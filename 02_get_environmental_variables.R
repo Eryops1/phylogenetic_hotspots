@@ -243,7 +243,9 @@ names(shp)
 
 ## Add hotspot coverage --------------------------------------------------
 hc <- readRDS('data/hotspot_coverage.rds')
-shp <- merge(shp, st_drop_geometry(hc), all.x=T)
+hc <- st_drop_geometry(hc)
+hc <- hc[,c("LEVEL3_COD", "hotspot_coverage")]
+shp <- merge(shp, hc, all.x=T)
 
 
 ## Get future MAT + PRE change -------------------------------------------
@@ -257,4 +259,4 @@ shp$pre_change <- shp$bio12.1 - shp$pre_mean # future - current = increase if po
 #behr <- "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs"
 #tmp <- st_transform(shp, behr) # Behrmann
 
-saveRDS(tmp, "data/fin_shp.rds")
+saveRDS(shp, "data/fin_shp.rds")
