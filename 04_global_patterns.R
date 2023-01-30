@@ -19,19 +19,23 @@ source("99_functions.R")
 library(extrafont)
 library(broom)
 library(scales)
+library(lwgeom) # for st_transform_proj
 #font_import() # takes 5 minutes if loading all, select wisely
 loadfonts()
 theme_set(theme_bw()+theme(text=element_text(size=7, family="Helvetica"), 
-                           panel.grid=element_blank()))
+                           panel.grid=element_blank(), 
+                           legend.text.align=1))
 
 
 # Load data ---------------------------------------------------------------
 
+
 gallpeters_projection <- "+proj=cea +lon_0=0 +x_0=0 +y_0=0 +lat_ts=45 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+winkel_tripel <- "+proj=wintri +datum=WGS84 +no_defs +over"
 # Gall-Peters. Horizontally compressed version of the Lambert equal-area.
 # Standard parallels at 45°N/S. Aspect ratio of ~1.6. 
 
-my_projection <- gallpeters_projection
+my_projection <- winkel_tripel
 shp <- readRDS("data/fin_shp.rds")
 shp <- st_as_sf(shp)
 
@@ -40,7 +44,7 @@ names(shp)[grep("SES\\.PE", names(shp))] <- "sesPE"
 
 
 # transform projection
-shp <- st_transform(shp, my_projection)
+shp <- st_transform(shp, crs=my_projection)
 
 # remove not needed data
 shp <- shp[!shp$LEVEL3_COD=="ANT",]
@@ -65,58 +69,85 @@ shp2 <- shp[!is.na(shp$sesPD),]
 
 
 # Global patterns  ------------------------------------------------
+# # graticule:
+# grat_wintri <- 
+#   st_graticule(lat = c(-89.9, seq(-80, 80, 20), 89.9)) %>%
+#   st_transform_proj(crs = winkel_tripel)
 
 lcol <- min(thicc_lines$PD_obs)/max(shp$PD_obs)
 ucol <- max(thicc_lines$PD_obs)/max(shp$PD_obs)
+# new upper limit for second scale:
+upl = 1/ucol # upper limit
+
 (pd_map <- ggplot(shp) + 
+#    geom_sf(data = grat_wintri, color = "gray30", size = 0.25/.pt) + 
     geom_sf(data=shp, aes(fill=PD_obs),lwd=0, col=NA) + 
     geom_sf(data=thicc_lines, lwd=1, aes(col=PD_obs), show.legend=F)+
-    scale_colour_scico("PD", palette = "batlow", trans = "sqrt", 
-                            begin = lcol, end = sqrt(ucol))+
+    # geom_point(data=thicc_lines, aes(color = PD_obs, geometry = geometry),
+    #            stat = "sf_coordinates")+
+    scale_color_distiller("PD", palette="BuGn", direction=1, values=c(0,upl), trans = "sqrt")+
+    scale_fill_distiller("PD", palette="BuGn", direction=1, trans = "sqrt")+
+    # scale_colour_scico("PD", palette = "batlow", trans = "sqrt", begin = lcol, end = sqrt(ucol))+
+    # scale_fill_scico("PD", palette = "batlow", trans="sqrt")+ #,
     theme_void()+
-    scale_fill_scico("PD", palette = "batlow", trans="sqrt")+ #, 
-    theme(legend.position = c(0.22, 0.3),
+    theme(legend.position = c(0.2, 0.3),
           legend.key.height = unit(6,"mm"),
+          legend.key.width = unit(4,"mm"),
           legend.background = element_blank(),
           legend.key = element_blank(),
+          legend.text.align=1,
           panel.background = element_blank(),
           panel.border = element_blank(),
           text = element_text(size = 10))+
-    xlab(" ")
+    xlab(" ")+
+    coord_sf(datum = NULL) # needed to keep sf from generating graticule (this would fail)
 )
 lcol <- min(thicc_lines$PE_obs)/max(shp$PE_obs)
 ucol <- max(thicc_lines$PE_obs)/max(shp$PE_obs)
+# new upper limit for second scale:
+upl = 1/ucol # upper limit
+
 (pe_map <- ggplot(shp) + 
     geom_sf(aes(fill=PE_obs),lwd=0, col=NA) + 
     geom_sf(data=thicc_lines, lwd=1, aes(col=PE_obs), show.legend=F)+
-    scale_colour_scico("PE", palette="batlow", trans="sqrt",
-                           begin = lcol, end = ucol)+
     theme_void()+
-    scale_fill_scico("PE", palette="batlow",trans="sqrt")+ #, 
-    theme(legend.position = c(0.18, 0.3),
+    scale_color_distiller("PE", palette="BuGn", direction=1, values=c(0,upl), trans = "sqrt")+
+    scale_fill_distiller("PE", palette="BuGn", direction=1, trans = "sqrt")+
+    # scale_colour_scico("PE", palette = "batlow", trans = "sqrt", begin = lcol, end = sqrt(ucol))+
+    # scale_fill_scico("PE", palette = "batlow", trans="sqrt")+ #,
+    theme(legend.position = c(0.2, 0.3),
           legend.key.height = unit(6,"mm"),
+          legend.key.width = unit(4,"mm"),
           legend.background = element_blank(),
           legend.key = element_blank(),
+          legend.text.align=1,
           panel.background = element_blank(),
           panel.border = element_blank(),
           text = element_text(size = 10),
     )+
-    xlab(" ")
+    xlab(" ")+
+    coord_sf(datum = NULL)
 )
 # Simple SR 
 lcol <- min(thicc_lines$richness)/max(shp$richness)
 ucol <- max(thicc_lines$richness)/max(shp$richness)
+# new upper limit for second scale:
+upl = 1/ucol # upper limit
 (sr_map <- ggplot(shp) + 
     geom_sf(aes(fill=richness),lwd=0, col=NA) + 
     geom_sf(data=thicc_lines, lwd=1, aes(col=richness), show.legend=F)+
-    scale_colour_scico("SR", palette="batlow", trans = "sqrt", 
-                           begin = lcol, end = sqrt(ucol))+
-    scale_fill_scico("SR", palette="batlow", trans = "sqrt")+ #, 
-    theme_void()+coord_sf(expand=F)+
+    scale_color_distiller("SR", palette="BuGn", direction=1, values=c(0,upl), trans = "sqrt")+
+    scale_fill_distiller("SR", palette="BuGn", direction=1, trans = "sqrt")+
+    # scale_colour_scico("SR", palette = "batlow", trans = "sqrt", begin = lcol, end = sqrt(ucol))+
+    # scale_fill_scico("SR", palette = "batlow", trans="sqrt")+ #,
+    theme_void()+
+    coord_sf(expand=F, datum=NULL)+
     theme(legend.position = c(0.2, 0.3),
           legend.key.height = unit(6,"mm"),
+          legend.key.width = unit(4,"mm"),
           legend.background = element_blank(),
           legend.key = element_blank(),
+          legend.text.align=1,
           panel.background = element_blank(),
           panel.border = element_blank(),
           text = element_text(size = 10)
@@ -128,17 +159,22 @@ ucol <- max(thicc_lines$richness)/max(shp$richness)
 thicc_lines <- shp2[which(shp2$area<min.area),]
 lcol <- min(thicc_lines$WE)/max(shp$WE)
 ucol <- max(thicc_lines$WE)/max(shp$WE)
+# new upper limit for second scale:
+upl = 1/ucol # upper limit
 (we_map <- ggplot(shp2) + 
     geom_sf(aes(fill=WE),lwd=0, col=NA) + 
     geom_sf(data=thicc_lines, lwd=1, aes(col=WE), show.legend=F)+
-    scale_colour_scico("WE", palette="batlow", trans = "sqrt", 
-                           begin = lcol, end = sqrt(ucol))+
-    scale_fill_scico("WE", palette="batlow", trans = "sqrt")+ #, 
-    theme_void()+coord_sf(expand=F)+
+    scale_color_distiller("WE", palette="BuGn", direction=1, values=c(0,upl), trans = "sqrt")+
+    scale_fill_distiller("WE", palette="BuGn", direction=1, trans = "sqrt")+
+    # scale_colour_scico("WE", palette = "batlow", trans = "sqrt", begin = lcol, end = sqrt(ucol))+
+    # scale_fill_scico("WE", palette = "batlow", trans="sqrt")+ #,
+    theme_void()+coord_sf(expand=F, datum=NULL)+
     theme(legend.position = c(0.2, 0.3),
           legend.key.height = unit(6,"mm"),
+          legend.key.width = unit(4,"mm"),
           legend.background = element_blank(),
           legend.key = element_blank(),
+          legend.text.align=1,
           panel.background = element_blank(),
           panel.border = element_blank(),
           text = element_text(size = 10)
@@ -149,16 +185,22 @@ ucol <- max(thicc_lines$WE)/max(shp$WE)
 
 lcol <- 1-min(thicc_lines$sesPD)/(min(shp2$sesPD)-max(shp2$sesPD))
 ucol <- max(thicc_lines$sesPD)/max(shp2$sesPD)
+# new lower limit for second scale:
+lol = -1/(1-lcol) # lower limit
 (pd_ses_map <- ggplot(shp2) + 
     geom_sf(aes(fill=sesPD),lwd=0, col=NA) + 
     geom_sf(data=thicc_lines, lwd=1, aes(col=sesPD), show.legend=F)+
-    scale_colour_scico("sesPD", palette="batlow", begin=lcol, end=ucol)+
-    scale_fill_scico("sesPD", palette="batlow")+  
-    theme_void()+coord_sf(expand=F)+
+    scale_color_distiller(bquote("PD"[std]), palette="BuGn", direction=1, values=c(lol,1))+
+    scale_fill_distiller(bquote("PD"[std]), palette="BuGn", direction=1)+
+    # scale_colour_scico("PDstd", palette = "batlow", trans = "sqrt", begin = lcol, end = sqrt(ucol))+
+    # scale_fill_scico("PDstd", palette = "batlow", trans="sqrt")+ #,
+    theme_void()+coord_sf(expand=F, datum=NULL)+
     theme(legend.position = c(0.2, 0.3),
           legend.key.height = unit(6,"mm"),
+          legend.key.width = unit(4,"mm"),
           legend.background = element_blank(),
           legend.key = element_blank(),
+          legend.text.align=1,
           panel.background = element_blank(),
           panel.border = element_blank(),
           text = element_text(size = 10),
@@ -166,18 +208,27 @@ ucol <- max(thicc_lines$sesPD)/max(shp2$sesPD)
     xlab(" ")
 )
 
-lcol <- min(thicc_lines$sesPE+abs(min(shp2$sesPE)))/diff(range(shp2$sesPE)) 
-ucol <- max(thicc_lines$sesPE)/max(shp2$sesPE)
+#lcol <- min(thicc_lines$sesPE+abs(min(shp2$sesPE)), na.rm=T)/diff(range(shp2$sesPE)) 
+lcol <- min(thicc_lines$sesPE, na.rm=T)/diff(range(shp2$sesPE))
+ucol <- max(thicc_lines$sesPE, na.rm=T)/diff(range(shp2$sesPE))
+# new limits for second scale:
+lol = min(shp2$sesPE, na.rm=T) / min(thicc_lines$sesPE, na.rm=T) # lower limit
+ul = 1 / ucol # upper limit
+# adjusting lower and upper limits at the same time is tricky ^____^
+
 (pe_ses_map <- ggplot(shp2) + 
     geom_sf(aes(fill=sesPE),lwd=0, col=NA) + 
     geom_sf(data=thicc_lines, lwd=1, aes(col=sesPE), show.legend=F)+
-    scale_colour_scico("sesPE", palette="batlow",
-                           begin = lcol, end = ucol)+
-    scale_fill_scico("sesPE", palette="batlow")+ 
-    theme_void()+coord_sf(expand=F)+
-    theme(legend.position = c(0.20, 0.3),
+    scale_color_distiller(bquote("PE"[std]), palette="BuGn", direction=1, values=c(-lol-1,ul))+
+    scale_fill_distiller(bquote("PE"[std]), palette="BuGn", direction=1)+
+    # scale_colour_scico("PEstd", palette = "batlow", trans = "sqrt", begin = lcol, end = sqrt(ucol))+
+    # scale_fill_scico("PEstd", palette = "batlow", trans="sqrt")+
+    theme_void()+coord_sf(expand=F, datum=NULL)+
+    theme(legend.position = c(0.2, 0.3),
           legend.key.height = unit(6,"mm"),
+          legend.key.width = unit(4,"mm"),
           legend.background = element_blank(),
+          legend.text.align = 1,
           legend.key = element_blank(),
           panel.background = element_blank(),
           panel.border = element_blank(),
@@ -186,37 +237,55 @@ ucol <- max(thicc_lines$sesPE)/max(shp2$sesPE)
     xlab(" ")
 )
 
-# RAW
+# PD, PE
+png("figures/maps_unstandardised.png", width=12.5, height=3.5, units = "in", res = 600, bg = "white")
 plot_grid(pd_map, pe_map, ncol = 2,
           labels=c("A","B"), label_fontface=1)
-ggsave("figures/maps_unstandardised.png", width=12.5, height=3.5, units = "in", dpi = 600, bg = "white")
+#ggsave("figures/maps_unstandardised.png", width=12.5, height=3.5, units = "in", dpi = 600, bg = "white")
+dev.off()
 
-# STANDARDized
+# SR, WE, PDstd, PEstd
+png("figures/maps.png", width=12.5, height=7.5, units = "in", res = 600, bg = "white")
 plot_grid(sr_map+ggtitle("Species richness\n")+theme(plot.title = element_text(hjust = 0.5, size=8)), 
           we_map+ggtitle("Weighted endemism\n")+theme(plot.title = element_text(hjust = 0.5, size=8)), 
           pd_ses_map+ggtitle("Phylogenetic diversity, standardized effect size\n")+theme(plot.title = element_text(hjust = 0.5, size=8)), 
           pe_ses_map+ggtitle("Phylogenetic endemism, standardized effect size\n")+theme(plot.title = element_text(hjust = 0.5, size=8)),
           ncol = 2, labels=c("A","B","C","D"), label_fontface=1, label_fontfamily="Helvetica", 
           scale=1)
-ggsave("figures/maps.png", width=12.5, height=7.5, units = "in", dpi = 300, bg = "white")
+#ggsave("figures/maps.png", width=12.5, height=7.5, units = "in", dpi = 300, bg = "white")
+dev.off()
 
+# ALL
+png("figures/maps_all.png", width=12.5, height=10.3, units = "in", res = 600, bg = "white")
+plot_grid(sr_map+ggtitle("Species richness\n")+theme(plot.title = element_text(hjust = 0.5, size=8)), 
+          we_map+ggtitle("Weighted endemism\n")+theme(plot.title = element_text(hjust = 0.5, size=8)),
+          pd_map+ggtitle("Phylogenetic diversity\n")+theme(plot.title = element_text(hjust = 0.5, size=8)),
+          pe_map+ggtitle("Phylogenetic endemism\n")+theme(plot.title = element_text(hjust = 0.5, size=8)),
+          pd_ses_map+ggtitle("Phylogenetic diversity, standardized effect size\n")+theme(plot.title = element_text(hjust = 0.5, size=8)), 
+          pe_ses_map+ggtitle("Phylogenetic endemism, standardized effect size\n")+theme(plot.title = element_text(hjust = 0.5, size=8)),
+          ncol = 2, labels=c("A","B","C","D","E","F"), label_fontface=1, label_fontfamily="Helvetica", 
+          scale=1)
+dev.off()
 
 
 
 # Conservation hotspot coverage 
 ggplot(shp2) + 
-  geom_sf(aes(col=hotspot_coverage), show.legend=F)+
+  geom_sf(aes(col=hotspot_coverage), show.legend=T)+
   geom_sf(aes(fill=hotspot_coverage), col="grey80", lwd=.1)+
-  scale_fill_gradient("hotspot \ncoverage", low="white", high="red")+
-  scale_color_gradient(low="white", high="red")+
+  # scale_fill_gradient("hotspot \ncoverage", low="white", high="red")+
+  # scale_color_gradient(low="white", high="red")+
+  scale_color_distiller("hotspot \ncoverage", palette="BuGn", direction=1)+
+  scale_fill_distiller("hotspot \ncoverage", palette="BuGn", direction=1)+
+  
   theme_void()+
-  theme(legend.position = c(0.18, 0.3),
+  theme(legend.position = c(0.2, 0.3),
         legend.key.height = unit(6,"mm"),
         legend.background = element_blank(),
         legend.key = element_blank(),
         legend.title=element_text(size=9))+
   coord_sf(expand=F)
-#ggsave("figures/hotspot_coverage.png", units="in", dpi=300, width=7, height=4.1)
+ggsave("figures/hotspot_coverage.png", units="in", dpi=300, width=7, height=4.1)
 
 
 

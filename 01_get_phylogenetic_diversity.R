@@ -1,8 +1,8 @@
 # phylogenetic hotspots
 
 
-wd <- dirname(rstudioapi::getSourceEditorContext()$path)
-setwd(wd)
+#wd <- dirname(rstudioapi::getSourceEditorContext()$path)
+#setwd(wd)
 rm(list = setdiff(ls(), lsf.str()))  
 library(data.table) # fast csv reading
 library(castor) # fast tree reading
@@ -74,7 +74,11 @@ submat <- submat[[1]]
 save(list = c("submat", "subphy"), file="PD_nullmodel/comm_and_phy.RData")
 
 
-
+# get total number of included species / genera
+load("PD_nullmodel/comm_and_phy.RData")
+dim(submat) # 330527
+nam = nam[nam$plant_name_id %in% colnames(submat),]
+length(unique(nam$genus))
 
 ## OUTSOURCE START ### ------
 # 
