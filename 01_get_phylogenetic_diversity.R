@@ -77,8 +77,21 @@ save(list = c("submat", "subphy"), file="PD_nullmodel/comm_and_phy.RData")
 # get total number of included species / genera
 load("PD_nullmodel/comm_and_phy.RData")
 dim(submat) # 330527
-nam = nam[nam$plant_name_id %in% colnames(submat),]
-length(unique(nam$genus))
+#nam = nam[nam$plant_name_id %in% colnames(submat),]
+#length(unique(nam$genus))
+
+
+# Get PD endemism -------------------------------------------------------
+
+# Sys.time()
+# for(i in 1:length(subphy)){
+#   PDE <- phylo_endemism(submat, subphy[[1]], weighted=F)
+#   # Strict endemism equates to the total amount of branch length found only in
+#   # the sample/s and is described by Faith et al. (2004)
+# }
+# Sys.time()
+#source("01b_get_PD_endemism.R")
+
 
 ## OUTSOURCE START ### ------
 # 
@@ -101,6 +114,7 @@ length(unique(nam$genus))
 
 
 # Read data --------------------------------------------------
+load("PD_nullmodel/comm_and_phy.RData")
 rm(subphy)
 
 # SES.PD
@@ -153,26 +167,43 @@ pe.df[pe.df$richness<30, -c(1:3,9:11)] <- NA
 saveRDS(pe.df, "data/sesPE.rds")
 
 
+
+
 # Get weighted endemism -------------------------------------------------------
 
 WE <- weighted_endemism(submat)
 
 
 
+# Get PD endemism -----------------------------------------------------------=
+pde = readRDS("PDE_list.rds")
+tmp = as.data.table(pde)
+row.names(tmp) = names(pde[[1]])
+
+PDE = rowMeans(tmp)  
+names(PDE) = row.names(tmp)
+
+
+
+
 # Assemble df + shapefile ------------------------------------------------
 
+# prep
 pd.df <- readRDS("data/sesPD.rds")
 pe.df <- readRDS("data/sesPE.rds")
+names(WE) == names(PDE)
+endemism <- data.table(WE, PDE, LEVEL3_COD = names(WE))
 
 s <- st_read("data/shapefile_bot_countries/level3_fixed.gpkg")
+# replace area
+s$area <- sf::st_area(s)
+# add second name column
 s$LEVEL3_COD <- s$LEVEL_3_CO
+
+# merge
 s <- merge(s, pd.df, by="LEVEL3_COD", all.x=TRUE)
-
-s$WE <- WE
-
-s$PE_obs <- pe.df$PE_obs
-s$SES.PE <- pe.df$SES.PE
-s$pe_obs_p <- pe.df$pe_obs_p
+s <- merge(s, pe.df[,c("LEVEL3_COD", "PE_obs", "SES.PE", "pe_obs_p")], by="LEVEL3_COD", all.x=TRUE)
+s <- merge(s, endemism)
 
 
 saveRDS(s, "data/fin_shape.rds")

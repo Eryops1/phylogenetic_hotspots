@@ -20,8 +20,9 @@ source("99_functions.R")
 
 load(file="data/workspace_point0.RData")
 min.area <- 6e+9
-gallpeters_projection <- "+proj=cea +lon_0=0 +x_0=0 +y_0=0 +lat_ts=45 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
-my_projection <- gallpeters_projection
+#gallpeters_projection <- "+proj=cea +lon_0=0 +x_0=0 +y_0=0 +lat_ts=45 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+winkel_tripel <- "+proj=wintri +datum=WGS84 +no_defs +over"
+my_projection <- winkel_tripel
 shp <- readRDS("data/fin_shp.rds")
 
 # Choropleth PD + SR / PE + WE  ---------------------------
@@ -37,7 +38,21 @@ df <- shp2[, grepl("PE_hotspot|PD_hotspot|sesPD$|SESPE$|area$", names(shp2))]
 df.mlt <- tidyr::pivot_longer(df, cols=grep("hotspot", names(df)), names_to="group")
 thicc.mlt <- df.mlt[which(df.mlt$area<min.area),]
 
-my_pal <- my_pal1
+
+my_pal2 <- c("#e8e8e8", "#bddede", "#8ed4d4", "#5ac8c8",
+             "#dabdd4", "#bdbdd4", "#8ebdd4", "#5abdc8",
+             "#cc92c1", "#bd92c1", "#8e92c1", "#5a92c1",
+             "#be64ac", "#bd64ac", "#8e64ac", "#5a64ac")
+np_pal <- c("#e8e8e8", "#b0d5dd", "#76c1d1", "#35abc4", 
+            "#e8e8cc", "#b0d5cc", "#76c1cc", "#35abc4", 
+            "#e8e8a7", "#b0d5a7", "#76c1a7", "#35aba7", 
+            "#e8e840", "#b0d540", "#76c140", "#35ab40")
+np_pal2 <- c("#d3d3d3", "#a0c2c9", "#6bb0be", "#309cb2", 
+             "#d4d3ba", "#a1c2b1", "#6cb0a7", "#309c9d", 
+             "#d5d498", "#a2c391", "#6cb089", "#319c80", 
+             "#d9d53a", "#a4c337", "#6eb134", "#319d31")
+plot(rep(1:4, each=4), rep(1:4, 4), pch=20, cex=5, col=np_pal2) # color test
+my_pal <- np_pal2
 
 # the plots
 hs <- ggplot() +
@@ -45,7 +60,7 @@ hs <- ggplot() +
   bi_scale_fill(pal=my_pal, dim=dim, na.value="white") +
   geom_sf(data=thicc.mlt, lwd=1, aes(col=value), show.legend=F)+
   bi_scale_color(pal=my_pal, dim=dim, na.value="white")+
-  coord_sf(expand=T)+theme_void()+
+  coord_sf(expand=T, datum=NULL)+theme_void()+
   facet_wrap(~group, ncol=2)+
   theme(strip.background=element_blank())
 

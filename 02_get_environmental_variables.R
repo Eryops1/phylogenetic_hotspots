@@ -207,17 +207,16 @@ saveRDS(shp, file='data/hotspot_coverage.rds')
 
 # Merge + save ------------------------------------------------------------
 
-
-
-shp <- readRDS("fin_shape.rds")
+#shp <- readRDS("~/Downloads/fin_shape.rds")
+shp <- readRDS("data/fin_shape.rds")
 
 ## Load data from Global Plant Diversity Drivers --------------------------
 global_drivers <- readRDS("../Global_Drivers_2022/processed_data/shp_object_fin_analysis.RDS")
-global_drivers <- global_drivers[,-grep("ID|_NAM|CONTINENT|sr|pet_|_n|_abs|mangroves", names(global_drivers))]
+global_drivers <- global_drivers[,-grep("ID|_NAM|CONTINENT|sr|pet_|_n|_abs|mangroves|area", names(global_drivers))]
 global_drivers <- sf::st_drop_geometry(global_drivers)
 
 # merge into shape object
-shp <- merge(shp, global_drivers, all.x=TRUE)
+shp <- merge(shp, global_drivers, all.x=TRUE, by="LEVEL_3_CO")
 
 
 ## Load Environment data ---------------------------------------------------
@@ -255,8 +254,59 @@ shp$pre_change <- shp$bio12.1 - shp$pre_mean # future - current = increase if po
 
 
 
-# transform to Behrmann projection
-#behr <- "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs"
-#tmp <- st_transform(shp, behr) # Behrmann
-
+## SAVE -------------------------------------------------------------------
 saveRDS(shp, "data/fin_shp.rds")
+
+
+
+
+# Get threat variables for conservation hotspots --------------------------
+
+library(exactextractr)
+library(terra)
+ha_united <- st_read("data/hotspots_merged_cleaned.gpkg")
+vars = c('hfp', 'deforest', 'bio1', 'bio12')
+
+
+res <- matrix(nrow=nrow(ha_united), ncol=length(vars))
+rownames(res) <- ha_united$NAME
+# disag_id <- c()
+# upsale_count <- c()
+
+for(v in 1:length(vars)){
+  var = rast(paste0("~/Genome/PDiv/environment/", vars[v], ".tif")) 
+  # to account for insane CHELSA resolution
+  if(v %in% c(3,4)){  var = aggregate(var, fact = 3)}
+
+  for(i in 1:nrow(ha_united)){
+    # loop over hotspots
+    shape_sub <- ha_united[i,]
+    
+    rest1 <- exact_extract(var, shape_sub)[[1]]
+    # rest2 <- exact_extract(bio12, shape_sub)[[1]]
+    # rest3 <- exact_extract(deforest, shape_sub)[[1]]
+    # rest4 <- exact_extract(hfp, shape_sub)[[1]]
+    #rest <- na.omit(rest[[1]])
+    # increase resolution necessary?
+    # if(all(is.na(rest))==TRUE){
+    #   print('disaggregate to increase resolution')
+    #   upsale_count <- c(upsale_count, 1)
+    #   disag_id <- c(disag_id, paste(i))
+    #   # to avoid huge raster files crop to extent of shapefile sub * 20
+    #   newExtent <- extent(bbox(shape_sub))
+    #   lay2 <- crop(lay, newExtent*20)
+    #   lay2 <- disaggregate(lay2, 10)
+    #   rest <- exact_extract(lay2, shape_sub)
+    #   rest <- na.omit(rest[[1]])
+    #   
+    # }else{}
+    
+    # get mean
+    res[i,v] <- mean(rest1$value, na.rm=T)
+    cat(i, "\r")
+    gc()  
+  }
+
+}
+
+saveRDS(res, "data/conservation_hotspot_threat.rds")
