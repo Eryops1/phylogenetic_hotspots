@@ -8,6 +8,7 @@ library(data.table) # fast csv reading
 library(sf)
 library(terra)
 library(ggplot2)
+library(scico)
 theme_set(theme_bw())
 
 is <- vect("data/shapefile_bot_countries/level3_and_islands_merged.gpkg")

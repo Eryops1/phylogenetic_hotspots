@@ -3,16 +3,31 @@
 
 lunique <- function(x){length(unique(x))}
 
+range01 <- function(x){(x-min(x, na.rm = TRUE))/(max(x, na.rm = TRUE)-min(x, na.rm = TRUE))}
+
 
 
 library(ggcorrplot)
 
 
 #### plot setup ----
-my_pal1 <- c("#d3d3d3", "#a8aec3", "#7f88b2", "#5665a3", 
-             "#d3bc9a", "#a89b8e", "#7f7a82", "#565a77", 
-             "#d3a45e", "#a88756", "#7f6a4f", "#564e48", 
-             "#d38819", "#a87017", "#7f5816", "#564114")
+# my_pal1 <- c("#d3d3d3", "#a8aec3", "#7f88b2", "#5665a3", 
+#              "#d3bc9a", "#a89b8e", "#7f7a82", "#565a77", 
+#              "#d3a45e", "#a88756", "#7f6a4f", "#564e48", 
+#              "#d38819", "#a87017", "#7f5816", "#564114")
+# my_pal2 <- c("#e8e8e8", "#bddede", "#8ed4d4", "#5ac8c8",
+#              "#dabdd4", "#bdbdd4", "#8ebdd4", "#5abdc8",
+#              "#cc92c1", "#bd92c1", "#8e92c1", "#5a92c1",
+#              "#be64ac", "#bd64ac", "#8e64ac", "#5a64ac")
+# np_pal <- c("#e8e8e8", "#b0d5dd", "#76c1d1", "#35abc4", 
+#             "#e8e8cc", "#b0d5cc", "#76c1cc", "#35abc4", 
+#             "#e8e8a7", "#b0d5a7", "#76c1a7", "#35aba7", 
+#             "#e8e840", "#b0d540", "#76c140", "#35ab40")
+# np_pal2 <- c("#d3d3d3", "#a0c2c9", "#6bb0be", "#309cb2", "#d4d3ba", "#a1c2b1", "#6cb0a7", "#309c9d", "#d5d498", "#a2c391", "#6cb089", "#319c80", "#d9d53a", "#a4c337", "#6eb134", "#319d31")
+# plot(rep(1:4, each=4), rep(1:4, 4), pch=20, cex=5, col=np_pal) # color test
+# my_pal <- np_pal2
+np_pal <- c("#d3d3d3", "#a0c2c9", "#6bb0be", "#309cb2", "#d4d3ba", "#a1c2b1", "#6cb0a7", "#309c9d", "#d5d498", "#a2c391", "#6cb089", "#319c80", "#d9d53a", "#a4c337", "#6eb134", "#319d31")
+my_pal1 <- c("#d3d3d3", "#a0c2c9", "#6bb0be", "#309cb2", "#d4d3ba", "#a1c2b1", "#6cb0a7", "#309c9d", "#d5d498", "#a2c391", "#6cb089", "#319c80", "#d9d53a", "#a4c337", "#6eb134", "#319d31")
 my_pal1 <- c(
   "1-1" = as.character(my_pal1[1]), # low x, low y, etc.....
   "2-1" = as.character(my_pal1[2]), 
@@ -30,6 +45,10 @@ my_pal1 <- c(
   "2-4" = as.character(my_pal1[14]), 
   "3-4" = as.character(my_pal1[15]), 
   "4-4" = as.character(my_pal1[16]))
+
+
+
+
 
 # function that modifies corrplot from ggcorrplot package
 # to allow for visual highlighting of values above a certain thereshold
@@ -255,3 +274,141 @@ p <- c("biscale","terra","ggcorrplot","ggplot2","ncdf4","raster","exactextractr"
   "castor","ecospat","phyloregion","treemapify","scico","stringr","gbm","caret","spatialRF")
 sort(p)
 paste0(p, ", ", collapse=" ")
+
+
+
+
+
+sr_greedy <- function(species_matrix, m=0, n = nrow(species_matrix)) {
+  # rows = area, columns = species. binary.
+  # m = missing species tolerated? provide number of species
+  # n = max number of botanical countries allowed
+  
+  # set to store the cells
+  cell_set <- logical(nrow(species_matrix))
+  names(cell_set) <- row.names(species_matrix)
+  # store the number of species in each cell
+  species_count <- rowSums(species_matrix)
+  # store species count in each iteration
+  species <- c()
+  area <- c()
+  
+  # Loop until all species are represented (species count=0)
+  while (sum(species_count) > m & sum(cell_set) < n) {
+    # Find the cell with the maximum number of species and add it to set
+    best_cell <- which.max(species_count)
+    cell_set[best_cell] <- TRUE
+    # store species count with country
+    species <- c(species, max(species_count))
+    area <- c(area, names(best_cell))
+    # Update the species count for the remaining cells
+    ## set species (=columns) that are represented in best cell(=row) to 0
+    counted_species <- which(species_matrix[best_cell, ]==1)
+    species_matrix[, counted_species] <- 0
+    
+    species_count <-  rowSums(species_matrix)
+  }
+  return(list(cell_set, species, area))
+}
+
+pd_greedy <- function(species_matrix, phylo, m=0, n = nrow(species_matrix)) {
+  # rows = area, columns = species. binary.
+  # m = missing species tolerated? provide number of species
+  # n = max number of botanical countries allowed
+  # phylo = phylo object
+  
+  # set to store the cells
+  cell_set <- logical(nrow(species_matrix))
+  names(cell_set) <- row.names(species_matrix)
+  # store the PD in each cell
+  pd <- phyloregion::PD(species_matrix, phylo)
+  # store species count in each iteration
+  pd_number <- c()
+  area <- c()
+  
+  # Loop until all PD is represented (sum(pd)=0)
+  while (sum(pd) > m & sum(cell_set) < n) {
+    # Find the cell with the maximum total PD and add it to set
+    best_cell <- which.max(pd)
+    cell_set[best_cell] <- TRUE
+    # store pd with country
+    pd_number <- c(pd_number, max(pd))
+    area <- c(area, names(best_cell))
+    # Update the pd for the remaining cells
+    ## set species (=columns) that are represented in best cell(=row) to absent
+    counted_species <- which(species_matrix[best_cell, ]==1)
+    species_matrix[, counted_species] <- 0
+    
+    pd <-  phyloregion::PD(species_matrix, phylo)
+    message(paste(names(best_cell), " : ", max(pd))) # returns max pd to show progress
+  }
+  return(list(cell_set, pd_number, area))
+}
+
+
+## ------
+# #pde_greedy <- function(species_matrix, phylo, m=0, n = nrow(species_matrix)) {
+#   # rows = area, columns = species. binary.
+#   # m = missing species tolerated? provide number of species
+#   # n = max number of botanical countries allowed
+#   # phylo = phylo object
+#   
+#   # set to store the cells
+#   cell_set <- logical(nrow(species_matrix))
+#   names(cell_set) <- row.names(species_matrix)
+#   # store the PD in each cell
+#   pe <- phyloregion::phylo_endemism(species_matrix, phylo, weighted=F) # STRICT!
+#   # store species count in each iteration
+#   pe_number <- c()
+#   area <- c()
+#   
+#   # Loop until all PE is represented (sum(pd)=0)
+#   while (sum(pe) > m & sum(cell_set) < n) {
+#     # Find the cell with the maximum total PE and add it to set
+#     best_cell <- which.max(pe)
+#     cell_set[best_cell] <- TRUE
+#     # store pd with country
+#     pe_number <- c(pe_number, max(pe))
+#     area <- c(area, names(best_cell))
+#     # Update the pd for the remaining cells
+#     ## set species (=columns) that are represented in best cell(=row) to absent
+#     counted_species <- which(species_matrix[best_cell, ]==1)
+#     species_matrix[, counted_species] <- 0
+#     
+#     pd <-  phyloregion::phylo_endemism(species_matrix, phylo, weighted=F)
+#     message(paste(names(best_cell), " : ", max(pd))) # returns max pd to show progress
+#   }
+#   return(list(cell_set, pe_number, area))
+# }
+# 
+# #greed <- pde_greedy(submat, phylo=subphy[[1]])
+# 
+# # too slow, outsourced for parallel on cluster (01c_get_PDEcomplementarity_cluster.R). 
+# # read results
+# fnames <- dir("PDcomp")[grep("pde_complementarity", dir("PDcomp"))]
+# lpd <- list()
+# for(i in 1:100){
+#   lpd[[i]] <- readRDS(paste0("PDcomp/", fnames[i]))  
+# }
+# 
+# pde_complementarity = sapply(lpd, "[[", 1)
+# rowSums(pde_complementarity, na.rm=T) # this is the same everywhere
+# res <- data.table(pde_complementarity = pde_complementarity[,1],
+#                   LEVEL3_COD = row.names(pde_complementarity))
+# 
+# pde_added = sapply(lpd, "[[", 2) 
+# pde_area = sapply(lpd, "[[", 3)
+# apply(pde_area, 1, function(x)length(unique(x)))
+# # more than one option for close calls, using most common one though causes some
+# # countries to be duplicates which messes up the order
+# 
+# most_common <- apply(pde_area, 1, function(x)names(sort(table(x),decreasing=TRUE))[1])
+# # get average value for each country instead, ignore order
+# tmp = data.table(pde_added = as.numeric(pde_added),
+#                  LEVEL3_COD = as.character(pde_area))
+# average_PDE_added <- tapply(tmp$pde_added, tmp$LEVEL3_COD, mean)
+# res2 <- data.table(LEVEL3_COD = names(average_PDE_added),
+#                    pde_added = average_PDE_added)
+# res <- merge(res, res2, all.x=T, by="LEVEL3_COD")
+
+## -----
