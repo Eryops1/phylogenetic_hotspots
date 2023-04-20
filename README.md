@@ -1,4 +1,4 @@
-# Global hotspots of plant phylodiversity
+# Global hotspots of plant phylogenetic diversity
 
 ## Summary
 A global analysis of phylogenetic diversity focused on seed plants (Spermatophyta). The analyses capitalises
