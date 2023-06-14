@@ -20,7 +20,8 @@ library(ncdf4)
 
 # source: https://www.nature.com/articles/s41597-022-01284-8#Sec12
 hfp <- raster("data/hfp2018.tif")
-
+res(hfp)
+mapview::mapview(hfp)
 
 # *** Deforestation -----------------------------------------------------------
 
