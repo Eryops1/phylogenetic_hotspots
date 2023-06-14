@@ -10,6 +10,7 @@ library(sf)
 library(ggplot2)
 theme_set(theme_classic())
 library(cowplot)
+library(lwgeom)
 
 
 # Load data
@@ -103,7 +104,9 @@ shp$pde_complementarity <- shp$PDE > 0
 
 
 
-
+# Get SE complementarity -------------------------------------------
+# Same as for PD endemism
+shp$se_complementarity <- shp$SE > 0
 
 
 
@@ -117,9 +120,11 @@ shp$pde_complementarity <- shp$PDE > 0
 shp$sr_added_perc = shp$sr_added/sum(shp$sr_added, na.rm=T)
 shp$pd_added_perc = shp$pd_added/sum(shp$pd_added, na.rm=T)
 shp$pde_added_perc = shp$PDE/sum(shp$PDE, na.rm=T)
+shp$se_added_perc = shp$SE/sum(shp$SE, na.rm=T)
 
-# set zeros in PDE to NA
+# set zeros in PDE + SE to NA
 shp$pde_added_perc[shp$pde_added_perc==0] = NA
+shp$se_added_perc[shp$se_added_perc==0] = NA
 
 perc_sr = c()
 for(i in seq(.1, 1, by=.1)){
@@ -166,11 +171,26 @@ for(i in seq(.1, 1, by=.1)){
 perc_pde
 # To conserve 50% of PD, we need 12 countries
 
+perc_se = c()
+for(i in seq(.1, 1, by=.1)){
+  shpse = shp$se_added_perc
+  tmp = c()
+  while(sum(tmp) <= i & length(shpse)>0) {
+    # take percentage and add to set
+    tmp <- c(tmp, max(shpse, na.rm=T))
+    shpse = shpse[-which.max(shpse)]
+  }
+  perc_se = c(perc_se, length(tmp))
+  cat(i, "\r")
+}
+perc_se
+# To conserve 50% of SE, we need 17 countries
+
 
 # scatterplot decrease added percent
 bc <- c("#35abc4", "#4b9e31", "#eeea40")
-plot(sort(shp$sr_added_perc, decreasing=T), type="b", ylim=c(0,0.1),main="black=SR, blue=PD, green=PDendemism")
-points(sort(shp$pd_added_perc, decreasing=T), type="b", col=bc[1])
+#plot(sort(shp$sr_added_perc, decreasing=T), type="b", ylim=c(0,0.1),main="black=SR, blue=PD, green=PDendemism")
+#points(sort(shp$pd_added_perc, decreasing=T), type="b", col=bc[1])
 #points(sort(shp$pde_added_perc, decreasing=T), type="b", col=bc[2])
 
 # order(shp$sr_added_perc, decreasing=T)
@@ -191,6 +211,7 @@ points(tmp$pd, type="b", col=bc[1])
 pdt = data.table(percent_captured = seq(.1, 1, by=.1),
            SR = perc_sr, 
            PD = perc_pd, 
+           SE = perc_se,
            PD_endemism = perc_pde)
 pdt = melt(pdt, id="percent_captured")
 
@@ -235,6 +256,16 @@ shp$pd_comp_top10[11:nrow(shp)] <- FALSE
 shp <- shp[order(shp$PDE, decreasing=T), ]
 shp$pde_comp_50 <- shp$pde_complementarity
 shp$pde_comp_50[13:nrow(shp)] <- FALSE
+
+# SE top 10
+shp <- shp[order(shp$SE, decreasing=T), ]
+shp$se_top10 <- TRUE
+shp$se_top10[11:nrow(shp)] <- FALSE
+
+# PDE top 10
+shp <- shp[order(shp$PDE, decreasing=T), ]
+shp$pde_top10 <- TRUE
+shp$pde_top10[11:nrow(shp)] <- FALSE
 
 
 
@@ -298,8 +329,7 @@ theme_set(theme_void()+
     coord_sf(expand=F, datum=NULL)+
     scale_fill_manual("top 2.5% SR", values=c(NA, "grey50"), na.value="grey80", labels=c('excluded', 'included'))+
     ggtitle("Bot. countries with top 2.5% SR") + 
-    theme(legend.text.align=0, 
-          legend.title=element_blank())
+   theme(legend.position="none")
 )
 
 (pd_top25 <- ggplot(shp) + 
@@ -308,8 +338,7 @@ theme_set(theme_void()+
     scale_fill_manual("top 2.5% PD", values=c(NA, bc[1]), na.value="grey80", labels=c('excluded', 'included'))+
     ggtitle("Bot. countries with top 2.5% PD")+
     coord_sf(expand=F, datum=NULL) + 
-    theme(legend.text.align=0, 
-          legend.title=element_blank())
+    theme(legend.position="none")
 )
 
 (sr_comp10 <- ggplot(shp) + 
@@ -317,19 +346,17 @@ theme_set(theme_void()+
     geom_sf(aes(fill=sr_comp_top10), lwd=0.25/.pt, col="gray95") + 
     scale_fill_manual("top 10 SR", values=c(NA, "grey50"), na.value="grey80", labels=c('excluded', 'included'))+
     coord_sf(expand=F, datum=NULL)+
-    ggtitle("Top 10 most SR contributing bot. countries")+ 
-    theme(legend.text.align=0, 
-          legend.title=element_blank())
+    ggtitle("SR complementarity hotspots")+ 
+    theme(legend.position="none")
 )
 
 (pd_comp10 <- ggplot(shp) + 
     geom_sf(data = grat_wintri, color = "gray60", size = 0.25/.pt) + 
     geom_sf(aes(fill=pd_comp_top10), lwd=0.25/.pt, col="gray95") + 
     scale_fill_manual("top 10 PD", values=c(NA, bc[1]), na.value="grey80", labels=c('excluded', 'included'))+
-    ggtitle("Top 10 most PD contributing bot. countries")+
+    ggtitle("PD complementarity hotspots")+
     coord_sf(expand=F, datum=NULL)+ 
-    theme(legend.text.align=0, 
-          legend.title=element_blank())
+    theme(legend.position="none")
 )
 
 plot_grid(sr_top25+theme(plot.title = element_text(hjust = 0.5)),
@@ -337,7 +364,39 @@ plot_grid(sr_top25+theme(plot.title = element_text(hjust = 0.5)),
           sr_comp10+theme(plot.title = element_text(hjust = 0.5)),
           pd_comp10+theme(plot.title = element_text(hjust = 0.5)),
           ncol = 2, labels=c("A","B","C","D"), label_fontface=1, scale=1)
-ggsave("figures/fig2.png", width=10, height=6.5, units = "in", dpi = 300, bg = "white")
+# ggsave("figures/fig2.png", width=10, height=6.5, units = "in", dpi = 300, bg = "white")
+
+
+# add SE and PE endemism complementarity, which are just the top 10 since its strict endemism
+
+# get species endemism
+
+(SE_top10 <- ggplot(shp) + 
+    geom_sf(data = grat_wintri, color = "gray60", size = 0.25/.pt) + 
+    geom_sf(aes(fill=se_top10), lwd=0.25/.pt, col="gray95") + 
+    scale_fill_manual("top 10 SE", values=c(NA, "grey50"), na.value="grey80", labels=c('excluded', 'included'))+
+    ggtitle("Bot. countries with top 2.5% species endemism")+
+    coord_sf(expand=F, datum=NULL)+ 
+    theme(legend.position="none")
+)
+
+(PDE_top10 <- ggplot(shp) + 
+    geom_sf(data = grat_wintri, color = "gray60", size = 0.25/.pt) + 
+    geom_sf(aes(fill=pde_top10), lwd=0.25/.pt, col="gray95") + 
+    scale_fill_manual("top 10 PDE", values=c(NA, bc[1]), na.value="grey80", labels=c('excluded', 'included'))+
+    ggtitle("Bot. countries with top 2.5% PD endemism")+
+    coord_sf(expand=F, datum=NULL)+ 
+    theme(legend.position="none")
+)
+
+plot_grid(sr_top25+theme(plot.title = element_text(hjust = 0.5)),
+          pd_top25+theme(plot.title = element_text(hjust = 0.5)),
+          sr_comp10+theme(plot.title = element_text(hjust = 0.5)),
+          pd_comp10+theme(plot.title = element_text(hjust = 0.5)),
+          SE_top10+theme(plot.title = element_text(hjust = 0.5)), 
+          PDE_top10+theme(plot.title = element_text(hjust = 0.5)),
+          ncol = 2, labels=c("A","B","C","D","E","F"), label_fontface=1, scale=1)
+ggsave("figures/fig2_extended.png", width=10, height=9.75, units = "in", dpi = 300, bg = "white")
 
 
 
@@ -349,8 +408,7 @@ ggsave("figures/fig2.png", width=10, height=6.5, units = "in", dpi = 300, bg = "
     coord_sf(expand=F, datum=NULL)+
     scale_fill_manual("50%SR", values=c(NA, "grey50"), na.value="grey80", labels=c('excluded', 'included'))+
     ggtitle("50% SR in 15 bot. countries")+ 
-   theme(legend.text.align=0, 
-         legend.title=element_blank())
+   theme(legend.position="none")
 )
 
 (pd_comp_50_map <- ggplot(shp) + 
@@ -358,18 +416,17 @@ ggsave("figures/fig2.png", width=10, height=6.5, units = "in", dpi = 300, bg = "
     geom_sf(aes(fill=pd_comp_50),lwd=0.25/.pt, col="gray95") + 
     coord_sf(expand=F, datum=NULL)+
     scale_fill_manual("50%PD", values=c(NA, bc[1]), na.value="grey80", labels=c('excluded', 'included'))+
-    ggtitle("50% PD with 33 bot. countries")+ 
-    theme(legend.text.align=0, 
-          legend.title=element_blank())
+    ggtitle("50% PD in 33 bot. countries")+ 
+    theme(legend.position="none")
 )
 
-(pde_comp_50_map <- ggplot(shp) + 
-    geom_sf(data = grat_wintri, color = "gray60", size = 0.25/.pt) + 
-    geom_sf(aes(fill=pde_comp_50), lwd=0.25/.pt, col="gray95") + 
-    coord_sf(expand=F, datum=NULL)+
-    scale_fill_manual("50%PDE", values=c(NA, bc[2]), na.value="grey80")+
-    ggtitle("50% PD endemism with 12 bot. countries")
-)
+# (pde_comp_50_map <- ggplot(shp) + 
+#     geom_sf(data = grat_wintri, color = "gray60", size = 0.25/.pt) + 
+#     geom_sf(aes(fill=pde_comp_50), lwd=0.25/.pt, col="gray95") + 
+#     coord_sf(expand=F, datum=NULL)+
+#     scale_fill_manual("50%PDE", values=c(NA, bc[2]), na.value="grey80")+
+#     ggtitle("50% PD endemism with 12 bot. countries")
+# )
 
 plot_grid(sr_comp_50_map+theme(plot.title = element_text(hjust = 0.5)),
           pd_comp_50_map+theme(plot.title = element_text(hjust = 0.5)),
