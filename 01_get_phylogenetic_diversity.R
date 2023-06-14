@@ -175,6 +175,14 @@ WE <- weighted_endemism(submat)
 
 
 
+# Get species endemism -------------------------------------------------------
+
+endemics = which(colSums(submat)==1)
+subsubmat = submat[,endemics]
+SE <- rowSums(subsubmat)
+
+
+
 # Get PD endemism -----------------------------------------------------------=
 pde = readRDS("PDE_list.rds")
 tmp = as.data.table(pde)
@@ -192,7 +200,7 @@ names(PDE) = row.names(tmp)
 pd.df <- readRDS("data/sesPD.rds")
 pe.df <- readRDS("data/sesPE.rds")
 names(WE) == names(PDE)
-endemism <- data.table(WE, PDE, LEVEL3_COD = names(WE))
+endemism <- data.table(SE, WE, PDE, LEVEL3_COD = names(WE))
 
 s <- st_read("data/shapefile_bot_countries/level3_fixed.gpkg")
 # replace area
