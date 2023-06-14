@@ -35,7 +35,7 @@ shp <- st_transform(shp, crs=my_projection)
 
 # remove not needed data + rename
 keep = c("LEVEL3_COD", "LEVEL_3_CO", "LEVEL_NAME", "area", "richness", "PD_obs",
-         "PE_obs", "WE", "PDE", "mrd", "sub_trop_mbf", "sub_trop_dbf", "sub_trop_cf",
+         "PE_obs", "WE", "SE", "PDE", "mrd", "sub_trop_mbf", "sub_trop_dbf", "sub_trop_cf",
          "temp_bmf", "temp_cf", "boreal_f_taiga", "sub_trop_gss", "temp_gss", 
          "flooded_gs", "mont_gs", "tundra", "medit_fws", "deserts_x_shrub", 
          "hfp.1", "hfp.2", "hfp.3", "deforestation2", "hotspot_coverage", 
@@ -173,6 +173,23 @@ maxcol = cols[n3]
     coord_sf(expand=F, datum=NULL)
 )
 
+# SE
+
+n2 = max(thicc_lines$SE)/max(shp$SE)
+n3 = which.min(abs(x-n2))
+x <- seq(0, 1, length.out=diff(range(shp$SE)))
+cols = seq_gradient_pal("white", "grey50")(x)
+maxcol = cols[n3]
+
+(se_map <- ggplot(shp) + 
+    geom_sf(data = grat_wintri, color = "gray30", size = 0.25/.pt) + 
+    geom_sf(aes(fill=SE),lwd=0.25/.pt, col="gray50") + 
+    scale_fill_gradient("SE", low="gray95", high="grey20", trans="sqrt")+
+    geom_sf(data=thicc_lines, lwd=1, aes(col=as.numeric(WE)), show.legend=F)+
+    scale_color_gradient(low="gray95", high=maxcol)+
+    coord_sf(expand=F, datum=NULL)
+)
+
 # PD endemism
 
 n2 = max(thicc_lines$PDE)/max(shp$PDE)
@@ -199,6 +216,15 @@ plot_grid(sr_map+ggtitle("Species richness")+theme(plot.title = element_text(hju
           ncol = 1, labels=c("A","B","C"), label_fontface=1, label_fontfamily="Helvetica", 
           scale=1)
 ggsave("figures/fig1.png", width=5, height=10, units = "in", dpi = 300, bg = "white")
+
+plot_grid(sr_map+ggtitle("Species richness")+theme(plot.title = element_text(hjust = 0.5)), 
+          pd_map+ggtitle("Phylogenetic diversity")+theme(plot.title = element_text(hjust = 0.5)),
+          se_map+ggtitle("Species endemism")+theme(plot.title = element_text(hjust = 0.5)), 
+          pde_map+ggtitle("PD endemism")+theme(plot.title = element_text(hjust = 0.5)),
+          ncol = 2, labels="AUTO", label_fontface=1, label_fontfamily="Helvetica", 
+          scale=1)
+ggsave("figures/fig1_extended.png", width=10, height=6.5, units = "in", dpi = 300, bg = "white")
+
 
 
 # SI fig 1
@@ -310,7 +336,7 @@ cor.test(lee.dat$richness, lee.dat$PDE, method="s")
 lee.test(lee.dat$richness, lee.dat$PDE, listw=col.W, zero.policy = TRUE, alternative="two.sided")
 lee.mc(lee.dat$richness, lee.dat$PDE, listw=col.W, zero.policy = TRUE, alternative="greater", nsim=999)
 
-cor.test(lee.dat$PDE, lee.dat$PE_obs, method="s")
+cor.test(lee.dat$PDE, lee.dat$PE_obs, method="s") # 0.87
 plot(sqrt(lee.dat$PDE), lee.dat$PE_obs)
 lee.test(sqrt(lee.dat$PDE), lee.dat$PE_obs, listw=col.W, zero.policy = TRUE, alternative="two.sided")
 lee.test(lee.dat$PDE, lee.dat$PE_obs, listw=col.W, zero.policy = TRUE, alternative="two.sided")
