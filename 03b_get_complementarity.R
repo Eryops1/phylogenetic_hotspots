@@ -472,8 +472,8 @@ sum(sort(shp$pd_added_perc, decreasing=T)[1:10])
 tab = st_drop_geometry(shp[shp$pd_comp_top10 | shp$toppd==1,
                            c("LEVEL_NAME", "LEVEL3_COD", "topsr", "sr_comp_top10", 
                              "toppd","pd_comp_top10",
-                             "richness", "PD_obs", "PDE")])
-tab[,c("PD_obs", "PDE")] = round(tab[,c("PD_obs", "PDE")])
+                             "richness", "PD_obs", "SE", "PDE")])
+tab[,c("PD_obs", "PDE", "SE")] = round(tab[,c("PD_obs", "PDE", "SE")])
 tab <- tab[order(tab$LEVEL_NAME),]
 tab <- tab[order(tab$pd_comp_top10, decreasing=T),]
 knitr::kable(tab, digits=2, format="simple", row.names=F)
