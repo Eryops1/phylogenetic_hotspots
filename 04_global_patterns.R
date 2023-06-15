@@ -184,7 +184,7 @@ maxcol = cols[n3]
 (se_map <- ggplot(shp) + 
     geom_sf(data = grat_wintri, color = "gray30", size = 0.25/.pt) + 
     geom_sf(aes(fill=SE),lwd=0.25/.pt, col="gray50") + 
-    scale_fill_gradient("SE", low="gray95", high="grey20", trans="sqrt")+
+    scale_fill_gradient("SE", low="gray95", high="#8E6496", trans="sqrt")+
     geom_sf(data=thicc_lines, lwd=1, aes(col=as.numeric(WE)), show.legend=F)+
     scale_color_gradient(low="gray95", high=maxcol)+
     coord_sf(expand=F, datum=NULL)
@@ -208,14 +208,14 @@ maxcol = cols[n3]
 )
 
 
-
-plot_grid(sr_map+ggtitle("Species richness")+theme(plot.title = element_text(hjust = 0.5)), 
-          #we_map+ggtitle("Weighted endemism\n")+theme(plot.title = element_text(hjust = 0.5)), 
-          pd_map+ggtitle("Phylogenetic diversity")+theme(plot.title = element_text(hjust = 0.5)), 
-          pde_map+ggtitle("PD endemism")+theme(plot.title = element_text(hjust = 0.5)),
-          ncol = 1, labels=c("A","B","C"), label_fontface=1, label_fontfamily="Helvetica", 
-          scale=1)
-ggsave("figures/fig1.png", width=5, height=10, units = "in", dpi = 300, bg = "white")
+# 
+# plot_grid(sr_map+ggtitle("Species richness")+theme(plot.title = element_text(hjust = 0.5)), 
+#           #we_map+ggtitle("Weighted endemism\n")+theme(plot.title = element_text(hjust = 0.5)), 
+#           pd_map+ggtitle("Phylogenetic diversity")+theme(plot.title = element_text(hjust = 0.5)), 
+#           pde_map+ggtitle("PD endemism")+theme(plot.title = element_text(hjust = 0.5)),
+#           ncol = 1, labels=c("A","B","C"), label_fontface=1, label_fontfamily="Helvetica", 
+#           scale=1)
+# ggsave("figures/fig1.png", width=5, height=10, units = "in", dpi = 300, bg = "white")
 
 plot_grid(sr_map+ggtitle("Species richness")+theme(plot.title = element_text(hjust = 0.5)), 
           pd_map+ggtitle("Phylogenetic diversity")+theme(plot.title = element_text(hjust = 0.5)),
@@ -226,13 +226,67 @@ plot_grid(sr_map+ggtitle("Species richness")+theme(plot.title = element_text(hju
 ggsave("figures/fig1_extended.png", width=10, height=6.5, units = "in", dpi = 300, bg = "white")
 
 
+# FIG 1, area-corrected  ------------------------------------------------------------------
 
-# SI fig 1
-plot_grid(we_map + ggtitle("Weighted endemism")+theme(plot.title = element_text(hjust = 0.5)),
-          pe_map + ggtitle("Phylogenetic endemism")+theme(plot.title = element_text(hjust = 0.5)),
-          pde_map + ggtitle("PD endemism")+theme(plot.title = element_text(hjust = 0.5)),
-          ncol = 1, labels=c("A","B","C"), label_fontface=1, scale=1)
-ggsave("figures/fig1_SI.png", width=5, height=10, units = "in", dpi = 300, bg = "white")
+# standardize for area
+shp_area = shp[,c("LEVEL3_COD" ,"richness", "PD_obs", "PDE", "SE", "area")]
+shp_area$richness = as.numeric(shp_area$richness/shp_area$area)
+shp_area$PD_obs = as.numeric(shp_area$PD_obs/shp_area$area)
+shp_area$PDE = as.numeric(shp_area$PDE/shp_area$area)
+shp_area$SE = as.numeric(shp_area$SE/shp_area$area)
+
+# PD
+(pd_map <- ggplot(shp_area) + 
+    geom_sf(data = grat_wintri, color = "gray30", size = 0.25/.pt) + 
+    geom_sf(data=shp_area, aes(fill=PD_obs, col=PD_obs),lwd=3/.pt) + 
+    scale_fill_gradient("PD", low="gray95", high=bc[1], trans="log")+
+    scale_color_gradient("PD", low="gray95", high=bc[1], trans="log")+
+    geom_sf(data=shp_area, aes(fill=PD_obs), lwd=0.25/.pt, col="grey50") + 
+    coord_sf(expand=F, datum=NULL)
+)
+
+# SR 
+(sr_map <- ggplot(shp_area) + 
+    geom_sf(data = grat_wintri, color = "gray30", size = 0.25/.pt) + 
+    geom_sf(aes(fill=richness, col=richness),lwd=3/.pt) + 
+    scale_fill_gradient("SR", low="gray95", high="grey20", trans="log")+
+    scale_color_gradient("SR", low="gray95", high="grey20", trans="log")+
+    geom_sf(aes(fill=richness),lwd=0.25/.pt, col="gray50") + 
+    coord_sf(expand=F, datum=NULL)
+)
+
+# SE
+(se_map <- ggplot(shp_area) + 
+    geom_sf(data = grat_wintri, color = "gray30", size = 0.25/.pt) + 
+    geom_sf(aes(fill=SE, col=SE),lwd=3/.pt) + 
+    scale_fill_gradient("Species\nendemism", low="gray95", high="#8E6496", trans="log")+
+    scale_color_gradient("Species\nendemism", low="gray95", high="#8E6496", trans="log")+
+    geom_sf(aes(fill=SE),lwd=0.25/.pt, col="gray50") + 
+    coord_sf(expand=F, datum=NULL)
+)
+
+# PD endemism
+(pde_map <- ggplot(shp_area) + 
+    geom_sf(data = grat_wintri, color = "gray30", size = 0.25/.pt) + 
+    geom_sf(aes(fill=PDE, col=PDE),lwd=3/.pt) + 
+    scale_fill_gradient("PD\nendemism", low="gray95", high=bc[2], trans="log")+
+    scale_color_gradient("PD\nendemism", low="gray95", high=bc[2], trans="log")+
+    geom_sf(aes(fill=PDE),lwd=0.25/.pt, col="gray50") + 
+    coord_sf(expand=F, datum=NULL)
+)
+
+png("figures/fig1_extended_area.png", width=10, height=6.5, units = "in", res = 300, bg = "white")
+plot_grid(sr_map+ggtitle("Species richness/area")+theme(plot.title = element_text(hjust = 0.5)), 
+          pd_map+ggtitle("Phylogenetic diversity/area")+theme(plot.title = element_text(hjust = 0.5)),
+          se_map+ggtitle("Species endemism/area")+theme(plot.title = element_text(hjust = 0.5)), 
+          pde_map+ggtitle("PD endemism/area")+theme(plot.title = element_text(hjust = 0.5)),
+          ncol = 2, labels="AUTO", label_fontface=1, label_fontfamily="Helvetica", 
+          scale=1)
+dev.off()
+ggsave("figures/fig1_extended_area.png", width=10, height=6.5, units = "in", dpi = 300, bg = "white")
+
+
+
 
 
 
