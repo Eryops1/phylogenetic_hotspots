@@ -221,9 +221,9 @@ plot_grid(sr_map+ggtitle("Species richness")+theme(plot.title = element_text(hju
           pd_map+ggtitle("Phylogenetic diversity")+theme(plot.title = element_text(hjust = 0.5)),
           se_map+ggtitle("Species endemism")+theme(plot.title = element_text(hjust = 0.5)), 
           pde_map+ggtitle("PD endemism")+theme(plot.title = element_text(hjust = 0.5)),
-          ncol = 2, labels="AUTO", label_fontface=1, label_fontfamily="Helvetica", 
+          ncol = 2, labels=c("(a)","(b)","(c)","(d)"), label_fontface=2, label_fontfamily="Helvetica", 
           scale=1)
-ggsave("figures/fig1_extended.png", width=10, height=6.5, units = "in", dpi = 300, bg = "white")
+ggsave("figures/fig1.png", width=10, height=6.5, units = "in", dpi = 300, bg = "white")
 
 
 # FIG 1, area-corrected  ------------------------------------------------------------------
@@ -275,15 +275,15 @@ shp_area$SE = as.numeric(shp_area$SE/shp_area$area)
     coord_sf(expand=F, datum=NULL)
 )
 
-png("figures/fig1_extended_area.png", width=10, height=6.5, units = "in", res = 300, bg = "white")
+png("figures/fig1_area.png", width=10, height=6.5, units = "in", res = 300, bg = "white")
 plot_grid(sr_map+ggtitle("Species richness/area")+theme(plot.title = element_text(hjust = 0.5)), 
           pd_map+ggtitle("Phylogenetic diversity/area")+theme(plot.title = element_text(hjust = 0.5)),
           se_map+ggtitle("Species endemism/area")+theme(plot.title = element_text(hjust = 0.5)), 
           pde_map+ggtitle("PD endemism/area")+theme(plot.title = element_text(hjust = 0.5)),
-          ncol = 2, labels="AUTO", label_fontface=1, label_fontfamily="Helvetica", 
+          ncol = 2, labels=c("(a)","(b)","(c)","(d)"), label_fontface=2, label_fontfamily="Helvetica", 
           scale=1)
 dev.off()
-ggsave("figures/fig1_extended_area.png", width=10, height=6.5, units = "in", dpi = 300, bg = "white")
+#ggsave("figures/fig1_extended_area.png", width=10, height=6.5, units = "in", dpi = 300, bg = "white")
 
 
 

@@ -225,7 +225,7 @@ pdt = melt(pdt, id="percent_captured")
   theme(legend.position=c(.28,.87), 
         legend.background=element_blank())
 )
-ggsave("figures/barplot_percentages_bot_countries.png", width=3.5, height=3.5, dpi=600, bg="white")
+ggsave("figures/fig4.png", width=3.5, height=3.5, dpi=600, bg="white")
   
 
 
@@ -364,7 +364,7 @@ plot_grid(sr_top25+theme(plot.title = element_text(hjust = 0.5)),
           pd_top25+theme(plot.title = element_text(hjust = 0.5)),
           sr_comp10+theme(plot.title = element_text(hjust = 0.5)),
           pd_comp10+theme(plot.title = element_text(hjust = 0.5)),
-          ncol = 2, labels=c("A","B","C","D"), label_fontface=1, scale=1)
+          ncol = 2, labels=c("(a)","(b)","(c)","(d)"), label_fontface=2, scale=1)
 # ggsave("figures/fig2.png", width=10, height=6.5, units = "in", dpi = 300, bg = "white")
 
 
@@ -396,8 +396,8 @@ plot_grid(sr_top25+theme(plot.title = element_text(hjust = 0.5)),
           pd_comp10+theme(plot.title = element_text(hjust = 0.5)),
           SE_top10+theme(plot.title = element_text(hjust = 0.5)), 
           PDE_top10+theme(plot.title = element_text(hjust = 0.5)),
-          ncol = 2, labels=c("A","B","C","D","E","F"), label_fontface=1, scale=1)
-ggsave("figures/fig2_extended.png", width=10, height=9.75, units = "in", dpi = 300, bg = "white")
+          ncol = 2, labels=c("(a)","(b)","(c)","(d)","(e)","(f)"), label_fontface=2, scale=1)
+ggsave("figures/fig2.png", width=10, height=9.75, units = "in", dpi = 300, bg = "white")
 
 
 
@@ -431,8 +431,8 @@ ggsave("figures/fig2_extended.png", width=10, height=9.75, units = "in", dpi = 3
 
 plot_grid(sr_comp_50_map+theme(plot.title = element_text(hjust = 0.5)),
           pd_comp_50_map+theme(plot.title = element_text(hjust = 0.5)),
-          ncol=2, labels=c("A","B","C"), label_fontface=1, scale=1)
-ggsave("figures/halflife.png", width=10, height=3.25, dpi=300, bg="white")
+          ncol=2, labels=c("(a)","(b)"), label_fontface=2, scale=1)
+ggsave("figures/fig3.png", width=10, height=3.25, dpi=300, bg="white")
 
 
 
@@ -594,7 +594,7 @@ ggplot(hab.mlt, aes(x=value)) +
   
 
 # for top2.5%
-hab.df <- tab2[, c("LEVEL_NAME", "LEVEL3_COD")]
+hab.df <- tab[, c("LEVEL_NAME", "LEVEL3_COD")]
 hab.df <- merge(hab.df, biomes, all.x=TRUE, by.x="LEVEL3_COD", by.y="country")
 rowSums(hab.df[,-c(1,2)], na.rm=T)
 
@@ -777,7 +777,7 @@ tmp2 = melt(tmp, id.vars=c("LEVEL3_COD", "toppd"), value.name = 'coverage', vari
 )
 
 plot_grid(comp_biome, top_biome, ncol=2, rel_widths=c(.63,.37),
-          labels=c("A","B"), label_fontface=1, scale=1)
+          labels=c("(a)","(b)"), label_fontface=2, scale=1)
 
 ggsave('figures/biome_proportions.png', width=9, height=5, dpi=300)
 

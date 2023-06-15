@@ -391,7 +391,7 @@ plot_grid(
           pd_top25+theme(plot.title = element_text(hjust = 0.5)),
           sr_comp10+theme(plot.title = element_text(hjust = 0.5)),
           pd_comp10+theme(plot.title = element_text(hjust = 0.5)),
-          ncol = 2, labels=c("A","B","C","D"), label_fontface=1, scale=1)
+          ncol = 2, labels=c("(a)","(b)","(c)","(d)"), label_fontface=1, scale=1)
 ggsave("figures/fig2_political_countries.png", width=10, height=6.5, units = "in", dpi = 300, bg = "white")
 
 
@@ -435,7 +435,7 @@ ggsave("figures/fig2_political_countries.png", width=10, height=6.5, units = "in
 
 plot_grid(sr_comp_50_map+theme(plot.title = element_text(hjust = 0.5)),
           pd_comp_50_map+theme(plot.title = element_text(hjust = 0.5)),
-          ncol=2, labels=c("A","B","C"), label_fontface=1, scale=1)
+          ncol=2, labels=c("(a)","(b)"), label_fontface=1, scale=1)
 ggsave("figures/halflife_political.png", width=10, height=3.25, dpi=300, bg="white")
 
 
