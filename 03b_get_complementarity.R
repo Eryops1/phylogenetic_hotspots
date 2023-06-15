@@ -220,8 +220,9 @@ pdt = melt(pdt, id="percent_captured")
   scale_fill_discrete("")+
   ylab("Botanical countries")+
   xlab("Proportion captured")+
-  scale_fill_manual("", values=c("grey50", bc[1], bc[2]), labels=c('SR', 'PD', 'PD endemism'))+
-  theme(legend.position=c(.25,.9), 
+  scale_fill_manual("", values=c("grey50", bc[1], "#8E6496", bc[2]), 
+                    labels=c('SR', 'PD', 'Species endemism', 'PD endemism'))+
+  theme(legend.position=c(.28,.87), 
         legend.background=element_blank())
 )
 ggsave("figures/barplot_percentages_bot_countries.png", width=3.5, height=3.5, dpi=600, bg="white")
